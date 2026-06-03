@@ -1,5 +1,51 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 
+// ============================================================
+//  DARK MODE CSS VARIABLES
+// ============================================================
+const LIGHT_THEME = `
+  --bg: #ffffff;
+  --bg2: #fafaf8;
+  --bg3: #f5f5f3;
+  --border: #e8e8e4;
+  --border2: #d4d4d0;
+  --text: #1a1a1a;
+  --text2: #555555;
+  --text3: #888888;
+  --text4: #aaaaaa;
+  --card-bg: #ffffff;
+  --input-bg: #fafaf8;
+  --missing-bg: #f5f5f3;
+`;
+
+const DARK_THEME = `
+  --bg: #1a1a1a;
+  --bg2: #242424;
+  --bg3: #2e2e2e;
+  --border: #3a3a3a;
+  --border2: #4a4a4a;
+  --text: #f0f0f0;
+  --text2: #cccccc;
+  --text3: #999999;
+  --text4: #666666;
+  --card-bg: #242424;
+  --input-bg: #2e2e2e;
+  --missing-bg: #2e2e2e;
+`;
+
+function useDarkMode() {
+  const [dark, setDark] = useState<boolean>(() => localStorage.getItem("wcf_dark") === "true");
+  useEffect(() => {
+    document.documentElement.style.cssText = dark ? DARK_THEME : LIGHT_THEME;
+    localStorage.setItem("wcf_dark", String(dark));
+  }, [dark]);
+  // Apply immediately on mount
+  useEffect(() => {
+    document.documentElement.style.cssText = localStorage.getItem("wcf_dark") === "true" ? DARK_THEME : LIGHT_THEME;
+  }, []);
+  return { dark, toggleDark: () => setDark(d => !d) };
+}
+
 const SUPABASE_URL = "https://odtcnomhpvxhgzbpaevh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_AQN2HtfIBlrI8cmQYDZOuw_vaUyOL8u";
 
@@ -356,12 +402,12 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:12}}>
-      <div style={{background:"#fff",borderRadius:14,padding:16,width:"100%",maxWidth:freeWidth?600:440}}>
+      <div style={{background:"var(--bg)",borderRadius:14,padding:16,width:"100%",maxWidth:freeWidth?600:440}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
           <span style={{fontWeight:600,fontSize:15}}>{t("adjustImage")}</span>
-          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#888"}}>×</button>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
         </div>
-        <p style={{fontSize:12,color:"#888",marginBottom:10}}>{t("cropHint")}</p>
+        <p style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>{t("cropHint")}</p>
         <div ref={containerRef} style={{width:"100%",height:CH,background:"#111",borderRadius:8,position:"relative",overflow:"hidden",userSelect:"none",touchAction:"none"}}>
           {imgBase.w > 0 && <img src={imageSrc} style={{position:"absolute",left:imgDisplay.x,top:imgDisplay.y,width:imgDisplay.w,height:imgDisplay.h,pointerEvents:"none"}} />}
           {imgBase.w > 0 && <>
@@ -380,18 +426,18 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
               if (aspectRatio===1 && ["n","s"].includes(h)) return null;
               if (freeWidth && ["n","s","nw","ne","sw","se"].includes(h)) return null;
               return <div key={h} onMouseDown={e=>{e.stopPropagation();onMouseDown(e,h);}} onTouchStart={e=>{e.stopPropagation();onTouchStart(e,h);}}
-                style={{position:"absolute",width:14,height:14,background:"#fff",borderRadius:2,cursor:hCursor[h],...hPos[h],touchAction:"none"}} />;
+                style={{position:"absolute",width:14,height:14,background:"var(--bg)",borderRadius:2,cursor:hCursor[h],...hPos[h],touchAction:"none"}} />;
             })}
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:12}}>
-          <span style={{fontSize:13,color:"#888",flexShrink:0}}>{t("zoom")}</span>
+          <span style={{fontSize:13,color:"var(--text3)",flexShrink:0}}>{t("zoom")}</span>
           <input type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5" value={Math.round(zoom*100)} onChange={e=>handleZoom(Number(e.target.value)/100)} style={{flex:1,cursor:"pointer"}} />
-          <span style={{fontSize:12,color:"#888",minWidth:36,textAlign:"right"}}>{Math.round(zoom*100)}%</span>
+          <span style={{fontSize:12,color:"var(--text3)",minWidth:36,textAlign:"right"}}>{Math.round(zoom*100)}%</span>
         </div>
         <canvas ref={canvasRef} style={{display:"none"}} />
         <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14}}>
-          <button onClick={onClose} style={{padding:"7px 14px",fontSize:13,border:"1px solid #e8e8e4",borderRadius:8,background:"#f5f5f3",cursor:"pointer"}}>{t("cancel")}</button>
+          <button onClick={onClose} style={{padding:"7px 14px",fontSize:13,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg3)",cursor:"pointer"}}>{t("cancel")}</button>
           <button onClick={handleConfirm} style={{padding:"7px 14px",fontSize:13,border:"none",borderRadius:8,background:"#1a1a1a",color:"#fff",cursor:"pointer",fontWeight:500}}>{t("confirmUpload")}</button>
         </div>
       </div>
@@ -427,11 +473,11 @@ function ImageUploader({ apiKey, currentUrl, onUploaded, label, aspectRatio, for
 
   return (
     <div>
-      <div style={{fontSize:12,color:"#888",marginBottom:5,fontWeight:500}}>{label}</div>
-      <div onClick={()=>!uploading&&inputRef.current?.click()} style={{border:"1.5px dashed #e8e8e4",borderRadius:10,padding:12,cursor:uploading?"wait":"pointer",textAlign:"center",background:"#fafaf8",marginBottom:4}}>
+      <div style={{fontSize:12,color:"var(--text3)",marginBottom:5,fontWeight:500}}>{label}</div>
+      <div onClick={()=>!uploading&&inputRef.current?.click()} style={{border:"1.5px dashed var(--border)",borderRadius:10,padding:12,cursor:uploading?"wait":"pointer",textAlign:"center",background:"var(--bg2)",marginBottom:4}}>
         {currentUrl
-          ? <div><img src={currentUrl} alt="" style={{maxHeight:80,maxWidth:"100%",borderRadius:6,marginBottom:6,objectFit:"contain"}} /><div style={{fontSize:12,color:"#888"}}>{uploading ? t("uploading") : t("uploadChange")}</div></div>
-          : <div style={{color:"#aaa",fontSize:13}}>{uploading ? t("uploading") : t("uploadClick")}</div>
+          ? <div><img src={currentUrl} alt="" style={{maxHeight:80,maxWidth:"100%",borderRadius:6,marginBottom:6,objectFit:"contain"}} /><div style={{fontSize:12,color:"var(--text3)"}}>{uploading ? t("uploading") : t("uploadChange")}</div></div>
+          : <div style={{color:"var(--text4)",fontSize:13}}>{uploading ? t("uploading") : t("uploadClick")}</div>
         }
         <input ref={inputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>e.target.files?.[0]&&handleFile(e.target.files[0])} />
       </div>
@@ -451,7 +497,7 @@ function ProgressBar({ value, total, color }: { value:number; total:number; colo
       <div style={{flex:1,height:5,background:"#e8e8e4",borderRadius:4,overflow:"hidden"}}>
         <div style={{height:"100%",width:pct+"%",background:color,borderRadius:4,transition:"width 0.4s"}} />
       </div>
-      <span style={{fontSize:12,color:"#888",minWidth:36,textAlign:"right"}}>{value}/{total}</span>
+      <span style={{fontSize:12,color:"var(--text3)",minWidth:36,textAlign:"right"}}>{value}/{total}</span>
     </div>
   );
 }
@@ -463,10 +509,10 @@ function Btn({ onClick, children, variant="default", small=false }: { onClick:()
 function Modal({ title, onClose, children }: { title:string; onClose:()=>void; children:React.ReactNode }) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div style={{background:"#fff",borderRadius:14,padding:24,width:"100%",maxWidth:420,maxHeight:"90vh",overflowY:"auto"}}>
+      <div style={{background:"var(--bg)",borderRadius:14,padding:24,width:"100%",maxWidth:420,maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
           <span style={{fontWeight:600,fontSize:16}}>{title}</span>
-          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#888"}}>×</button>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
         </div>
         {children}
       </div>
@@ -474,17 +520,17 @@ function Modal({ title, onClose, children }: { title:string; onClose:()=>void; c
   );
 }
 function Field({ label, children }: { label:string; children:React.ReactNode }) {
-  return <div style={{marginBottom:14}}><div style={{fontSize:12,color:"#888",marginBottom:5,fontWeight:500}}>{label}</div>{children}</div>;
+  return <div style={{marginBottom:14}}><div style={{fontSize:12,color:"var(--text3)",marginBottom:5,fontWeight:500}}>{label}</div>{children}</div>;
 }
 function Input({ value, onChange, placeholder }: { value:string; onChange:(v:string)=>void; placeholder?:string }) {
-  return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"8px 10px",fontSize:14,border:"1px solid #e8e8e4",borderRadius:8,outline:"none",boxSizing:"border-box"}} />;
+  return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"8px 10px",fontSize:14,border:"1px solid var(--border)",borderRadius:8,outline:"none",boxSizing:"border-box"}} />;
 }
 function EmojiPicker({ value, onChange }: { value:string; onChange:(e:string)=>void }) {
   const [show, setShow] = useState(false);
   return (
     <div>
-      <button onClick={()=>setShow(!show)} style={{fontSize:24,background:"#f5f5f3",border:"1px solid #e8e8e4",borderRadius:8,padding:"4px 10px",cursor:"pointer"}}>{value}</button>
-      {show && <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8,padding:10,background:"#f5f5f3",borderRadius:8}}>{EMOJIS.map(e=><span key={e} onClick={()=>{onChange(e);setShow(false);}} style={{fontSize:22,cursor:"pointer",padding:4,borderRadius:6,background:value===e?"#e8e8e4":"transparent"}}>{e}</span>)}</div>}
+      <button onClick={()=>setShow(!show)} style={{fontSize:24,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer"}}>{value}</button>
+      {show && <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8,padding:10,background:"var(--bg3)",borderRadius:8}}>{EMOJIS.map(e=><span key={e} onClick={()=>{onChange(e);setShow(false);}} style={{fontSize:22,cursor:"pointer",padding:4,borderRadius:6,background:value===e?"#e8e8e4":"transparent"}}>{e}</span>)}</div>}
     </div>
   );
 }
@@ -520,7 +566,7 @@ function SetModal({ title, initial, apiKey, onSave, onClose }: { title:string; i
       <Field label={t("setNameLabel")}><Input value={name} onChange={setName} placeholder="Ej: Vol. 1" /></Field>
       <Field label={t("releaseDateLabel")}>
         <input type="month" value={releaseDate} onChange={e=>setReleaseDate(e.target.value)}
-          style={{width:"100%",padding:"8px 10px",fontSize:14,border:"1px solid #e8e8e4",borderRadius:8,outline:"none",boxSizing:"border-box" as const}} />
+          style={{width:"100%",padding:"8px 10px",fontSize:14,border:"1px solid var(--border)",borderRadius:8,outline:"none",boxSizing:"border-box" as const}} />
       </Field>
       <ImageUploader apiKey={apiKey} currentUrl={seriesLogo} onUploaded={setSeriesLogo} label={t("setLogoLabel")} aspectRatio={null} format="png" skipCrop />
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
@@ -561,7 +607,7 @@ function SettingsModal({ apiKey, currentBanner, onSave, onClose }: { apiKey:stri
   return (
     <Modal title={`⚙️ ${t("settings")}`} onClose={onClose}>
       <Field label={t("imgbbKey")}><Input value={key} onChange={setKey} placeholder="Pega aquí tu API key" /></Field>
-      <p style={{fontSize:12,color:"#888",marginBottom:16}}>{t("imgbbHint")}</p>
+      <p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>{t("imgbbHint")}</p>
       <ImageUploader apiKey={key||apiKey} currentUrl={banner} onUploaded={setBanner} label="Banner de la app (parte superior)" aspectRatio={null} format="png" skipCrop />
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
@@ -588,15 +634,15 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
     <div style={{border:"1px solid "+(isOwned?color:isWished?"#f59e0b":"#e8e8e4"),borderRadius:10,background:isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s"}}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
       {hover && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
-        <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"#fff",border:"1px solid #e8e8e4",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
+        <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
         <button onClick={e=>{e.stopPropagation();onDelete();}} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>🗑</button>
         {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"#fff",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
       </div>}
       {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
       {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
-      <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"#f5f5f3",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
+      <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
-          : <div style={{textAlign:"center"}}><div style={{fontSize:36}}>{figure.emoji}</div><div style={{fontSize:10,color:"#bbb",marginTop:4}}>{t("noImage")}</div></div>}
+          : <div style={{textAlign:"center"}}><div style={{fontSize:36}}>{figure.emoji}</div><div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{t("noImage")}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5}}>{figure.name}</div>
@@ -618,7 +664,7 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
   const handleSave = () => { if (lines.length > 0) { onSave(lines); onClose(); } };
   return (
     <Modal title="➕ Añadir varias figuras" onClose={onClose}>
-      <p style={{fontSize:13,color:"#888",marginBottom:12}}>
+      <p style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>
         Escribe un nombre por línea. Se crearán todas con emoji ⭐ por defecto — luego puedes editar cada una para añadir imagen y emoji.
       </p>
       <textarea
@@ -626,11 +672,11 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
         onChange={e=>setText(e.target.value)}
         placeholder={"Goku SSJ\nGohan SSJ\nTrunks\nVegeta"}
         rows={8}
-        style={{width:"100%",padding:"10px",fontSize:14,border:"1px solid #e8e8e4",borderRadius:8,outline:"none",resize:"vertical",fontFamily:"system-ui,sans-serif",boxSizing:"border-box" as const}}
+        style={{width:"100%",padding:"10px",fontSize:14,border:"1px solid var(--border)",borderRadius:8,outline:"none",resize:"vertical",fontFamily:"system-ui,sans-serif",boxSizing:"border-box" as const}}
         autoFocus
       />
       {lines.length > 0 && (
-        <div style={{marginTop:10,padding:"8px 12px",background:"#f5f5f3",borderRadius:8,fontSize:12,color:"#555"}}>
+        <div style={{marginTop:10,padding:"8px 12px",background:"var(--bg3)",borderRadius:8,fontSize:12,color:"var(--text2)"}}>
           {lines.length} figura{lines.length!==1?"s":""} a añadir: {lines.slice(0,5).join(", ")}{lines.length>5?` y ${lines.length-5} más`:""}
         </div>
       )}
@@ -665,13 +711,13 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   };
 
   return (
-    <div style={{marginBottom:12,border:"1px solid #e8e8e4",borderRadius:12,overflow:"hidden",background:"#fff"}}>
-      <div onClick={()=>setOpen(!open)} style={{padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",background:open?"#fafaf8":"#fff"}}>
+    <div style={{marginBottom:12,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden",background:"var(--bg)"}}>
+      <div onClick={()=>setOpen(!open)} style={{padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",background:open?"var(--bg2)":"var(--bg)"}}>
         <div style={{flex:1,marginRight:12}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
             {set.seriesLogo && <img src={set.seriesLogo} alt="" style={{height:20,maxWidth:80,objectFit:"contain"}} />}
             <span style={{fontSize:15,fontWeight:600}}>{set.name}</span>
-            {set.releaseDate && <span style={{fontSize:11,color:"#aaa"}}>📅 {formatDate(set.releaseDate)}</span>}
+            {set.releaseDate && <span style={{fontSize:11,color:"var(--text4)"}}>📅 {formatDate(set.releaseDate)}</span>}
             <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#E1F5EE":"#f0f0ec",color:complete?"#0F6E56":"#888",fontWeight:complete?600:400}}>
               {complete ? t("complete") : `${ownedCount}/${total}`}
             </span>
@@ -682,9 +728,9 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
           </div>
           <ProgressBar value={ownedCount} total={total} color={color} />
         </div>
-        <span style={{fontSize:18,color:"#aaa",transform:open?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0}}>⌄</span>
+        <span style={{fontSize:18,color:"var(--text4)",transform:open?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0}}>⌄</span>
       </div>
-      {open && <div style={{padding:"12px 16px 16px",borderTop:"1px solid #e8e8e4"}}>
+      {open && <div style={{padding:"12px 16px 16px",borderTop:"1px solid var(--border)"}}>
         <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
           <Btn small onClick={()=>setAddFigure(true)} variant="primary">{t("addFigure")}</Btn>
           <Btn small onClick={()=>setBulkAdd(true)} variant="primary">➕ Añadir varias</Btn>
@@ -722,10 +768,10 @@ function SearchResultCard({ figure, series, set, isOwned, onToggle }: { figure:F
           : <div style={{textAlign:"center"}}><div style={{fontSize:34}}>{figure.emoji}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:11,color:"#aaa",marginBottom:2}}>{series.emoji} {series.name}</div>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{series.emoji} {series.name}</div>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:4}}>{figure.name}</div>
-        <div style={{fontSize:11,color:"#bbb",marginBottom:5}}>{set.name}</div>
-        <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:"#aaa",fontWeight:isOwned?600:400}}>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:5}}>{set.name}</div>
+        <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:"var(--text4)",fontWeight:isOwned?600:400}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:"#ccc",flexShrink:0}} />
           {isOwned ? t("owned") : t("missing")}
         </div>
@@ -751,10 +797,10 @@ function SearchResults({ query, filterCat, filterSeriesId, data, owned, onToggle
         results.push({ figure, series, set });
     }));
   });
-  if (results.length === 0) return <div style={{textAlign:"center",padding:"3rem 1rem",color:"#bbb",fontSize:14}}>{t("noResults")}</div>;
+  if (results.length === 0) return <div style={{textAlign:"center",padding:"3rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noResults")}</div>;
   return (
     <div>
-      <div style={{fontSize:13,color:"#888",marginBottom:16}}>{t("resultsCount", results.length)}</div>
+      <div style={{fontSize:13,color:"var(--text3)",marginBottom:16}}>{t("resultsCount", results.length)}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(130px, 1fr))",gap:12}}>
         {results.map(({ figure, series, set }) => (
           <SearchResultCard key={figure.id} figure={figure} series={series} set={set} isOwned={owned.has(figure.id)} onToggle={()=>onToggle(figure.id)} />
@@ -778,7 +824,7 @@ function WishlistCard({ figure, set, onToggle, onToggleWish }: { figure:Figure; 
           : <div style={{textAlign:"center"}}><div style={{fontSize:34}}>{figure.emoji}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:11,color:"#aaa",marginBottom:2}}>{set.name}</div>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{set.name}</div>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5}}>{figure.name}</div>
         <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"#d97706",fontWeight:600,cursor:"pointer"}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:"#f59e0b",flexShrink:0}} />{t("tapToOwn")}
@@ -802,14 +848,14 @@ function WishlistSection({ data, wishlist, owned, onToggle, onToggleWish }: { da
   if (groups.length === 0) return (
     <div style={{textAlign:"center",padding:"4rem 1rem"}}>
       <div style={{fontSize:40,marginBottom:12}}>💛</div>
-      <div style={{fontSize:15,fontWeight:600,color:"#1a1a1a",marginBottom:6}}>{t("wishlistEmpty")}</div>
-      <div style={{fontSize:13,color:"#aaa"}}>{t("wishlistHint")}</div>
+      <div style={{fontSize:15,fontWeight:600,color:"var(--text)",marginBottom:6}}>{t("wishlistEmpty")}</div>
+      <div style={{fontSize:13,color:"var(--text4)"}}>{t("wishlistHint")}</div>
     </div>
   );
   const total = groups.reduce((acc,g)=>acc+g.figures.length,0);
   return (
     <div>
-      <div style={{fontSize:13,color:"#888",marginBottom:20}}>{t("wishlistCount", total)}</div>
+      <div style={{fontSize:13,color:"var(--text3)",marginBottom:20}}>{t("wishlistCount", total)}</div>
       {groups.map(({ series, figures }) => (
         <div key={series.id} style={{marginBottom:28}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
@@ -911,6 +957,7 @@ export default function App() {
   const { owned, toggle, wishlist, toggleWish, imgbbKey, saveImgbbKey, appLogo, saveAppLogo, ready: ownedReady } = useOwned();
   const { data, setData, ready: dataReady } = useData();
   const { lang, setLang, t } = useLang();
+  const { dark, toggleDark } = useDarkMode();
   const ready = ownedReady && dataReady;
 
   const [activeCategory, setActiveCategory] = useState<CategoryType>("oficial");
@@ -955,42 +1002,42 @@ export default function App() {
   const langValue = { t, lang };
 
   const appContent = !ready ? (
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"#888",fontFamily:"system-ui,sans-serif"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"var(--text3)",fontFamily:"system-ui,sans-serif"}}>
         <div style={{fontSize:32}}>📦</div>
         <div style={{fontSize:14}}>{t("loading")}</div>
       </div>
   ) : (
-    <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",minHeight:"100vh",color:"#1a1a1a"}}>
+    <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",minHeight:"100vh",color:"var(--text)",background:"var(--bg)"}}>
 
       {/* BANNER — se desplaza con la página */}
       {appLogo && (
-        <div style={{width:"100%",height:120,overflow:"hidden",background:"#f5f5f3",flexShrink:0}}>
+        <div style={{width:"100%",height:120,overflow:"hidden",background:"var(--bg3)",flexShrink:0}}>
           <img src={appLogo} alt="banner" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}} />
         </div>
       )}
 
       {/* TOP BAR — sticky, siempre visible */}
-      <div style={{position:"sticky",top:0,zIndex:50,borderBottom:"1px solid #e8e8e4",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,background:"#fff",flexShrink:0}}>
+      <div style={{position:"sticky",top:0,zIndex:50,borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,background:"var(--bg)",flexShrink:0}}>
         {!appLogo && <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap"}}>{t("appTitle")}</span>}
-        <div style={{flex:1,display:"flex",alignItems:"center",gap:6,border:"1px solid #e8e8e4",borderRadius:8,padding:"0 10px",height:34,background:"#fafaf8"}}>
-          <span style={{color:"#aaa",fontSize:14}}>🔍</span>
+        <div style={{flex:1,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:34,background:"var(--bg2)"}}>
+          <span style={{color:"var(--text4)",fontSize:14}}>🔍</span>
           <input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setSearchActive(true);}} onFocus={()=>setSearchActive(true)}
-            placeholder={t("searchPH")} style={{flex:1,border:"none",background:"transparent",fontSize:13,outline:"none",color:"#1a1a1a"}} />
-          {(searchQuery||searchActive) && <span onClick={()=>{setSearchQuery("");setSearchActive(false);setFilterCat("all");setFilterSeriesId("all");}} style={{cursor:"pointer",color:"#aaa",fontSize:16,lineHeight:1}}>×</span>}
+            placeholder={t("searchPH")} style={{flex:1,border:"none",background:"transparent",fontSize:13,outline:"none",color:"var(--text)"}} />
+          {(searchQuery||searchActive) && <span onClick={()=>{setSearchQuery("");setSearchActive(false);setFilterCat("all");setFilterSeriesId("all");}} style={{cursor:"pointer",color:"var(--text4)",fontSize:16,lineHeight:1}}>×</span>}
         </div>
         {searchActive && <>
-          <select value={filterCat} onChange={e=>setFilterCat(e.target.value as "all"|CategoryType)} style={{height:34,padding:"0 8px",fontSize:12,border:"1px solid #e8e8e4",borderRadius:8,background:"#fff",cursor:"pointer"}}>
+          <select value={filterCat} onChange={e=>setFilterCat(e.target.value as "all"|CategoryType)} style={{height:34,padding:"0 8px",fontSize:12,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg)",cursor:"pointer"}}>
             <option value="all">{t("allCategories")}</option>
             <option value="oficial">{t("officialBadge")}</option>
             <option value="resina">{t("resinBadge")}</option>
           </select>
-          <select value={filterSeriesId} onChange={e=>setFilterSeriesId(e.target.value==="all"?"all":Number(e.target.value))} style={{height:34,padding:"0 8px",fontSize:12,border:"1px solid #e8e8e4",borderRadius:8,background:"#fff",cursor:"pointer"}}>
+          <select value={filterSeriesId} onChange={e=>setFilterSeriesId(e.target.value==="all"?"all":Number(e.target.value))} style={{height:34,padding:"0 8px",fontSize:12,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg)",cursor:"pointer"}}>
             <option value="all">{t("allSeries")}</option>
             {data.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
           </select>
         </>}
         <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-          <span style={{fontSize:12,color:"#888",whiteSpace:"nowrap"}}>{ownedAll}/{totalAll}</span>
+          <span style={{fontSize:12,color:"var(--text3)",whiteSpace:"nowrap"}}>{ownedAll}/{totalAll}</span>
           <div style={{width:70,height:5,background:"#e8e8e4",borderRadius:4,overflow:"hidden"}}>
             <div style={{height:"100%",width:(totalAll?Math.round(ownedAll/totalAll*100):0)+"%",background:"#0F6E56",borderRadius:4,transition:"width 0.4s"}} />
           </div>
@@ -1003,7 +1050,10 @@ export default function App() {
               </button>
             ))}
           </div>
-          <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"1px solid #e8e8e4",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13}}>⚙️</button>
+          <button onClick={toggleDark} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13}} title={dark?"Modo claro":"Modo oscuro"}>
+            {dark ? "☀️" : "🌙"}
+          </button>
+          <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13}}>⚙️</button>
         </div>
       </div>
 
@@ -1013,16 +1063,16 @@ export default function App() {
 
       <div style={{display:"flex",flex:1}}>
         {/* SIDEBAR — sticky, se queda fija al hacer scroll */}
-        <div style={{width:210,borderRight:"1px solid #e8e8e4",background:"#fafaf8",flexShrink:0,display:"flex",flexDirection:"column",position:"sticky",top:57,height:"calc(100vh - 57px)",overflowY:"auto"}}>
-          <div style={{padding:"10px 10px 8px",borderBottom:"1px solid #e8e8e4"}}>
+        <div style={{width:210,borderRight:"1px solid var(--border)",background:"var(--bg2)",flexShrink:0,display:"flex",flexDirection:"column",position:"sticky",top:57,height:"calc(100vh - 57px)",overflowY:"auto"}}>
+          <div style={{padding:"10px 10px 8px",borderBottom:"1px solid var(--border)"}}>
             {(["oficial","resina"] as CategoryType[]).map(cat=>{
               const active = cat===activeCategory && !isSearchMode;
               return (
                 <div key={cat} onClick={()=>{setActiveCategory(cat);setSearchActive(false);setSearchQuery("");setFilterCat("all");setFilterSeriesId("all");setSelectedSeries(data.filter(s=>s.category===cat)[0]?.id??null);setShowWishlist(false);}}
-                  style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:4,background:active?"#fff":"transparent",border:active?"1px solid #e8e8e4":"1px solid transparent"}}>
+                  style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:4,background:active?"var(--bg)":"transparent",border:active?"1px solid var(--border)":"1px solid transparent"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
                     <span style={{fontSize:13,fontWeight:active?600:400,color:active?"#1a1a1a":"#666"}}>{cat==="oficial" ? t("official") : t("resin")}</span>
-                    <span style={{fontSize:11,color:"#aaa"}}>{catOwned(cat)}/{catTotal(cat)}</span>
+                    <span style={{fontSize:11,color:"var(--text4)"}}>{catOwned(cat)}/{catTotal(cat)}</span>
                   </div>
                   <ProgressBar value={catOwned(cat)} total={catTotal(cat)} color={cat==="oficial"?"#0F6E56":"#8b5cf6"} />
                 </div>
@@ -1030,13 +1080,13 @@ export default function App() {
             })}
           </div>
           {!isSearchMode && <>
-            <div style={{fontSize:11,fontWeight:600,color:"#aaa",padding:"10px 16px 6px",textTransform:"uppercase",letterSpacing:"0.08em"}}>{t("seriesLabel")}</div>
+            <div style={{fontSize:11,fontWeight:600,color:"var(--text4)",padding:"10px 16px 6px",textTransform:"uppercase",letterSpacing:"0.08em"}}>{t("seriesLabel")}</div>
             <div style={{flex:1,overflowY:"auto"}}>
-              {filteredSeries.length===0 && <div style={{padding:"12px 16px",fontSize:13,color:"#bbb"}}>{t("noSeries")}</div>}
+              {filteredSeries.length===0 && <div style={{padding:"12px 16px",fontSize:13,color:"var(--text4)"}}>{t("noSeries")}</div>}
               {filteredSeries.map(s=>{
                 const active = s.id===effectiveSelected && !showWishlist;
                 return (
-                  <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}} style={{padding:"10px 16px",cursor:"pointer",background:active?"#fff":"transparent",borderRight:active?"2px solid "+s.color:"2px solid transparent"}}>
+                  <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}} style={{padding:"10px 16px",cursor:"pointer",background:active?"var(--bg)":"transparent",borderRight:active?"2px solid "+s.color:"2px solid transparent"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
                       {s.logo ? <img src={s.logo} alt={s.name} style={{width:24,height:24,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:16}}>{s.emoji}</span>}
                       <span style={{fontSize:13,fontWeight:active?600:400,color:active?"#1a1a1a":"#555",flex:1}}>{s.name}</span>
@@ -1046,7 +1096,7 @@ export default function App() {
                 );
               })}
             </div>
-            <div style={{padding:"10px 14px",borderTop:"1px solid #e8e8e4",display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{padding:"10px 14px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
               <div onClick={()=>{setShowWishlist(true);setSearchActive(false);setSearchQuery("");}}
                 style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",background:showWishlist?"#fef3c7":"transparent",border:showWishlist?"1px solid #fcd34d":"1px solid transparent"}}>
                 <span style={{fontSize:16}}>💛</span>
@@ -1092,7 +1142,7 @@ export default function App() {
                 </div>
               </div>
               <div style={{marginBottom:20}}><ProgressBar value={seriesOwned(series)} total={seriesTotal(series)} color={series.color} /></div>
-              {series.sets.length===0 && <div style={{textAlign:"center",padding:"3rem 1rem",color:"#bbb",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>}
+              {series.sets.length===0 && <div style={{textAlign:"center",padding:"3rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>}
               <DraggableSetList
                 sets={series.sets} color={series.color}
                 owned={owned} wishlist={wishlist} apiKey={apiKey}
@@ -1109,7 +1159,7 @@ export default function App() {
             </>
           )}
           {!isSearchMode && !showWishlist && !series && (
-            <div style={{textAlign:"center",padding:"4rem 1rem",color:"#bbb",fontSize:14}}>{t("noSeriesCat1")}<br/>{t("noSeriesCat2")}</div>
+            <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}<br/>{t("noSeriesCat2")}</div>
           )}
         </div>
       </div>
