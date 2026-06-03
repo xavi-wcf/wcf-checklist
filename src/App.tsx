@@ -588,8 +588,6 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
       <Field label={t("nameLabel")}><Input value={name} onChange={setName} placeholder="Ej: Naruto" /></Field>
       <ImageUploader apiKey={apiKey} currentUrl={bgImage} onUploaded={setBgImage} label="Imagen de fondo de la serie" aspectRatio={null} skipCrop />
       <div style={{marginTop:12}} />
-      <ImageUploader apiKey={apiKey} currentUrl={logo} onUploaded={setLogo} label={t("sidebarIcon")} aspectRatio={1} format="png" />
-      <div style={{marginTop:12}} />
       <ImageUploader apiKey={apiKey} currentUrl={logoHeader} onUploaded={setLogoHeader} label={t("headerLogo")} aspectRatio={null} format="png" skipCrop />
       <Field label={t("emojiFallback")}><EmojiPicker value={emoji} onChange={setEmoji} /></Field>
       <Field label={t("colorLabel")}>
