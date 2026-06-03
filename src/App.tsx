@@ -296,8 +296,14 @@ function useData() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     sbGet("wcf_data").then(row => {
-      if (row && Array.isArray(row.data) && row.data.length > 0) setDataState(row.data);
-      else { setDataState(INITIAL_DATA); sbUpsert("wcf_data", { data: INITIAL_DATA }); }
+      if (row && Array.isArray(row.data) && row.data.length > 0) {
+        // Migrate: ensure every series has groups array
+        const migrated = row.data.map((s: Series) => ({ ...s, groups: s.groups ?? [] }));
+        setDataState(migrated);
+      } else {
+        setDataState(INITIAL_DATA);
+        sbUpsert("wcf_data", { data: INITIAL_DATA });
+      }
       setReady(true);
     });
   }, []);
