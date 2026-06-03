@@ -119,7 +119,7 @@ type TKey = keyof typeof T;
 const LangCtx = createContext<{ t: (key: TKey, ...args: unknown[]) => string; lang: LangCode }>({
   t: (key) => key as string, lang: "es",
 });
-const LangProvider = LangProvider;
+const LangProvider = LangCtx.Provider;
 const useTr = () => useContext(LangCtx);
 
 function useLang() {
@@ -1115,4 +1115,4 @@ export default function App() {
         </div>
       </div>
 
-      {showAddSeries && <SeriesModal cat
+      {showAddSeries && <SeriesModal
