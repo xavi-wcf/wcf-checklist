@@ -968,7 +968,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
       {/* Group header */}
       <div onClick={()=>setOpen(!open)} style={{padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:"var(--bg3)"}}>
         {group.logo && !imgError && <img src={group.logo} alt={group.name} onError={()=>setImgError(true)} style={{height:24,maxWidth:80,objectFit:"contain"}} />}
-        <span style={{fontSize:15,fontWeight:700,flex:1,color:"var(--text)"}}>{group.name}</span>
+        <span style={{fontSize:15,fontWeight:700,flex:1,color:"var(--text)"}}>{group.name} <span style={{fontSize:12,color:"var(--text4)",fontWeight:400}}>({group.sets.length} set{group.sets.length!==1?"s":""})</span></span>
         <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#E1F5EE":"var(--bg)",color:complete?"#0F6E56":"var(--text3)",fontWeight:complete?600:400}}>
           {complete ? t("complete") : `${ownedCount}/${total}`}
         </span>
