@@ -1119,6 +1119,6 @@ export default function App() {
         </div>
       </div>
 
-      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(nm,em,co,lg,lh)=>{addSeries(nm,em,co,lg,lh);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
-      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(nm,em,co,lg,lh)=>{updateSeries(editSeriesData.id,nm,em,co,lg,lh);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
+      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
+      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showSettings && <SettingsModal apiKey={apiKey} appLogo
