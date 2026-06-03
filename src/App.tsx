@@ -189,13 +189,14 @@ function useLang() {
 type CategoryType = "oficial" | "resina";
 interface Figure { id: number; name: string; emoji: string; image?: string; }
 interface FigureSet { id: number; name: string; releaseDate?: string; seriesLogo?: string; figures: Figure[]; }
-interface Series { id: number; name: string; emoji: string; logo?: string; logoHeader?: string; bgImage?: string; color: string; category: CategoryType; sets: FigureSet[]; }
+interface FigureGroup { id: number; name: string; logo?: string; sets: FigureSet[]; }
+interface Series { id: number; name: string; emoji: string; logo?: string; logoHeader?: string; bgImage?: string; color: string; category: CategoryType; sets: FigureSet[]; groups: FigureGroup[]; }
 
 // ============================================================
 //  INITIAL DATA
 // ============================================================
 const INITIAL_DATA: Series[] = [
-  { id: 1, name: "Dragon Ball", emoji: "🐉", color: "#f97316", category: "oficial", sets: [
+  { id: 1, name: "Dragon Ball", emoji: "🐉", color: "#f97316", category: "oficial", groups: [], sets: [
     { id: 101, name: "Extra Costume Vol. 1", releaseDate: "2021-09", figures: [
       { id: 10101, name: "Goku SSJ", emoji: "🟠", image: "" },
       { id: 10102, name: "Gohan SSJ", emoji: "🟡", image: "" },
@@ -205,7 +206,7 @@ const INITIAL_DATA: Series[] = [
       { id: 10106, name: "Goku (dogi)", emoji: "🟠", image: "" },
     ]},
   ]},
-  { id: 2, name: "Hunter x Hunter", emoji: "🎯", color: "#8b5cf6", category: "oficial", sets: [
+  { id: 2, name: "Hunter x Hunter", emoji: "🎯", color: "#8b5cf6", category: "oficial", groups: [], sets: [
     { id: 201, name: "Vol. 1", figures: [
       { id: 20101, name: "Gon", emoji: "🟢", image: "" },
       { id: 20102, name: "Killua", emoji: "⚪", image: "" },
@@ -215,7 +216,7 @@ const INITIAL_DATA: Series[] = [
       { id: 20106, name: "Illumi", emoji: "🖤", image: "" },
     ]},
   ]},
-  { id: 3, name: "My Hero Academia", emoji: "💥", color: "#ef4444", category: "oficial", sets: [
+  { id: 3, name: "My Hero Academia", emoji: "💥", color: "#ef4444", category: "oficial", groups: [], sets: [
     { id: 301, name: "Vol. 1", figures: [
       { id: 30101, name: "Deku", emoji: "💚", image: "" },
       { id: 30102, name: "Bakugo", emoji: "💥", image: "" },
@@ -225,7 +226,7 @@ const INITIAL_DATA: Series[] = [
       { id: 30106, name: "Iida", emoji: "⚙️", image: "" },
     ]},
   ]},
-  { id: 4, name: "Kimetsu no Yaiba", emoji: "🗡️", color: "#06b6d4", category: "oficial", sets: [
+  { id: 4, name: "Kimetsu no Yaiba", emoji: "🗡️", color: "#06b6d4", category: "oficial", groups: [], sets: [
     { id: 401, name: "Vol. 1", figures: [
       { id: 40101, name: "Tanjiro", emoji: "🟢", image: "" },
       { id: 40102, name: "Nezuko", emoji: "🩷", image: "" },
@@ -235,7 +236,7 @@ const INITIAL_DATA: Series[] = [
       { id: 40106, name: "Shinobu", emoji: "🦋", image: "" },
     ]},
   ]},
-  { id: 5, name: "One Piece", emoji: "☠️", color: "#eab308", category: "oficial", sets: [
+  { id: 5, name: "One Piece", emoji: "☠️", color: "#eab308", category: "oficial", groups: [], sets: [
     { id: 501, name: "Mugiwara Vol. 1", figures: [
       { id: 50101, name: "Luffy", emoji: "👒", image: "" },
       { id: 50102, name: "Zoro", emoji: "🗡️", image: "" },
@@ -245,7 +246,7 @@ const INITIAL_DATA: Series[] = [
       { id: 50106, name: "Chopper", emoji: "🦌", image: "" },
     ]},
   ]},
-  { id: 6, name: "Dragon Ball (Resina)", emoji: "🐉", color: "#b45309", category: "resina", sets: [
+  { id: 6, name: "Dragon Ball (Resina)", emoji: "🐉", color: "#b45309", category: "resina", groups: [], sets: [
     { id: 601, name: "Ejemplo Estudio Vol. 1", figures: [
       { id: 60101, name: "Goku Ultra Instinct", emoji: "⚪", image: "" },
       { id: 60102, name: "Vegeta Blue", emoji: "🔵", image: "" },
@@ -858,7 +859,8 @@ function WishlistSection({ data, wishlist, owned, onToggle, onToggleWish }: { da
   const groups: { series:Series; figures:{ figure:Figure; set:FigureSet }[] }[] = [];
   data.forEach(series => {
     const items: { figure:Figure; set:FigureSet }[] = [];
-    series.sets.forEach(set => set.figures.forEach(figure => { if (wishlist.has(figure.id) && !owned.has(figure.id)) items.push({ figure, set }); }));
+    const allSets = [...series.sets, ...(series.groups??[]).flatMap(g=>g.sets)];
+    allSets.forEach(set => set.figures.forEach(figure => { if (wishlist.has(figure.id) && !owned.has(figure.id)) items.push({ figure, set }); }));
     if (items.length > 0) groups.push({ series, figures: items });
   });
   if (groups.length === 0) return (
@@ -886,6 +888,84 @@ function WishlistSection({ data, wishlist, owned, onToggle, onToggleWish }: { da
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+// ============================================================
+//  GROUP MODAL
+// ============================================================
+function GroupModal({ title, initial, apiKey, onSave, onClose }: {
+  title:string; initial?:Partial<FigureGroup>; apiKey:string;
+  onSave:(name:string,logo:string)=>void; onClose:()=>void;
+}) {
+  const { t } = useTr();
+  const [name,setName]=useState(initial?.name??"");
+  const [logo,setLogo]=useState(initial?.logo??"");
+  return (
+    <Modal title={title} onClose={onClose}>
+      <Field label={t("nameLabel")}><Input value={name} onChange={setName} placeholder="Ej: Dragon Ball Z" /></Field>
+      <ImageUploader apiKey={apiKey} currentUrl={logo} onUploaded={setLogo} label="Logo del grupo (opcional)" aspectRatio={null} format="png" skipCrop />
+      <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn onClick={onClose}>{t("cancel")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave(name.trim(),logo);onClose();}}} variant="primary">{t("save")}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// ============================================================
+//  GROUP CARD
+// ============================================================
+function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onUpdateFigure, onDeleteFigure, onReorderSets }: {
+  group:FigureGroup; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
+  onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
+  onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
+  onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
+  onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
+  onReorderSets:(from:number,to:number)=>void;
+}) {
+  const { t } = useTr();
+  const [open,setOpen]=useState(true);
+  const [editGroup,setEditGroup]=useState(false);
+  const [imgError,setImgError]=useState(false);
+
+  const allFigs = group.sets.flatMap(st=>st.figures);
+  const ownedCount = allFigs.filter(f=>owned.has(f.id)).length;
+  const total = allFigs.length;
+  const complete = ownedCount===total && total>0;
+
+  return (
+    <div style={{marginBottom:16,border:"2px solid var(--border2)",borderRadius:14,overflow:"hidden",background:"var(--bg2)"}}>
+      {/* Group header */}
+      <div onClick={()=>setOpen(!open)} style={{padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:"var(--bg3)"}}>
+        {group.logo && !imgError && <img src={group.logo} alt={group.name} onError={()=>setImgError(true)} style={{height:24,maxWidth:80,objectFit:"contain"}} />}
+        <span style={{fontSize:15,fontWeight:700,flex:1,color:"var(--text)"}}>{group.name}</span>
+        <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#E1F5EE":"var(--bg)",color:complete?"#0F6E56":"var(--text3)",fontWeight:complete?600:400}}>
+          {complete ? t("complete") : `${ownedCount}/${total}`}
+        </span>
+        <div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+          <button onClick={()=>setEditGroup(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"var(--text3)"}}>✏️</button>
+          <button onClick={onAddSet} style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"var(--text3)"}}>+ Set</button>
+          <button onClick={onDeleteGroup} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"#dc2626"}}>🗑</button>
+        </div>
+        <span style={{fontSize:16,color:"var(--text4)",transform:open?"rotate(180deg)":"none",transition:"transform 0.2s",marginLeft:4}}>⌄</span>
+      </div>
+      {/* Group sets */}
+      {open && (
+        <div style={{padding:"8px 12px 12px"}}>
+          {group.sets.length===0 && <div style={{textAlign:"center",padding:"1.5rem",color:"var(--text4)",fontSize:13}}>Sin sets. Pulsa "+ Set" para añadir.</div>}
+          <DraggableSetList
+            sets={group.sets} color={color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+            onToggle={onToggle} onToggleWish={onToggleWish} onToggleAll={onToggleAll}
+            onUpdateSet={onUpdateSet} onDeleteSet={onDeleteSet} onDuplicate={onDuplicateSet}
+            onAddFigure={onAddFigure} onUpdateFigure={onUpdateFigure} onDeleteFigure={onDeleteFigure}
+            onReorder={onReorderSets}
+          />
+        </div>
+      )}
+      {editGroup && <GroupModal title="Editar grupo" initial={group} apiKey={apiKey} onSave={(n,l)=>{onUpdateGroup(n,l);setEditGroup(false);}} onClose={()=>setEditGroup(false)} />}
     </div>
   );
 }
@@ -1057,7 +1137,7 @@ export default function App() {
   const series = effectiveSelected ? data.find(s=>s.id===effectiveSelected) ?? null : null;
   const isSearchMode = searchActive && (searchQuery.trim() !== "" || filterCat !== "all" || filterSeriesId !== "all");
 
-  const allFigures = (s: Series) => s.sets.flatMap(st=>st.figures);
+  const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
   const seriesOwned = (s: Series) => allFigures(s).filter(f=>owned.has(f.id)).length;
   const seriesTotal = (s: Series) => allFigures(s).length;
   const catOwned = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).filter(f=>owned.has(f.id)).length;
@@ -1066,18 +1146,57 @@ export default function App() {
   const ownedAll = data.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
   const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
 
-  const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:activeCategory,sets:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
+  const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:activeCategory,sets:[],groups:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
   const reorderSeries = (fromIdx:number, toIdx:number) => setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===activeCategory); const others=all.filter(s=>s.category!==activeCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
   const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
-  const addSet = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:[...s.sets,{id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]}]}:s));
-  const duplicateSet = (sid:number, stid:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const st=s.sets.find(x=>x.id===stid); if(!st) return s; const copy={...st,id:newId(),name:st.name+" - copia",figures:[]}; return {...s,sets:[...s.sets,copy]}; }));
-  const updateSet = (sid:number,stid:number,name:string,releaseDate:string,seriesLogo:string) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.map(st=>st.id===stid?{...st,name,releaseDate,seriesLogo}:st)}:s));
-  const deleteSet = (sid:number,stid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.filter(st=>st.id!==stid)}:s));
-  const reorderSets = (sid:number, fromIdx:number, toIdx:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const sets=[...s.sets]; const [moved]=sets.splice(fromIdx,1); sets.splice(toIdx,0,moved); return {...s,sets}; }));
-  const addFigure = (sid:number,stid:number,f:Omit<Figure,"id">) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.map(st=>st.id===stid?{...st,figures:[...st.figures,{...f,id:newId()}]}:st)}:s));
-  const updateFigure = (sid:number,stid:number,fid:number,f:Omit<Figure,"id">) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.map(st=>st.id===stid?{...st,figures:st.figures.map(fig=>fig.id===fid?{...fig,...f}:fig)}:st)}:s));
-  const deleteFigure = (sid:number,stid:number,fid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.map(st=>st.id===stid?{...st,figures:st.figures.filter(f=>f.id!==fid)}:st)}:s));
+  const addSet = (sid:number, gid?:number) => {
+    const newSet:FigureSet = {id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]};
+    setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+      if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:[...g.sets,newSet]}:g)};
+      return {...s,sets:[...s.sets,newSet]};
+    }));
+  };
+  const duplicateSet = (sid:number, stid:number, gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const findSet = (sets:FigureSet[]) => sets.find(x=>x.id===stid);
+    const dupSet = (sets:FigureSet[]) => { const st=findSet(sets); if(!st) return sets; return [...sets,{...st,id:newId(),name:st.name+" - copia",figures:[]}]; };
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:dupSet(g.sets)}:g)};
+    return {...s,sets:dupSet(s.sets)};
+  }));
+  const updateSet = (sid:number,stid:number,name:string,releaseDate:string,seriesLogo:string,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,name,releaseDate,seriesLogo}:st);
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
+    return {...s,sets:upd(s.sets)};
+  }));
+  const deleteSet = (sid:number,stid:number,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:g.sets.filter(st=>st.id!==stid)}:g)};
+    return {...s,sets:s.sets.filter(st=>st.id!==stid)};
+  }));
+  const reorderSets = (sid:number, fromIdx:number, toIdx:number, gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const reorder = (sets:FigureSet[]) => { const arr=[...sets]; const [mv]=arr.splice(fromIdx,1); arr.splice(toIdx,0,mv); return arr; };
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:reorder(g.sets)}:g)};
+    return {...s,sets:reorder(s.sets)};
+  }));
+  // Group mutations
+  const addGroup = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:[...s.groups,{id:newId(),name:"Nuevo grupo",logo:"",sets:[]}]}:s));
+  const updateGroup = (sid:number,gid:number,name:string,logo:string) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.map(g=>g.id===gid?{...g,name,logo}:g)}:s));
+  const deleteGroup = (sid:number,gid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.filter(g=>g.id!==gid)}:s));
+  const reorderGroups = (sid:number,fromIdx:number,toIdx:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const groups=[...s.groups]; const [mv]=groups.splice(fromIdx,1); groups.splice(toIdx,0,mv); return {...s,groups}; }));
+  const addFigure = (sid:number,stid:number,f:Omit<Figure,"id">,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:[...st.figures,{...f,id:newId()}]}:st);
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
+    return {...s,sets:upd(s.sets)};
+  }));
+  const updateFigure = (sid:number,stid:number,fid:number,f:Omit<Figure,"id">,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:st.figures.map(fig=>fig.id===fid?{...fig,...f}:fig)}:st);
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
+    return {...s,sets:upd(s.sets)};
+  }));
+  const deleteFigure = (sid:number,stid:number,fid:number,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:st.figures.filter(f=>f.id!==fid)}:st);
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
+    return {...s,sets:upd(s.sets)};
+  }));
 
   const langValue = { t, lang };
 
@@ -1214,26 +1333,50 @@ export default function App() {
                   {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
                 </span>
                 <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+                  <Btn small onClick={()=>addGroup(series.id)} variant="primary">+ Grupo</Btn>
                   <Btn small onClick={()=>addSet(series.id)} variant="primary">{t("newSet")}</Btn>
                   <Btn small onClick={()=>setEditSeriesData(series)}>✏️</Btn>
                   <Btn small onClick={()=>deleteSeries(series.id)} variant="danger">🗑</Btn>
                 </div>
               </div>
               <div style={{marginBottom:20}}><ProgressBar value={seriesOwned(series)} total={seriesTotal(series)} color={series.color} /></div>
-              {series.sets.length===0 && <div style={{textAlign:"center",padding:"3rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>}
-              <DraggableSetList
-                sets={series.sets} color={series.color}
-                owned={owned} wishlist={wishlist} apiKey={apiKey}
-                onToggle={toggle} onToggleWish={toggleWish}
-                onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
-                onUpdateSet={(stid,n,rd,sl)=>updateSet(series.id,stid,n,rd,sl)}
-                onDeleteSet={stid=>deleteSet(series.id,stid)}
-                onDuplicate={stid=>duplicateSet(series.id,stid)}
-                onAddFigure={(stid,f)=>addFigure(series.id,stid,f)}
-                onUpdateFigure={(stid,fid,f)=>updateFigure(series.id,stid,fid,f)}
-                onDeleteFigure={(stid,fid)=>deleteFigure(series.id,stid,fid)}
-                onReorder={(from,to)=>reorderSets(series.id,from,to)}
-              />
+
+              {/* Groups */}
+              {series.groups && series.groups.length > 0 && series.groups.map(g=>(
+                <GroupCard
+                  key={g.id} group={g} color={series.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+                  onToggle={toggle} onToggleWish={toggleWish}
+                  onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                  onUpdateGroup={(n,l)=>updateGroup(series.id,g.id,n,l)}
+                  onDeleteGroup={()=>deleteGroup(series.id,g.id)}
+                  onAddSet={()=>addSet(series.id,g.id)}
+                  onUpdateSet={(stid,n,rd,sl)=>updateSet(series.id,stid,n,rd,sl,g.id)}
+                  onDeleteSet={stid=>deleteSet(series.id,stid,g.id)}
+                  onDuplicateSet={stid=>duplicateSet(series.id,stid,g.id)}
+                  onAddFigure={(stid,f)=>addFigure(series.id,stid,f,g.id)}
+                  onUpdateFigure={(stid,fid,f)=>updateFigure(series.id,stid,fid,f,g.id)}
+                  onDeleteFigure={(stid,fid)=>deleteFigure(series.id,stid,fid,g.id)}
+                  onReorderSets={(from,to)=>reorderSets(series.id,from,to,g.id)}
+                />
+              ))}
+
+              {/* Ungrouped sets */}
+              {series.sets.length===0 && (!series.groups || series.groups.length===0) && <div style={{textAlign:"center",padding:"3rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>}
+              {series.sets.length > 0 && (
+                <DraggableSetList
+                  sets={series.sets} color={series.color}
+                  owned={owned} wishlist={wishlist} apiKey={apiKey}
+                  onToggle={toggle} onToggleWish={toggleWish}
+                  onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                  onUpdateSet={(stid,n,rd,sl)=>updateSet(series.id,stid,n,rd,sl)}
+                  onDeleteSet={stid=>deleteSet(series.id,stid)}
+                  onDuplicate={stid=>duplicateSet(series.id,stid)}
+                  onAddFigure={(stid,f)=>addFigure(series.id,stid,f)}
+                  onUpdateFigure={(stid,fid,f)=>updateFigure(series.id,stid,fid,f)}
+                  onDeleteFigure={(stid,fid)=>deleteFigure(series.id,stid,fid)}
+                  onReorder={(from,to)=>reorderSets(series.id,from,to)}
+                />
+              )}
             </>
           )}
           {!isSearchMode && !showWishlist && !series && (
