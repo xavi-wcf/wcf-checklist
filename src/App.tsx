@@ -954,17 +954,12 @@ export default function App() {
 
   const langValue = { t, lang };
 
-  if (!ready) return (
-    <LangProvider value={langValue}>
+  const appContent = !ready ? (
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"#888",fontFamily:"system-ui,sans-serif"}}>
         <div style={{fontSize:32}}>📦</div>
         <div style={{fontSize:14}}>{t("loading")}</div>
       </div>
-    </LangProvider>
-  );
-
-  return (
-    <LangProvider value={langValue}>
+  ) : (
     <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",minHeight:"100vh",color:"#1a1a1a"}}>
 
       {/* BANNER — se desplaza con la página */}
@@ -1121,4 +1116,13 @@ export default function App() {
 
       {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showSettings && <SettingsModa
+      {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
+    </div>
+  );
+
+  return (
+    <LangProvider value={langValue}>
+      {appContent}
+    </LangProvider>
+  );
+}
