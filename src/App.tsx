@@ -998,6 +998,55 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
 }
 
 // ============================================================
+//  DRAGGABLE GROUP LIST
+// ============================================================
+function DraggableGroupList({ groups, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onUpdateFigure, onDeleteFigure, onReorderSets, onReorderGroups }: {
+  groups:FigureGroup[]; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
+  onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
+  onUpdateGroup:(gid:number,n:string,l:string)=>void; onDeleteGroup:(gid:number)=>void; onAddSet:(gid:number)=>void;
+  onUpdateSet:(gid:number,stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(gid:number,stid:number)=>void; onDuplicateSet:(gid:number,stid:number)=>void;
+  onAddFigure:(gid:number,stid:number,f:Omit<Figure,"id">)=>void; onUpdateFigure:(gid:number,stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(gid:number,stid:number,fid:number)=>void;
+  onReorderSets:(gid:number,from:number,to:number)=>void; onReorderGroups:(from:number,to:number)=>void;
+}) {
+  const dragIdx = useRef<number|null>(null);
+  const [dragOver, setDragOver] = useState<number|null>(null);
+
+  const handleDragStart = (idx:number) => { dragIdx.current=idx; };
+  const handleDragOver = (e:React.DragEvent, idx:number) => { e.preventDefault(); setDragOver(idx); };
+  const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorderGroups(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
+  const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
+
+  return (
+    <div>
+      {groups.map((g, idx) => (
+        <div key={g.id}
+          draggable
+          onDragStart={()=>handleDragStart(idx)}
+          onDragOver={e=>handleDragOver(e,idx)}
+          onDrop={()=>handleDrop(idx)}
+          onDragEnd={handleDragEnd}
+          style={{opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?`2px solid ${color}`:"none",borderRadius:14,transition:"opacity 0.15s,outline 0.1s",marginBottom:16,cursor:"grab"}}>
+          <GroupCard
+            group={g} color={color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+            onToggle={onToggle} onToggleWish={onToggleWish} onToggleAll={onToggleAll}
+            onUpdateGroup={(n,l)=>onUpdateGroup(g.id,n,l)}
+            onDeleteGroup={()=>onDeleteGroup(g.id)}
+            onAddSet={()=>onAddSet(g.id)}
+            onUpdateSet={(stid,n,rd,sl)=>onUpdateSet(g.id,stid,n,rd,sl)}
+            onDeleteSet={stid=>onDeleteSet(g.id,stid)}
+            onDuplicateSet={stid=>onDuplicateSet(g.id,stid)}
+            onAddFigure={(stid,f)=>onAddFigure(g.id,stid,f)}
+            onUpdateFigure={(stid,fid,f)=>onUpdateFigure(g.id,stid,fid,f)}
+            onDeleteFigure={(stid,fid)=>onDeleteFigure(g.id,stid,fid)}
+            onReorderSets={(from,to)=>onReorderSets(g.id,from,to)}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
 //  DRAGGABLE SET LIST
 // ============================================================
 function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onUpdateFigure, onDeleteFigure, onReorder }: {
@@ -1211,6 +1260,7 @@ export default function App() {
   const addGroup = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:[...s.groups,{id:newId(),name:"Nuevo grupo",logo:"",sets:[]}]}:s));
   const updateGroup = (sid:number,gid:number,name:string,logo:string) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.map(g=>g.id===gid?{...g,name,logo}:g)}:s));
   const deleteGroup = (sid:number,gid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.filter(g=>g.id!==gid)}:s));
+  const reorderGroups = (sid:number,fromIdx:number,toIdx:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const groups=[...s.groups]; const [mv]=groups.splice(fromIdx,1); groups.splice(toIdx,0,mv); return {...s,groups}; }));
   const moveSetToGroup = (sid:number, stid:number, gid:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
     const st = s.sets.find(x=>x.id===stid); if(!st) return s;
     return {...s, sets:s.sets.filter(x=>x.id!==stid), groups:s.groups.map(g=>g.id===gid?{...g,sets:[...g.sets,st]}:g)};
@@ -1374,24 +1424,25 @@ export default function App() {
               </div>
               <div style={{marginBottom:20}}><ProgressBar value={seriesOwned(series)} total={seriesTotal(series)} color={series.color} /></div>
 
-              {/* Groups */}
-              {series.groups && series.groups.length > 0 && series.groups.map(g=>(
-                <GroupCard
-                  key={g.id} group={g} color={series.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+              {/* Groups — draggable */}
+              {series.groups && series.groups.length > 0 && (
+                <DraggableGroupList
+                  groups={series.groups} color={series.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
                   onToggle={toggle} onToggleWish={toggleWish}
                   onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
-                  onUpdateGroup={(n,l)=>updateGroup(series.id,g.id,n,l)}
-                  onDeleteGroup={()=>deleteGroup(series.id,g.id)}
-                  onAddSet={()=>addSet(series.id,g.id)}
-                  onUpdateSet={(stid,n,rd,sl)=>updateSet(series.id,stid,n,rd,sl,g.id)}
-                  onDeleteSet={stid=>deleteSet(series.id,stid,g.id)}
-                  onDuplicateSet={stid=>duplicateSet(series.id,stid,g.id)}
-                  onAddFigure={(stid,f)=>addFigure(series.id,stid,f,g.id)}
-                  onUpdateFigure={(stid,fid,f)=>updateFigure(series.id,stid,fid,f,g.id)}
-                  onDeleteFigure={(stid,fid)=>deleteFigure(series.id,stid,fid,g.id)}
-                  onReorderSets={(from,to)=>reorderSets(series.id,from,to,g.id)}
+                  onUpdateGroup={(gid,n,l)=>updateGroup(series.id,gid,n,l)}
+                  onDeleteGroup={gid=>deleteGroup(series.id,gid)}
+                  onAddSet={gid=>addSet(series.id,gid)}
+                  onUpdateSet={(gid,stid,n,rd,sl)=>updateSet(series.id,stid,n,rd,sl,gid)}
+                  onDeleteSet={(gid,stid)=>deleteSet(series.id,stid,gid)}
+                  onDuplicateSet={(gid,stid)=>duplicateSet(series.id,stid,gid)}
+                  onAddFigure={(gid,stid,f)=>addFigure(series.id,stid,f,gid)}
+                  onUpdateFigure={(gid,stid,fid,f)=>updateFigure(series.id,stid,fid,f,gid)}
+                  onDeleteFigure={(gid,stid,fid)=>deleteFigure(series.id,stid,fid,gid)}
+                  onReorderSets={(gid,from,to)=>reorderSets(series.id,from,to,gid)}
+                  onReorderGroups={(from,to)=>reorderGroups(series.id,from,to)}
                 />
-              ))}
+              )}
 
               {/* Ungrouped sets */}
               {series.sets.length===0 && (!series.groups || series.groups.length===0) && <div style={{textAlign:"center",padding:"3rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>}
