@@ -1089,11 +1089,13 @@ export default function App() {
               {filteredSeries.map(s=>{
                 const active = s.id===effectiveSelected && !showWishlist;
                 return (
-                  <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}} style={{cursor:"pointer",background:active?"var(--bg)":"transparent",borderRight:active?"2px solid "+s.color:"2px solid transparent",overflow:"hidden"}}>
-                    {s.bgImage && <img src={s.bgImage} alt={s.name} style={{width:"100%",height:50,objectFit:"cover",display:"block"}} />}
-                    <div style={{padding:"6px 16px 8px"}}>
+                  <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}}
+                    style={{cursor:"pointer",borderRight:active?"2px solid "+s.color:"2px solid transparent",position:"relative",overflow:"hidden"}}>
+                    {/* Background image */}
+                    {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.15,pointerEvents:"none"}} />}
+                    <div style={{position:"relative",padding:"10px 16px",background:active?"rgba(255,255,255,0.08)":"transparent"}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
-                        {s.logo ? <img src={s.logo} alt={s.name} style={{width:24,height:24,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:16}}>{s.emoji}</span>}
+                        {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:24,height:24,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:16}}>{s.emoji}</span>)}
                         <span style={{fontSize:13,fontWeight:active?600:400,color:active?"var(--text)":"var(--text2)",flex:1}}>{s.name}</span>
                       </div>
                       <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
@@ -1116,12 +1118,6 @@ export default function App() {
 
         {/* MAIN */}
         <div style={{flex:1,padding:"20px 24px",overflowY:"auto",position:"relative"}}>
-          {/* Series background image */}
-          {!isSearchMode && !showWishlist && series?.bgImage && (
-            <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",overflow:"hidden",marginLeft:210}}>
-              <img src={series.bgImage} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.06}} />
-            </div>
-          )}
           <div style={{position:"relative",zIndex:1}}>
           {isSearchMode && (
             <div>
