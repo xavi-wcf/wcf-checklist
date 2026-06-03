@@ -1092,13 +1092,16 @@ export default function App() {
                   <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}}
                     style={{cursor:"pointer",borderRight:active?"2px solid "+s.color:"2px solid transparent",position:"relative",overflow:"hidden"}}>
                     {/* Background image */}
-                    {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.15,pointerEvents:"none"}} />}
-                    <div style={{position:"relative",padding:"10px 16px",background:active?"rgba(255,255,255,0.08)":"transparent"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
-                        {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:24,height:24,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:16}}>{s.emoji}</span>)}
-                        <span style={{fontSize:13,fontWeight:active?600:400,color:active?"var(--text)":"var(--text2)",flex:1}}>{s.name}</span>
+                    {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",opacity:0.25,pointerEvents:"none"}} />}
+                    <div style={{position:"relative",padding:"8px 12px",background:active?"rgba(255,255,255,0.05)":"transparent"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                        {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:22,height:22,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:15}}>{s.emoji}</span>)}
+                        <span style={{fontSize:13,fontWeight:active?600:400,color:active?"var(--text)":"var(--text2)"}}>{s.name}</span>
                       </div>
-                      <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
+                      {/* Progress bar — only half width */}
+                      <div style={{width:"50%"}}>
+                        <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
+                      </div>
                     </div>
                   </div>
                 );
