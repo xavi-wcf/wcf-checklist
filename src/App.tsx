@@ -554,18 +554,18 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
   );
 }
 
-function SettingsModal({ apiKey, appLogo, onSave, onClose }: { apiKey:string; appLogo:string; onSave:(k:string, logo:string)=>void; onClose:()=>void }) {
+function SettingsModal({ apiKey, bannerUrl, onSave, onClose }: { apiKey:string; bannerUrl:string; onSave:(k:string, b:string)=>void; onClose:()=>void }) {
   const { t } = useTr();
   const [key,setKey]=useState(apiKey);
-  const [logo,setLogo]=useState(appLogo);
+  const [banner,setBanner]=useState(bannerUrl);
   return (
     <Modal title={`⚙️ ${t("settings")}`} onClose={onClose}>
       <Field label={t("imgbbKey")}><Input value={key} onChange={setKey} placeholder="Pega aquí tu API key" /></Field>
       <p style={{fontSize:12,color:"#888",marginBottom:16}}>{t("imgbbHint")}</p>
-      <ImageUploader apiKey={key||apiKey} currentUrl={logo} onUploaded={setLogo} label="Banner de la app (parte superior)" aspectRatio={null} format="png" skipCrop />
+      <ImageUploader apiKey={key||apiKey} currentUrl={banner} onUploaded={setBanner} label="Banner de la app (parte superior)" aspectRatio={null} format="png" skipCrop />
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{onSave(key.trim(), logo);onClose();}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{onSave(key.trim(), banner);onClose();}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1121,4 +1121,4 @@ export default function App() {
 
       {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showSettings && <SettingsModal apiKey={apiKey} appLogo
+      {showSettings && <SettingsModal apiKey={ap
