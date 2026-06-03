@@ -950,17 +950,19 @@ export default function App() {
   const updateFigure = (sid:number,stid:number,fid:number,f:Omit<Figure,"id">) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.map(st=>st.id===stid?{...st,figures:st.figures.map(fig=>fig.id===fid?{...fig,...f}:fig)}:st)}:s));
   const deleteFigure = (sid:number,stid:number,fid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.map(st=>st.id===stid?{...st,figures:st.figures.filter(f=>f.id!==fid)}:st)}:s));
 
+  const langValue = { t, lang };
+
   if (!ready) return (
-    <LangProvider value={{ t, lang }}>
+    <LangCtx.Provider value={langValue}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"#888",fontFamily:"system-ui,sans-serif"}}>
         <div style={{fontSize:32}}>📦</div>
         <div style={{fontSize:14}}>{t("loading")}</div>
       </div>
-    </LangProvider>
+    </LangCtx.Provider>
   );
 
   return (
-    <LangProvider value={{ t, lang }}>
+    <LangCtx.Provider value={langValue}>
     <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",minHeight:"100vh",color:"#1a1a1a"}}>
 
       {/* BANNER */}
@@ -1113,6 +1115,4 @@ export default function App() {
             <div style={{textAlign:"center",padding:"4rem 1rem",color:"#bbb",fontSize:14}}>{t("noSeriesCat1")}<br/>{t("noSeriesCat2")}</div>
           )}
         </div>
-      </div>
-
-      {showAddSeries && <SeriesModal
+      </
