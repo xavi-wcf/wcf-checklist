@@ -642,10 +642,10 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onAddFigure, onUpdateFigure, onDeleteFigure }: {
+function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onAddFigure, onUpdateFigure, onDeleteFigure }: {
   set:FigureSet; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
-  onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void;
+  onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
   onAddFigure:(f:Omit<Figure,"id">)=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
 }) {
   const { t, lang } = useTr();
@@ -686,6 +686,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
           <Btn small onClick={()=>setAddFigure(true)} variant="primary">{t("addFigure")}</Btn>
           <Btn small onClick={()=>setBulkAdd(true)} variant="primary">➕ Añadir varias</Btn>
           <Btn small onClick={()=>setEditSet(true)}>{t("editSetBtn")}</Btn>
+          <Btn small onClick={onDuplicate}>📋 Duplicar</Btn>
           <Btn small onClick={onDeleteSet} variant="danger">{t("deleteSetBtn")}</Btn>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
@@ -827,10 +828,10 @@ function WishlistSection({ data, wishlist, owned, onToggle, onToggleWish }: { da
 // ============================================================
 //  DRAGGABLE SET LIST
 // ============================================================
-function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onAddFigure, onUpdateFigure, onDeleteFigure, onReorder }: {
+function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onAddFigure, onUpdateFigure, onDeleteFigure, onReorder }: {
   sets: FigureSet[]; color: string; owned: Set<number>; wishlist: Set<number>; apiKey: string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
-  onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void;
+  onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicate:(stid:number)=>void;
   onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
   onReorder:(from:number,to:number)=>void;
 }) {
@@ -889,6 +890,7 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
             onToggle={onToggle} onToggleWish={onToggleWish} onToggleAll={onToggleAll}
             onUpdateSet={(n,rd,sl)=>onUpdateSet(st.id,n,rd,sl)}
             onDeleteSet={()=>onDeleteSet(st.id)}
+            onDuplicate={()=>onDuplicate(st.id)}
             onAddFigure={f=>onAddFigure(st.id,f)}
             onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
             onDeleteFigure={fid=>onDeleteFigure(st.id,fid)}
@@ -939,6 +941,7 @@ export default function App() {
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logo:string,logoHeader:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logo,logoHeader}:s));
   const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
   const addSet = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:[...s.sets,{id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]}]}:s));
+  const duplicateSet = (sid:number, stid:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const st=s.sets.find(x=>x.id===stid); if(!st) return s; const copy={...st,id:newId(),name:st.name+" - copia",figures:[]}; return {...s,sets:[...s.sets,copy]}; }));
   const updateSet = (sid:number,stid:number,name:string,releaseDate:string,seriesLogo:string) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.map(st=>st.id===stid?{...st,name,releaseDate,seriesLogo}:st)}:s));
   const deleteSet = (sid:number,stid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:s.sets.filter(st=>st.id!==stid)}:s));
   const reorderSets = (sid:number, fromIdx:number, toIdx:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const sets=[...s.sets]; const [moved]=sets.splice(fromIdx,1); sets.splice(toIdx,0,moved); return {...s,sets}; }));
@@ -1097,6 +1100,7 @@ export default function App() {
                 onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
                 onUpdateSet={(stid,n,rd,sl)=>updateSet(series.id,stid,n,rd,sl)}
                 onDeleteSet={stid=>deleteSet(series.id,stid)}
+                onDuplicate={stid=>duplicateSet(series.id,stid)}
                 onAddFigure={(stid,f)=>addFigure(series.id,stid,f)}
                 onUpdateFigure={(stid,fid,f)=>updateFigure(series.id,stid,fid,f)}
                 onDeleteFigure={(stid,fid)=>deleteFigure(series.id,stid,fid)}
@@ -1110,10 +1114,4 @@ export default function App() {
         </div>
       </div>
 
-      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(n,e,c,l,lh)=>{addSeries(n,e,c,l,lh);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
-      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(n,e,c,l,lh)=>{updateSeries(editSeriesData.id,n,e,c,l,lh);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showSettings && <SettingsModal apiKey={apiKey} appLogo={appLogo} onSave={(k,l)=>{saveApiKey(k);saveAppLogo(l);}} onClose={()=>setShowSettings(false)} />}
-    </div>
-    </LangCtx.Provider>
-  );
-}
+      {showAddSeries && <SeriesModal category={activeCategory} 
