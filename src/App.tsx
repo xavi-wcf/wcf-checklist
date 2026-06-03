@@ -554,10 +554,10 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
   );
 }
 
-function SettingsModal({ apiKey, bannerUrl, onSave, onClose }: { apiKey:string; bannerUrl:string; onSave:(k:string, b:string)=>void; onClose:()=>void }) {
+function SettingsModal({ apiKey, currentBanner, onSave, onClose }: { apiKey:string; currentBanner:string; onSave:(k:string, b:string)=>void; onClose:()=>void }) {
   const { t } = useTr();
   const [key,setKey]=useState(apiKey);
-  const [banner,setBanner]=useState(bannerUrl);
+  const [banner,setBanner]=useState(currentBanner);
   return (
     <Modal title={`⚙️ ${t("settings")}`} onClose={onClose}>
       <Field label={t("imgbbKey")}><Input value={key} onChange={setKey} placeholder="Pega aquí tu API key" /></Field>
@@ -1121,4 +1121,4 @@ export default function App() {
 
       {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showSettings && <SettingsModal apiKey={ap
+      {showSettings && <SettingsModa
