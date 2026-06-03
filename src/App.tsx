@@ -471,13 +471,28 @@ function ImageUploader({ apiKey, currentUrl, onUploaded, label, aspectRatio, for
     try { onUploaded(await uploadToImgBB(blob, apiKey)); } catch { setError(t("uploadError")); } finally { setUploading(false); }
   };
 
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true); };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) handleFile(file);
+  };
+
   return (
     <div>
       <div style={{fontSize:12,color:"var(--text3)",marginBottom:5,fontWeight:500}}>{label}</div>
-      <div onClick={()=>!uploading&&inputRef.current?.click()} style={{border:"1.5px dashed var(--border)",borderRadius:10,padding:12,cursor:uploading?"wait":"pointer",textAlign:"center",background:"var(--bg2)",marginBottom:4}}>
+      <div
+        onClick={()=>!uploading&&inputRef.current?.click()}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{border:`1.5px dashed ${dragOver?"#0F6E56":"var(--border)"}`,borderRadius:10,padding:12,cursor:uploading?"wait":"pointer",textAlign:"center",background:dragOver?"#E1F5EE":"var(--bg2)",marginBottom:4,transition:"border-color 0.2s, background 0.2s"}}>
         {currentUrl
           ? <div><img src={currentUrl} alt="" style={{maxHeight:80,maxWidth:"100%",borderRadius:6,marginBottom:6,objectFit:"contain"}} /><div style={{fontSize:12,color:"var(--text3)"}}>{uploading ? t("uploading") : t("uploadChange")}</div></div>
-          : <div style={{color:"var(--text4)",fontSize:13}}>{uploading ? t("uploading") : t("uploadClick")}</div>
+          : <div style={{color:dragOver?"#0F6E56":"var(--text4)",fontSize:13}}>{uploading ? t("uploading") : dragOver ? "Suelta la imagen aquí" : t("uploadClick")}</div>
         }
         <input ref={inputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>e.target.files?.[0]&&handleFile(e.target.files[0])} />
       </div>
