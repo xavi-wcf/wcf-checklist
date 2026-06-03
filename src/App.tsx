@@ -965,17 +965,17 @@ export default function App() {
 
   return (
     <LangProvider value={langValue}>
-    <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",color:"#1a1a1a"}}>
+    <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",minHeight:"100vh",color:"#1a1a1a"}}>
 
-      {/* BANNER */}
+      {/* BANNER — se desplaza con la página */}
       {appLogo && (
         <div style={{width:"100%",height:120,overflow:"hidden",background:"#f5f5f3",flexShrink:0}}>
           <img src={appLogo} alt="banner" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}} />
         </div>
       )}
 
-      {/* TOP BAR */}
-      <div style={{borderBottom:"1px solid #e8e8e4",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,background:"#fff",flexShrink:0}}>
+      {/* TOP BAR — sticky, siempre visible */}
+      <div style={{position:"sticky",top:0,zIndex:50,borderBottom:"1px solid #e8e8e4",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,background:"#fff",flexShrink:0}}>
         {!appLogo && <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap"}}>{t("appTitle")}</span>}
         <div style={{flex:1,display:"flex",alignItems:"center",gap:6,border:"1px solid #e8e8e4",borderRadius:8,padding:"0 10px",height:34,background:"#fafaf8"}}>
           <span style={{color:"#aaa",fontSize:14}}>🔍</span>
@@ -1016,9 +1016,9 @@ export default function App() {
         ⚠️ {t("apiKeyWarning")} <strong style={{cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowSettings(true)}>{t("settings")}</strong>
       </div>}
 
-      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        {/* SIDEBAR */}
-        <div style={{width:210,borderRight:"1px solid #e8e8e4",background:"#fafaf8",flexShrink:0,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+      <div style={{display:"flex",flex:1}}>
+        {/* SIDEBAR — sticky, se queda fija al hacer scroll */}
+        <div style={{width:210,borderRight:"1px solid #e8e8e4",background:"#fafaf8",flexShrink:0,display:"flex",flexDirection:"column",position:"sticky",top:57,height:"calc(100vh - 57px)",overflowY:"auto"}}>
           <div style={{padding:"10px 10px 8px",borderBottom:"1px solid #e8e8e4"}}>
             {(["oficial","resina"] as CategoryType[]).map(cat=>{
               const active = cat===activeCategory && !isSearchMode;
@@ -1121,8 +1121,4 @@ export default function App() {
 
       {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(nm,em,co,lg,lh)=>{addSeries(nm,em,co,lg,lh);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(nm,em,co,lg,lh)=>{updateSeries(editSeriesData.id,nm,em,co,lg,lh);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showSettings && <SettingsModal apiKey={apiKey} appLogo={appLogo} onSave={(key,logo)=>{saveApiKey(key);saveAppLogo(logo);}} onClose={()=>setShowSettings(false)} />}
-    </div>
-    </LangProvider>
-  );
-}
+      {showSettings && <SettingsModal apiKey={apiKey} appLogo
