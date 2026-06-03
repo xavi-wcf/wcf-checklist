@@ -119,7 +119,9 @@ type TKey = keyof typeof T;
 const LangCtx = createContext<{ t: (key: TKey, ...args: unknown[]) => string; lang: LangCode }>({
   t: (key) => key as string, lang: "es",
 });
-const LangProvider = LangCtx.Provider;
+function LangProvider({ value, children }: { value: { t: (key: TKey, ...args: unknown[]) => string; lang: LangCode }; children: React.ReactNode }) {
+  return <LangCtx.Provider value={value}>{children}</LangCtx.Provider>;
+}
 const useTr = () => useContext(LangCtx);
 
 function useLang() {
@@ -953,16 +955,16 @@ export default function App() {
   const langValue = { t, lang };
 
   if (!ready) return (
-    <LangCtx.Provider value={langValue}>
+    <LangProvider value={langValue}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"#888",fontFamily:"system-ui,sans-serif"}}>
         <div style={{fontSize:32}}>📦</div>
         <div style={{fontSize:14}}>{t("loading")}</div>
       </div>
-    </LangCtx.Provider>
+    </LangProvider>
   );
 
   return (
-    <LangCtx.Provider value={langValue}>
+    <LangProvider value={langValue}>
     <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",minHeight:"100vh",color:"#1a1a1a"}}>
 
       {/* BANNER */}
@@ -1115,4 +1117,12 @@ export default function App() {
             <div style={{textAlign:"center",padding:"4rem 1rem",color:"#bbb",fontSize:14}}>{t("noSeriesCat1")}<br/>{t("noSeriesCat2")}</div>
           )}
         </div>
-      </
+      </div>
+
+      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(nm,em,co,lg,lh)=>{addSeries(nm,em,co,lg,lh);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
+      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(nm,em,co,lg,lh)=>{updateSeries(editSeriesData.id,nm,em,co,lg,lh);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
+      {showSettings && <SettingsModal apiKey={apiKey} appLogo={appLogo} onSave={(key,logo)=>{saveApiKey(key);saveAppLogo(logo);}} onClose={()=>setShowSettings(false)} />}
+    </div>
+    </LangProvider>
+  );
+}
