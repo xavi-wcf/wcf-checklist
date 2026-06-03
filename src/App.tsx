@@ -189,7 +189,7 @@ function useLang() {
 type CategoryType = "oficial" | "resina";
 interface Figure { id: number; name: string; emoji: string; image?: string; }
 interface FigureSet { id: number; name: string; releaseDate?: string; seriesLogo?: string; figures: Figure[]; }
-interface Series { id: number; name: string; emoji: string; logo?: string; logoHeader?: string; color: string; category: CategoryType; sets: FigureSet[]; }
+interface Series { id: number; name: string; emoji: string; logo?: string; logoHeader?: string; bgImage?: string; color: string; category: CategoryType; sets: FigureSet[]; }
 
 // ============================================================
 //  INITIAL DATA
@@ -577,24 +577,27 @@ function SetModal({ title, initial, apiKey, onSave, onClose }: { title:string; i
   );
 }
 
-function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n:string,e:string,c:string,logo:string,lh:string)=>void; onClose:()=>void; category:CategoryType; initial?:Partial<Series>; apiKey:string }) {
+function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n:string,e:string,c:string,logo:string,lh:string,bg:string)=>void; onClose:()=>void; category:CategoryType; initial?:Partial<Series>; apiKey:string }) {
   const { t } = useTr();
   const [name,setName]=useState(initial?.name??""); const [emoji,setEmoji]=useState(initial?.emoji??"⭐");
   const [color,setColor]=useState(initial?.color??SERIES_COLORS[0]); const [logo,setLogo]=useState(initial?.logo??""); const [logoHeader,setLogoHeader]=useState(initial?.logoHeader??"");
+  const [bgImage,setBgImage]=useState(initial?.bgImage??"");
   const catLabel = category==="oficial" ? t("officialBadge") : t("resinBadge");
   return (
     <Modal title={initial ? t("editSeriesTitle") : t("newSeriesTitle", catLabel)} onClose={onClose}>
       <Field label={t("nameLabel")}><Input value={name} onChange={setName} placeholder="Ej: Naruto" /></Field>
+      <ImageUploader apiKey={apiKey} currentUrl={bgImage} onUploaded={setBgImage} label="Imagen de fondo de la serie" aspectRatio={null} skipCrop />
+      <div style={{marginTop:12}} />
       <ImageUploader apiKey={apiKey} currentUrl={logo} onUploaded={setLogo} label={t("sidebarIcon")} aspectRatio={1} format="png" />
       <div style={{marginTop:12}} />
       <ImageUploader apiKey={apiKey} currentUrl={logoHeader} onUploaded={setLogoHeader} label={t("headerLogo")} aspectRatio={null} format="png" skipCrop />
       <Field label={t("emojiFallback")}><EmojiPicker value={emoji} onChange={setEmoji} /></Field>
       <Field label={t("colorLabel")}>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{SERIES_COLORS.map(c=><div key={c} onClick={()=>setColor(c)} style={{width:28,height:28,borderRadius:"50%",background:c,cursor:"pointer",border:color===c?"3px solid #1a1a1a":"3px solid transparent"}} />)}</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{SERIES_COLORS.map(c=><div key={c} onClick={()=>setColor(c)} style={{width:28,height:28,borderRadius:"50%",background:c,cursor:"pointer",border:color===c?"3px solid var(--text)":"3px solid transparent"}} />)}</div>
       </Field>
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{if(name.trim()){onSave(name.trim(),emoji,color,logo,logoHeader);onClose();}}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave(name.trim(),emoji,color,logo,logoHeader,bgImage);onClose();}}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -987,8 +990,8 @@ export default function App() {
   const ownedAll = data.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
   const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
 
-  const addSeries = (name:string,emoji:string,color:string,logo:string,logoHeader:string) => { const s:Series={id:newId(),name,emoji,logo,logoHeader,color,category:activeCategory,sets:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
-  const updateSeries = (sid:number,name:string,emoji:string,color:string,logo:string,logoHeader:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logo,logoHeader}:s));
+  const addSeries = (name:string,emoji:string,color:string,logo:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logo,logoHeader,bgImage,color,category:activeCategory,sets:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
+  const updateSeries = (sid:number,name:string,emoji:string,color:string,logo:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logo,logoHeader,bgImage}:s));
   const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
   const addSet = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:[...s.sets,{id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]}]}:s));
   const duplicateSet = (sid:number, stid:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const st=s.sets.find(x=>x.id===stid); if(!st) return s; const copy={...st,id:newId(),name:st.name+" - copia",figures:[]}; return {...s,sets:[...s.sets,copy]}; }));
@@ -1086,12 +1089,15 @@ export default function App() {
               {filteredSeries.map(s=>{
                 const active = s.id===effectiveSelected && !showWishlist;
                 return (
-                  <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}} style={{padding:"10px 16px",cursor:"pointer",background:active?"var(--bg)":"transparent",borderRight:active?"2px solid "+s.color:"2px solid transparent"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
-                      {s.logo ? <img src={s.logo} alt={s.name} style={{width:24,height:24,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:16}}>{s.emoji}</span>}
-                      <span style={{fontSize:13,fontWeight:active?600:400,color:active?"#1a1a1a":"#555",flex:1}}>{s.name}</span>
+                  <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}} style={{cursor:"pointer",background:active?"var(--bg)":"transparent",borderRight:active?"2px solid "+s.color:"2px solid transparent",overflow:"hidden"}}>
+                    {s.bgImage && <img src={s.bgImage} alt={s.name} style={{width:"100%",height:50,objectFit:"cover",display:"block"}} />}
+                    <div style={{padding:"6px 16px 8px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                        {s.logo ? <img src={s.logo} alt={s.name} style={{width:24,height:24,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:16}}>{s.emoji}</span>}
+                        <span style={{fontSize:13,fontWeight:active?600:400,color:active?"var(--text)":"var(--text2)",flex:1}}>{s.name}</span>
+                      </div>
+                      <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
                     </div>
-                    <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
                   </div>
                 );
               })}
@@ -1109,7 +1115,14 @@ export default function App() {
         </div>
 
         {/* MAIN */}
-        <div style={{flex:1,padding:"20px 24px",overflowY:"auto"}}>
+        <div style={{flex:1,padding:"20px 24px",overflowY:"auto",position:"relative"}}>
+          {/* Series background image */}
+          {!isSearchMode && !showWishlist && series?.bgImage && (
+            <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",overflow:"hidden",marginLeft:210}}>
+              <img src={series.bgImage} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.06}} />
+            </div>
+          )}
+          <div style={{position:"relative",zIndex:1}}>
           {isSearchMode && (
             <div>
               <div style={{marginBottom:16}}><span style={{fontSize:18,fontWeight:600}}>{t("searchResults")}</span></div>
@@ -1161,11 +1174,12 @@ export default function App() {
           {!isSearchMode && !showWishlist && !series && (
             <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}<br/>{t("noSeriesCat2")}</div>
           )}
+          </div>{/* end zIndex:1 wrapper */}
         </div>
       </div>
 
-      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
-      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
+      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5,p6)=>{addSeries(p1,p2,p3,p4,p5,p6);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
+      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5,p6)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5,p6);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
     </div>
   );
