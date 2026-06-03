@@ -766,7 +766,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
             <div style={{position:"relative"}}>
               <Btn small onClick={()=>setShowMoveMenu(m=>!m)}>📂 Mover a...</Btn>
               {showMoveMenu && (
-                <div style={{position:"absolute",top:"100%",left:0,zIndex:50,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,0.15)",minWidth:160,marginTop:4}}>
+                <div style={{position:"absolute",top:"100%",left:0,zIndex:50,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,0.15)",minWidth:160,marginTop:4,maxHeight:240,overflowY:"auto"}}>
                   {groups.map(g=>(
                     <div key={g.id} onClick={()=>{onMoveToGroup(g.id);setShowMoveMenu(false);}}
                       style={{padding:"8px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",display:"flex",alignItems:"center",gap:8}}
@@ -954,7 +954,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
   onReorderSets:(from:number,to:number)=>void;
 }) {
   const { t } = useTr();
-  const [open,setOpen]=useState(true);
+  const [open,setOpen]=useState(false);
   const [editGroup,setEditGroup]=useState(false);
   const [imgError,setImgError]=useState(false);
 
