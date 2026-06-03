@@ -714,15 +714,18 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onAddFigure, onUpdateFigure, onDeleteFigure }: {
+function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onUpdateFigure, onDeleteFigure }: {
   set:FigureSet; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
+  onMoveToGroup?:(gid:number)=>void; groups?:FigureGroup[];
   onAddFigure:(f:Omit<Figure,"id">)=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
 }) {
   const { t, lang } = useTr();
   const [open,setOpen]=useState(false); const [editSet,setEditSet]=useState(false);
-  const [addFigure,setAddFigure]=useState(false); const [bulkAdd,setBulkAdd]=useState(false); const [editFigure,setEditFigure]=useState<Figure|null>(null);
+  const [addFigure,setAddFigure]=useState(false); const [bulkAdd,setBulkAdd]=useState(false);
+  const [editFigure,setEditFigure]=useState<Figure|null>(null);
+  const [showMoveMenu,setShowMoveMenu]=useState(false);
   const ownedCount = set.figures.filter(f=>owned.has(f.id)).length;
   const total = set.figures.length; const complete = ownedCount===total && total>0;
 
@@ -754,11 +757,29 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
         <span style={{fontSize:18,color:"var(--text4)",transform:open?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0}}>⌄</span>
       </div>
       {open && <div style={{padding:"12px 16px 16px",borderTop:"1px solid var(--border)"}}>
-        <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",position:"relative"}}>
           <Btn small onClick={()=>setAddFigure(true)} variant="primary">{t("addFigure")}</Btn>
           <Btn small onClick={()=>setBulkAdd(true)} variant="primary">➕ Añadir varias</Btn>
           <Btn small onClick={()=>setEditSet(true)}>{t("editSetBtn")}</Btn>
           <Btn small onClick={onDuplicate}>📋 Duplicar</Btn>
+          {onMoveToGroup && groups && groups.length > 0 && (
+            <div style={{position:"relative"}}>
+              <Btn small onClick={()=>setShowMoveMenu(m=>!m)}>📂 Mover a...</Btn>
+              {showMoveMenu && (
+                <div style={{position:"absolute",top:"100%",left:0,zIndex:50,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,0.15)",minWidth:160,marginTop:4}}>
+                  {groups.map(g=>(
+                    <div key={g.id} onClick={()=>{onMoveToGroup(g.id);setShowMoveMenu(false);}}
+                      style={{padding:"8px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",display:"flex",alignItems:"center",gap:8}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      {g.logo && <img src={g.logo} alt="" style={{height:16,maxWidth:40,objectFit:"contain"}} />}
+                      {g.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <Btn small onClick={onDeleteSet} variant="danger">{t("deleteSetBtn")}</Btn>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
@@ -979,10 +1000,11 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
 // ============================================================
 //  DRAGGABLE SET LIST
 // ============================================================
-function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onAddFigure, onUpdateFigure, onDeleteFigure, onReorder }: {
+function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onUpdateFigure, onDeleteFigure, onReorder }: {
   sets: FigureSet[]; color: string; owned: Set<number>; wishlist: Set<number>; apiKey: string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicate:(stid:number)=>void;
+  onMoveToGroup?:(stid:number,gid:number)=>void; groups?:FigureGroup[];
   onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
   onReorder:(from:number,to:number)=>void;
 }) {
@@ -1042,6 +1064,8 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
             onUpdateSet={(n,rd,sl)=>onUpdateSet(st.id,n,rd,sl)}
             onDeleteSet={()=>onDeleteSet(st.id)}
             onDuplicate={()=>onDuplicate(st.id)}
+            onMoveToGroup={onMoveToGroup ? (gid)=>onMoveToGroup(st.id,gid) : undefined}
+            groups={groups}
             onAddFigure={f=>onAddFigure(st.id,f)}
             onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
             onDeleteFigure={fid=>onDeleteFigure(st.id,fid)}
@@ -1187,6 +1211,10 @@ export default function App() {
   const addGroup = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:[...s.groups,{id:newId(),name:"Nuevo grupo",logo:"",sets:[]}]}:s));
   const updateGroup = (sid:number,gid:number,name:string,logo:string) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.map(g=>g.id===gid?{...g,name,logo}:g)}:s));
   const deleteGroup = (sid:number,gid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.filter(g=>g.id!==gid)}:s));
+  const moveSetToGroup = (sid:number, stid:number, gid:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const st = s.sets.find(x=>x.id===stid); if(!st) return s;
+    return {...s, sets:s.sets.filter(x=>x.id!==stid), groups:s.groups.map(g=>g.id===gid?{...g,sets:[...g.sets,st]}:g)};
+  }));
   const addFigure = (sid:number,stid:number,f:Omit<Figure,"id">,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
     const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:[...st.figures,{...f,id:newId()}]}:st);
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
@@ -1379,6 +1407,8 @@ export default function App() {
                   onAddFigure={(stid,f)=>addFigure(series.id,stid,f)}
                   onUpdateFigure={(stid,fid,f)=>updateFigure(series.id,stid,fid,f)}
                   onDeleteFigure={(stid,fid)=>deleteFigure(series.id,stid,fid)}
+                  onMoveToGroup={(stid,gid)=>moveSetToGroup(series.id,stid,gid)}
+                  groups={series.groups}
                   onReorder={(from,to)=>reorderSets(series.id,from,to)}
                 />
               )}
