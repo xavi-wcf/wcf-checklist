@@ -956,6 +956,69 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
 // ============================================================
 //  APP
 // ============================================================
+// ============================================================
+//  DRAGGABLE SERIES LIST
+// ============================================================
+function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOwned, seriesTotal, onSelect, onReorder }: {
+  series: Series[]; effectiveSelected: number|null; showWishlist: boolean;
+  seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
+  onSelect:(sid:number)=>void; onReorder:(from:number,to:number)=>void;
+}) {
+  const dragIdx = useRef<number|null>(null);
+  const [dragOver, setDragOver] = useState<number|null>(null);
+  const touchDragIdx = useRef<number|null>(null);
+
+  const handleDragStart = (idx:number) => { dragIdx.current=idx; };
+  const handleDragOver = (e:React.DragEvent, idx:number) => { e.preventDefault(); setDragOver(idx); };
+  const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorder(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
+  const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
+  const handleTouchStart = (_e:React.TouchEvent, idx:number) => { touchDragIdx.current=idx; };
+  const handleTouchEnd = (e:React.TouchEvent) => {
+    if(touchDragIdx.current===null) return;
+    const t=e.changedTouches[0];
+    const els=document.elementsFromPoint(t.clientX,t.clientY);
+    const target=els.find(el=>el.hasAttribute("data-seriesidx"));
+    if(target){ const toIdx=parseInt(target.getAttribute("data-seriesidx")!); if(toIdx!==touchDragIdx.current) onReorder(touchDragIdx.current,toIdx); }
+    touchDragIdx.current=null; setDragOver(null);
+  };
+
+  return (
+    <div>
+      {series.map((s, idx) => {
+        const active = s.id===effectiveSelected && !showWishlist;
+        return (
+          <div key={s.id}
+            data-seriesidx={idx}
+            draggable
+            onDragStart={()=>handleDragStart(idx)}
+            onDragOver={e=>handleDragOver(e,idx)}
+            onDrop={()=>handleDrop(idx)}
+            onDragEnd={handleDragEnd}
+            onTouchStart={e=>handleTouchStart(e,idx)}
+            onTouchEnd={handleTouchEnd}
+            onClick={()=>onSelect(s.id)}
+            style={{cursor:"grab",borderRight:active?"2px solid "+s.color:"2px solid transparent",position:"relative",overflow:"hidden",opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?"2px solid "+s.color:"none",transition:"opacity 0.15s,outline 0.1s"}}>
+            {/* Background image — higher opacity when active */}
+            {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",opacity:active?0.5:0.2,transition:"opacity 0.3s",pointerEvents:"none"}} />}
+            <div style={{position:"relative",padding:"8px 12px",background:active?"rgba(0,0,0,0.08)":"transparent"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:22,height:22,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:15}}>{s.emoji}</span>)}
+                <span style={{fontSize:13,fontWeight:active?600:400,color:active?"var(--text)":"var(--text2)"}}>{s.name}</span>
+              </div>
+              <div style={{width:"50%"}}>
+                <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
+//  APP
+// ============================================================
 export default function App() {
   const { owned, toggle, wishlist, toggleWish, imgbbKey, saveImgbbKey, appLogo, saveAppLogo, ready: ownedReady } = useOwned();
   const { data, setData, ready: dataReady } = useData();
@@ -991,6 +1054,7 @@ export default function App() {
   const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
 
   const addSeries = (name:string,emoji:string,color:string,logo:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logo,logoHeader,bgImage,color,category:activeCategory,sets:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
+  const reorderSeries = (fromIdx:number, toIdx:number) => setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===activeCategory); const others=all.filter(s=>s.category!==activeCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logo:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logo,logoHeader,bgImage}:s));
   const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
   const addSet = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:[...s.sets,{id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]}]}:s));
@@ -1086,26 +1150,15 @@ export default function App() {
             <div style={{fontSize:11,fontWeight:600,color:"var(--text4)",padding:"10px 16px 6px",textTransform:"uppercase",letterSpacing:"0.08em"}}>{t("seriesLabel")}</div>
             <div style={{flex:1,overflowY:"auto"}}>
               {filteredSeries.length===0 && <div style={{padding:"12px 16px",fontSize:13,color:"var(--text4)"}}>{t("noSeries")}</div>}
-              {filteredSeries.map(s=>{
-                const active = s.id===effectiveSelected && !showWishlist;
-                return (
-                  <div key={s.id} onClick={()=>{setSelectedSeries(s.id);setShowWishlist(false);}}
-                    style={{cursor:"pointer",borderRight:active?"2px solid "+s.color:"2px solid transparent",position:"relative",overflow:"hidden"}}>
-                    {/* Background image */}
-                    {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",opacity:0.25,pointerEvents:"none"}} />}
-                    <div style={{position:"relative",padding:"8px 12px",background:active?"rgba(255,255,255,0.05)":"transparent"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                        {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:22,height:22,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:15}}>{s.emoji}</span>)}
-                        <span style={{fontSize:13,fontWeight:active?600:400,color:active?"var(--text)":"var(--text2)"}}>{s.name}</span>
-                      </div>
-                      {/* Progress bar — only half width */}
-                      <div style={{width:"50%"}}>
-                        <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              <DraggableSeriesList
+                series={filteredSeries}
+                effectiveSelected={effectiveSelected}
+                showWishlist={showWishlist}
+                seriesOwned={seriesOwned}
+                seriesTotal={seriesTotal}
+                onSelect={(sid)=>{setSelectedSeries(sid);setShowWishlist(false);}}
+                onReorder={reorderSeries}
+              />
             </div>
             <div style={{padding:"10px 14px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
               <div onClick={()=>{setShowWishlist(true);setSearchActive(false);setSearchQuery("");}}
