@@ -577,10 +577,10 @@ function SetModal({ title, initial, apiKey, onSave, onClose }: { title:string; i
   );
 }
 
-function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n:string,e:string,c:string,logo:string,lh:string,bg:string)=>void; onClose:()=>void; category:CategoryType; initial?:Partial<Series>; apiKey:string }) {
+function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n:string,e:string,c:string,lh:string,bg:string)=>void; onClose:()=>void; category:CategoryType; initial?:Partial<Series>; apiKey:string }) {
   const { t } = useTr();
   const [name,setName]=useState(initial?.name??""); const [emoji,setEmoji]=useState(initial?.emoji??"⭐");
-  const [color,setColor]=useState(initial?.color??SERIES_COLORS[0]); const [logo,setLogo]=useState(initial?.logo??""); const [logoHeader,setLogoHeader]=useState(initial?.logoHeader??"");
+  const [color,setColor]=useState(initial?.color??SERIES_COLORS[0]); const [logoHeader,setLogoHeader]=useState(initial?.logoHeader??"");
   const [bgImage,setBgImage]=useState(initial?.bgImage??"");
   const catLabel = category==="oficial" ? t("officialBadge") : t("resinBadge");
   return (
@@ -595,7 +595,7 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
       </Field>
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{if(name.trim()){onSave(name.trim(),emoji,color,logo,logoHeader,bgImage);onClose();}}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave(name.trim(),emoji,color,logoHeader,bgImage);onClose();}}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1051,9 +1051,9 @@ export default function App() {
   const ownedAll = data.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
   const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
 
-  const addSeries = (name:string,emoji:string,color:string,logo:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logo,logoHeader,bgImage,color,category:activeCategory,sets:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
+  const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:activeCategory,sets:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
   const reorderSeries = (fromIdx:number, toIdx:number) => setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===activeCategory); const others=all.filter(s=>s.category!==activeCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
-  const updateSeries = (sid:number,name:string,emoji:string,color:string,logo:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logo,logoHeader,bgImage}:s));
+  const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
   const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
   const addSet = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,sets:[...s.sets,{id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]}]}:s));
   const duplicateSet = (sid:number, stid:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s; const st=s.sets.find(x=>x.id===stid); if(!st) return s; const copy={...st,id:newId(),name:st.name+" - copia",figures:[]}; return {...s,sets:[...s.sets,copy]}; }));
@@ -1228,8 +1228,8 @@ export default function App() {
         </div>
       </div>
 
-      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5,p6)=>{addSeries(p1,p2,p3,p4,p5,p6);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
-      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5,p6)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5,p6);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
+      {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
+      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
     </div>
   );
