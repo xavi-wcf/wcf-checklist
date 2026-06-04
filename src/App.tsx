@@ -441,21 +441,21 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
   const handleConfirm = () => {
     if (!imgRef.current || !canvasRef.current) return;
     const img = imgRef.current;
-    const outSize = 600;
+    // Output matches crop box proportions, max 600px on longest side
+    const maxOut = 600;
+    const outW = cropBox.w >= cropBox.h ? maxOut : Math.round(maxOut * cropBox.w / cropBox.h);
+    const outH = cropBox.h > cropBox.w ? maxOut : Math.round(maxOut * cropBox.h / cropBox.w);
     const canvas = canvasRef.current;
-    canvas.width = outSize; canvas.height = outSize;
+    canvas.width = outW; canvas.height = outH;
     const ctx = canvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outSize, outSize);
-    // Use max dimension so image is never cropped — white fills the rest
-    const refSize = Math.max(cropBox.w, cropBox.h);
-    const scaleOut = outSize / refSize;
-    const offsetX = (refSize - cropBox.w) / 2;
-    const offsetY = (refSize - cropBox.h) / 2;
-    const destX = (imgPos.x - cropBox.x + offsetX) * scaleOut;
-    const destY = (imgPos.y - cropBox.y + offsetY) * scaleOut;
-    const destW = imgW * scaleOut;
-    const destH = imgH * scaleOut;
+    ctx.fillRect(0, 0, outW, outH);
+    const scaleW = outW / cropBox.w;
+    const scaleH = outH / cropBox.h;
+    const destX = (imgPos.x - cropBox.x) * scaleW;
+    const destY = (imgPos.y - cropBox.y) * scaleH;
+    const destW = imgW * scaleW;
+    const destH = imgH * scaleH;
     ctx.drawImage(img, destX, destY, destW, destH);
     canvas.toBlob(b => { if (b) onConfirm(b); }, format === "png" ? "image/png" : "image/jpeg", format === "jpeg" ? 0.92 : undefined);
   };
