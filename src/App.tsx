@@ -911,7 +911,12 @@ function SearchResultCard({ figure, series, set, isOwned, onToggle }: { figure:F
           : <div style={{textAlign:"center"}}><div style={{fontSize:34}}>{figure.emoji}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{series.emoji} {series.name}</div>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:4}}>
+          {series.emoji} {series.name}
+          <span style={{padding:"1px 6px",borderRadius:8,fontSize:10,fontWeight:600,background:series.category==="oficial"?"#E1F5EE":"#ede9fe",color:series.category==="oficial"?"#0F6E56":"#7c3aed"}}>
+            {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
+          </span>
+        </div>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3}}>{figure.name}</div>
         <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{set.name}</div>
         {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
