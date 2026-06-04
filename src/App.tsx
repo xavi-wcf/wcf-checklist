@@ -409,6 +409,8 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
     el.addEventListener("touchmove", onSliderTouch, { passive: true });
     return () => { el.removeEventListener("touchstart", onSliderTouch); el.removeEventListener("touchmove", onSliderTouch); };
   }, []);
+
+  const handleConfirm = () => {
     if (!imgRef.current || !canvasRef.current) return;
     const img = imgRef.current, imd = imgDisplayRef.current;
     const outW = aspectRatio ? 600 : Math.round(crop.w * (img.naturalWidth / imd.w));
