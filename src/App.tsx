@@ -898,31 +898,40 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
 // ============================================================
 //  SEARCH RESULT CARD
 // ============================================================
-function SearchResultCard({ figure, series, set, isOwned, onToggle }: { figure:Figure; series:Series; set:FigureSet; isOwned:boolean; onToggle:()=>void }) {
+function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void }) {
   const { t, lang } = useTr();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
   const formatDate = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
   return (
-    <div onClick={onToggle} style={{border:"1px solid "+(isOwned?series.color:"var(--border)"),borderRadius:10,background:isOwned?series.color+"18":"var(--card-bg)",overflow:"hidden",cursor:"pointer",transition:"transform 0.15s"}}
+    <div style={{border:"1px solid "+(isOwned?series.color:isWished?"#f59e0b":"var(--border)"),borderRadius:10,background:isOwned?series.color+"18":isWished?"#fffbeb":"var(--card-bg)",overflow:"hidden",transition:"transform 0.15s",position:"relative"}}
       onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-      <div style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"var(--missing-bg)",overflow:"hidden",position:"relative",opacity:isOwned?1:0.45,transition:"opacity 0.3s"}}>
+      {/* Wishlist button */}
+      {!isOwned && (
+        <button onClick={e=>{e.stopPropagation();onToggleWish();}}
+          style={{position:"absolute",top:6,left:6,zIndex:3,background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 5px",fontSize:12,cursor:"pointer",lineHeight:1}}>
+          {isWished?"💛":"🤍"}
+        </button>
+      )}
+      <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"var(--missing-bg)",overflow:"hidden",position:"relative",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",cursor:"pointer"}}>
         {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
+        {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:34}}>{figure.emoji}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:4}}>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
           {series.emoji} {series.name}
           <span style={{padding:"1px 6px",borderRadius:8,fontSize:10,fontWeight:600,background:series.category==="oficial"?"#E1F5EE":"#ede9fe",color:series.category==="oficial"?"#0F6E56":"#7c3aed"}}>
             {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
           </span>
         </div>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3}}>{figure.name}</div>
+        {groupName && <div style={{fontSize:11,color:"var(--text4)",marginBottom:1}}>📁 {groupName}</div>}
         <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{set.name}</div>
         {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
-        <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:"var(--text4)",fontWeight:isOwned?600:400}}>
-          <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:"#ccc",flexShrink:0}} />
-          {isOwned ? t("owned") : t("missing")}
+        <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:isWished?"#d97706":"var(--text4)",fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:isWished?"#f59e0b":"#ccc",flexShrink:0}} />
+          {isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing")}
         </div>
       </div>
     </div>
@@ -932,35 +941,40 @@ function SearchResultCard({ figure, series, set, isOwned, onToggle }: { figure:F
 // ============================================================
 //  SEARCH RESULTS
 // ============================================================
-function SearchResults({ query, filterCat, filterSeriesId, data, owned, onToggle }: {
-  query:string; filterCat:"all"|CategoryType; filterSeriesId:number|"all"; data:Series[]; owned:Set<number>; onToggle:(id:number)=>void;
+function SearchResults({ query, filterCat, filterSeriesId, data, owned, wishlist, onToggle, onToggleWish }: {
+  query:string; filterCat:"all"|CategoryType; filterSeriesId:number|"all"; data:Series[]; owned:Set<number>; wishlist:Set<number>; onToggle:(id:number)=>void; onToggleWish:(id:number)=>void;
 }) {
   const { t } = useTr();
   const q = query.toLowerCase().trim();
   const words = q.split(/\s+/).filter(Boolean);
   const matches = (text: string) => words.every(w => text.includes(w));
-  const results: { figure:Figure; series:Series; set:FigureSet }[] = [];
+  const results: { figure:Figure; series:Series; set:FigureSet; groupName?:string }[] = [];
   data.forEach(series => {
     if (filterCat !== "all" && series.category !== filterCat) return;
     if (filterSeriesId !== "all" && series.id !== filterSeriesId) {
-      // Also match other series with the same name (e.g. oficial + resina)
       const selectedSeries = data.find(s=>s.id===filterSeriesId);
       if (!selectedSeries || series.name !== selectedSeries.name) return;
     }
-    const allSets = [...series.sets, ...(series.groups??[]).flatMap(g=>g.sets)];
-    allSets.forEach(set => set.figures.forEach(figure => {
+    // Ungrouped sets
+    series.sets.forEach(set => set.figures.forEach(figure => {
       const combined = `${figure.name} ${series.name} ${set.name}`.toLowerCase();
-      if (!q || matches(combined))
-        results.push({ figure, series, set });
+      if (!q || matches(combined)) results.push({ figure, series, set });
     }));
+    // Grouped sets — include group name
+    (series.groups??[]).forEach(g => g.sets.forEach(set => set.figures.forEach(figure => {
+      const combined = `${figure.name} ${series.name} ${g.name} ${set.name}`.toLowerCase();
+      if (!q || matches(combined)) results.push({ figure, series, set, groupName: g.name });
+    })));
   });
   if (results.length === 0) return <div style={{textAlign:"center",padding:"3rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noResults")}</div>;
   return (
     <div>
       <div style={{fontSize:13,color:"var(--text3)",marginBottom:16}}>{t("resultsCount", results.length)}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(130px, 1fr))",gap:12}}>
-        {results.map(({ figure, series, set }) => (
-          <SearchResultCard key={figure.id} figure={figure} series={series} set={set} isOwned={owned.has(figure.id)} onToggle={()=>onToggle(figure.id)} />
+        {results.map(({ figure, series, set, groupName }) => (
+          <SearchResultCard key={figure.id} figure={figure} series={series} set={set} groupName={groupName}
+            isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
+            onToggle={()=>onToggle(figure.id)} onToggleWish={()=>onToggleWish(figure.id)} />
         ))}
       </div>
     </div>
@@ -1506,7 +1520,7 @@ export default function App() {
           {isSearchMode && (
             <div>
               <div style={{marginBottom:16}}><span style={{fontSize:18,fontWeight:600}}>{t("searchResults")}</span></div>
-              <SearchResults query={searchQuery} filterCat={filterCat} filterSeriesId={filterSeriesId} data={data} owned={owned} onToggle={toggle} />
+              <SearchResults query={searchQuery} filterCat={filterCat} filterSeriesId={filterSeriesId} data={data} owned={owned} wishlist={wishlist} onToggle={toggle} onToggleWish={toggleWish} />
             </div>
           )}
           {!isSearchMode && showWishlist && (
