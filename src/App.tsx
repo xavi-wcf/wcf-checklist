@@ -447,12 +447,15 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
     const ctx = canvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, outSize, outSize);
-    // Scale factor from crop box pixels to output pixels
-    const scaleOut = outSize / cropBox.w;
-    const destX = (imgPos.x - cropBox.x) * scaleOut;
-    const destY = (imgPos.y - cropBox.y) * scaleOut;
-    const destW = (imgW) * scaleOut;
-    const destH = (imgH) * scaleOut;
+    // Use max dimension so image is never cropped — white fills the rest
+    const refSize = Math.max(cropBox.w, cropBox.h);
+    const scaleOut = outSize / refSize;
+    const offsetX = (refSize - cropBox.w) / 2;
+    const offsetY = (refSize - cropBox.h) / 2;
+    const destX = (imgPos.x - cropBox.x + offsetX) * scaleOut;
+    const destY = (imgPos.y - cropBox.y + offsetY) * scaleOut;
+    const destW = imgW * scaleOut;
+    const destH = imgH * scaleOut;
     ctx.drawImage(img, destX, destY, destW, destH);
     canvas.toBlob(b => { if (b) onConfirm(b); }, format === "png" ? "image/png" : "image/jpeg", format === "jpeg" ? 0.92 : undefined);
   };
