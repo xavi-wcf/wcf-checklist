@@ -441,20 +441,33 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
   const handleConfirm = () => {
     if (!imgRef.current || !canvasRef.current) return;
     const img = imgRef.current;
-    const outW = aspectRatio ? 600 : cropBox.w * 2;
-    const outH = aspectRatio ? Math.round(600 / aspectRatio) : cropBox.h * 2;
+    // For figures (aspectRatio=1): always 600x600. For free: use crop proportions.
+    const outW = aspectRatio ? 600 : Math.round(cropBox.w * 2);
+    const outH = aspectRatio ? 600 : Math.round(cropBox.h * 2);
     const canvas = canvasRef.current;
-    canvas.width = Math.round(outW); canvas.height = Math.round(outH);
+    canvas.width = outW; canvas.height = outH;
     const ctx = canvas.getContext("2d")!;
+    // Always fill white first
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // Map crop box to image coordinates
+    ctx.fillRect(0, 0, outW, outH);
+    // Map crop box pixels to image source coordinates
     const imgScale = baseScale * zoom;
     const srcX = (cropBox.x - imgPos.x) / imgScale;
     const srcY = (cropBox.y - imgPos.y) / imgScale;
     const srcW = cropBox.w / imgScale;
     const srcH = cropBox.h / imgScale;
-    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
+    // Clamp source to actual image bounds, and adjust dest accordingly
+    const clampedSrcX = Math.max(0, srcX);
+    const clampedSrcY = Math.max(0, srcY);
+    const clampedSrcW = Math.min(srcW, img.naturalWidth - clampedSrcX);
+    const clampedSrcH = Math.min(srcH, img.naturalHeight - clampedSrcY);
+    const destX = (clampedSrcX - srcX) / srcW * outW;
+    const destY = (clampedSrcY - srcY) / srcH * outH;
+    const destW = clampedSrcW / srcW * outW;
+    const destH = clampedSrcH / srcH * outH;
+    if (clampedSrcW > 0 && clampedSrcH > 0) {
+      ctx.drawImage(img, clampedSrcX, clampedSrcY, clampedSrcW, clampedSrcH, destX, destY, destW, destH);
+    }
     canvas.toBlob(b => { if (b) onConfirm(b); }, format === "png" ? "image/png" : "image/jpeg", format === "jpeg" ? 0.92 : undefined);
   };
 
