@@ -813,20 +813,22 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
 //  SEARCH RESULT CARD
 // ============================================================
 function SearchResultCard({ figure, series, set, isOwned, onToggle }: { figure:Figure; series:Series; set:FigureSet; isOwned:boolean; onToggle:()=>void }) {
-  const { t } = useTr();
+  const { t, lang } = useTr();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
+  const formatDate = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
   return (
-    <div onClick={onToggle} style={{border:"1px solid "+(isOwned?series.color:"#e8e8e4"),borderRadius:10,background:isOwned?series.color+"18":"#fff",overflow:"hidden",cursor:"pointer",transition:"transform 0.15s"}}
+    <div onClick={onToggle} style={{border:"1px solid "+(isOwned?series.color:"var(--border)"),borderRadius:10,background:isOwned?series.color+"18":"var(--card-bg)",overflow:"hidden",cursor:"pointer",transition:"transform 0.15s"}}
       onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-      <div style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"#f5f5f3",overflow:"hidden",position:"relative"}}>
+      <div style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"var(--missing-bg)",overflow:"hidden",position:"relative",opacity:isOwned?1:0.45,transition:"opacity 0.3s"}}>
         {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:34}}>{figure.emoji}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
         <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{series.emoji} {series.name}</div>
-        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:4}}>{figure.name}</div>
-        <div style={{fontSize:11,color:"var(--text4)",marginBottom:5}}>{set.name}</div>
+        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3}}>{figure.name}</div>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{set.name}</div>
+        {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
         <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:"var(--text4)",fontWeight:isOwned?600:400}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:"#ccc",flexShrink:0}} />
           {isOwned ? t("owned") : t("missing")}
@@ -848,7 +850,9 @@ function SearchResults({ query, filterCat, filterSeriesId, data, owned, onToggle
   data.forEach(series => {
     if (filterCat !== "all" && series.category !== filterCat) return;
     if (filterSeriesId !== "all" && series.id !== filterSeriesId) return;
-    series.sets.forEach(set => set.figures.forEach(figure => {
+    // Search in ungrouped sets
+    const allSets = [...series.sets, ...(series.groups??[]).flatMap(g=>g.sets)];
+    allSets.forEach(set => set.figures.forEach(figure => {
       if (!q || figure.name.toLowerCase().includes(q) || series.name.toLowerCase().includes(q) || set.name.toLowerCase().includes(q))
         results.push({ figure, series, set });
     }));
