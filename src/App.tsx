@@ -846,14 +846,16 @@ function SearchResults({ query, filterCat, filterSeriesId, data, owned, onToggle
 }) {
   const { t } = useTr();
   const q = query.toLowerCase().trim();
+  const words = q.split(/\s+/).filter(Boolean);
+  const matches = (text: string) => words.every(w => text.includes(w));
   const results: { figure:Figure; series:Series; set:FigureSet }[] = [];
   data.forEach(series => {
     if (filterCat !== "all" && series.category !== filterCat) return;
     if (filterSeriesId !== "all" && series.id !== filterSeriesId) return;
-    // Search in ungrouped sets
     const allSets = [...series.sets, ...(series.groups??[]).flatMap(g=>g.sets)];
     allSets.forEach(set => set.figures.forEach(figure => {
-      if (!q || figure.name.toLowerCase().includes(q) || series.name.toLowerCase().includes(q) || set.name.toLowerCase().includes(q))
+      const combined = `${figure.name} ${series.name} ${set.name}`.toLowerCase();
+      if (!q || matches(combined))
         results.push({ figure, series, set });
     }));
   });
