@@ -314,166 +314,217 @@ function useData() {
 }
 
 // ============================================================
-//  CROP MODAL
+//  CROP MODAL — fixed crop box, image moves underneath
 // ============================================================
 function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg", freeWidth = false }: {
   imageSrc: string; aspectRatio: number | null; onConfirm: (b: Blob) => void; onClose: () => void; format?: "jpeg" | "png"; freeWidth?: boolean;
 }) {
   const { t } = useTr();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const dragging = useRef<{ type: string; startX: number; startY: number; startCrop: { x: number; y: number; w: number; h: number } } | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [crop, setCrop] = useState({ x: 0, y: 0, w: 200, h: 200 });
-  const [imgBase, setImgBase] = useState({ x: 0, y: 0, w: 0, h: 0 });
-  const MIN_ZOOM = 0.3, MAX_ZOOM = 4;
-  const CW = Math.min(window.innerWidth - 56, freeWidth ? 560 : 400);
-  const CH = 340;
-  const imgDisplay = { w: imgBase.w * zoom, h: imgBase.h * zoom, x: CW / 2 - (imgBase.w * zoom) / 2, y: CH / 2 - (imgBase.h * zoom) / 2 };
-  const getImgDisplay = (z: number) => ({ w: imgBase.w * z, h: imgBase.h * z, x: CW / 2 - (imgBase.w * z) / 2, y: CH / 2 - (imgBase.h * z) / 2 });
 
+  // Container size
+  const CW = Math.min(window.innerWidth - 56, 440);
+  const CH = 340;
+
+  // Crop box: fixed in center, resizable
+  const initCrop = useCallback(() => {
+    const cw = freeWidth ? Math.round(CW * 0.9) : Math.round(CW * 0.75);
+    const ch = aspectRatio ? Math.round(cw / aspectRatio) : Math.round(CH * 0.75);
+    return { x: Math.round((CW - cw) / 2), y: Math.round((CH - ch) / 2), w: cw, h: Math.min(ch, CH - 20) };
+  }, [freeWidth, aspectRatio, CW, CH]);
+
+  const [cropBox, setCropBox] = useState(initCrop);
+  // Image position and scale
+  const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
+  const [loaded, setLoaded] = useState(false);
+
+  const MIN_ZOOM = 0.2, MAX_ZOOM = 5;
+
+  // Base scale: fit image to container
+  const baseScale = naturalSize.w > 0 ? Math.min(CW / naturalSize.w, CH / naturalSize.h) : 1;
+  const imgW = naturalSize.w * baseScale * zoom;
+  const imgH = naturalSize.h * baseScale * zoom;
+
+  // Load image
   useEffect(() => {
-    if (!imageSrc) return;
+    setLoaded(false);
     const img = new Image();
     img.onload = () => {
       imgRef.current = img;
+      setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
       const scale = Math.min(CW / img.naturalWidth, CH / img.naturalHeight);
-      const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
-      const x = (CW - w) / 2, y = (CH - h) / 2;
-      setImgBase({ x, y, w, h }); setZoom(1);
-      const cw = freeWidth ? w : (aspectRatio ? w * 0.8 : w * 0.8);
-      const ch = freeWidth ? h * 0.6 : (aspectRatio ? cw / aspectRatio : h * 0.8);
-      setCrop({ x, y: y + (h - ch) / 2, w: cw, h: ch });
+      setImgPos({ x: (CW - img.naturalWidth * scale) / 2, y: (CH - img.naturalHeight * scale) / 2 });
+      setZoom(1);
+      setCropBox(initCrop());
+      setLoaded(true);
     };
     img.src = imageSrc;
-  }, [imageSrc, aspectRatio, freeWidth, CW, CH]);
+  }, [imageSrc, initCrop]);
 
-  const clamp = useCallback((c: typeof crop, imd: { x: number; y: number; w: number; h: number }) => {
-    let { x, y, w, h } = c;
-    const MIN = 20; w = Math.max(w, MIN); h = Math.max(h, MIN);
-    // In freeWidth mode restrict x/w to image bounds
-    if (freeWidth) {
-      x = Math.max(imd.x, Math.min(x, imd.x + imd.w - w));
-      w = Math.min(w, imd.x + imd.w - x);
-    }
-    // Keep crop inside the container (allow going outside image for white fill)
-    x = Math.max(0, Math.min(x, CW - MIN));
-    y = Math.max(0, Math.min(y, CH - MIN));
-    w = Math.min(w, CW - x);
-    h = Math.min(h, CH - y);
-    if (aspectRatio) h = w / aspectRatio;
-    return { x, y, w, h };
-  }, [aspectRatio, freeWidth, CW, CH]);
+  // Dragging state
+  const dragging = useRef<{ mode: "img" | "crop" | string; startX: number; startY: number; startPos: {x:number;y:number}; startCrop: typeof cropBox } | null>(null);
 
-  const handleZoom = (z: number) => { const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z)); setZoom(nz); setCrop(prev => clamp(prev, getImgDisplay(nz))); };
-
-  const imgDisplayRef = useRef(imgDisplay); imgDisplayRef.current = imgDisplay;
-  const clampRef = useRef(clamp); clampRef.current = clamp;
-  const freeWidthRef = useRef(freeWidth); freeWidthRef.current = freeWidth;
-  const aspectRatioRef = useRef(aspectRatio); aspectRatioRef.current = aspectRatio;
-
-  const startDrag = (clientX: number, clientY: number, type: string) => { dragging.current = { type, startX: clientX, startY: clientY, startCrop: { ...crop } }; };
-  const onMouseDown = (e: React.MouseEvent, type: string) => { e.preventDefault(); startDrag(e.clientX, e.clientY, type); };
-  const onTouchStart = (e: React.TouchEvent, type: string) => { e.preventDefault(); e.stopPropagation(); startDrag(e.touches[0].clientX, e.touches[0].clientY, type); };
+  const getPos = (e: MouseEvent | TouchEvent) => {
+    const t2 = "touches" in e ? e.touches[0] : e;
+    return { x: t2.clientX, y: t2.clientY };
+  };
 
   useEffect(() => {
-    const applyDrag = (cx: number, cy: number) => {
+    const onMove = (e: MouseEvent | TouchEvent) => {
       if (!dragging.current) return;
-      const { type, startX, startY, startCrop } = dragging.current;
-      const dx = cx - startX, dy = cy - startY;
-      let { x, y, w, h } = startCrop;
-      const fw = freeWidthRef.current, ar = aspectRatioRef.current;
-      if (type === "move") { x += dx; if (!fw) y += dy; }
-      else { if (type.includes("e")) w += dx; if (!fw && type.includes("s")) h += dy; if (type.includes("w")) { x += dx; w -= dx; } if (!fw && type.includes("n")) { y += dy; h -= dy; } if (ar) h = w / ar; }
-      setCrop(clampRef.current({ x, y, w, h }, imgDisplayRef.current));
-    };
-    const onMove = (e: MouseEvent) => applyDrag(e.clientX, e.clientY);
-    const onTouch = (e: TouchEvent) => {
-      if (!dragging.current) return;
-      e.preventDefault(); // only prevent scroll when actually dragging
-      applyDrag(e.touches[0].clientX, e.touches[0].clientY);
+      if ("touches" in e && dragging.current.mode !== "img") e.preventDefault();
+      const { x, y } = getPos(e);
+      const dx = x - dragging.current.startX, dy = y - dragging.current.startY;
+      const { mode, startPos, startCrop } = dragging.current;
+
+      if (mode === "img") {
+        setImgPos({ x: startPos.x + dx, y: startPos.y + dy });
+      } else if (mode === "crop") {
+        setCropBox(prev => ({
+          ...prev,
+          x: Math.max(0, Math.min(startCrop.x + dx, CW - prev.w)),
+          y: Math.max(0, Math.min(startCrop.y + dy, CH - prev.h)),
+        }));
+      } else {
+        // resize handles
+        setCropBox(prev => {
+          let { x, y, w, h } = startCrop;
+          if (mode.includes("e")) w = Math.max(20, startCrop.w + dx);
+          if (mode.includes("s")) h = Math.max(20, startCrop.h + dy);
+          if (mode.includes("w")) { x = startCrop.x + dx; w = Math.max(20, startCrop.w - dx); }
+          if (mode.includes("n")) { y = startCrop.y + dy; h = Math.max(20, startCrop.h - dy); }
+          if (aspectRatio) h = w / aspectRatio;
+          x = Math.max(0, Math.min(x, CW - w));
+          y = Math.max(0, Math.min(y, CH - h));
+          w = Math.min(w, CW - x); h = Math.min(h, CH - y);
+          return { x, y, w, h };
+        });
+      }
     };
     const onUp = () => { dragging.current = null; };
-    window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onTouch, { passive: false }); window.addEventListener("touchend", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); window.removeEventListener("touchmove", onTouch); window.removeEventListener("touchend", onUp); };
-  }, []);
+    const onMouseMove = (e: MouseEvent) => onMove(e);
+    const onTouchMove = (e: TouchEvent) => {
+      if (dragging.current && dragging.current.mode !== "img") e.preventDefault();
+      onMove(e);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [aspectRatio, CW, CH]);
 
-  const sliderRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const el = sliderRef.current;
-    if (!el) return;
-    const onSliderTouch = (e: TouchEvent) => { e.stopPropagation(); };
-    el.addEventListener("touchstart", onSliderTouch, { passive: true });
-    el.addEventListener("touchmove", onSliderTouch, { passive: true });
-    return () => { el.removeEventListener("touchstart", onSliderTouch); el.removeEventListener("touchmove", onSliderTouch); };
-  }, []);
+  const startDrag = (mode: string, clientX: number, clientY: number) => {
+    dragging.current = { mode, startX: clientX, startY: clientY, startPos: { ...imgPos }, startCrop: { ...cropBox } };
+  };
+
+  const handleZoom = (newZoom: number) => {
+    const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+    // Zoom centered on crop box center
+    const cx = cropBox.x + cropBox.w / 2;
+    const cy = cropBox.y + cropBox.h / 2;
+    const ratio = nz / zoom;
+    setImgPos(prev => ({ x: cx - (cx - prev.x) * ratio, y: cy - (cy - prev.y) * ratio }));
+    setZoom(nz);
+  };
 
   const handleConfirm = () => {
     if (!imgRef.current || !canvasRef.current) return;
-    const img = imgRef.current, imd = imgDisplayRef.current;
-    const outW = aspectRatio ? 600 : Math.round(crop.w * (img.naturalWidth / imd.w));
-    const outH = aspectRatio ? Math.round(600 / aspectRatio) : Math.round(crop.h * (img.naturalHeight / imd.h));
-    const canvas = canvasRef.current; canvas.width = outW; canvas.height = outH;
+    const img = imgRef.current;
+    const outW = aspectRatio ? 600 : cropBox.w * 2;
+    const outH = aspectRatio ? Math.round(600 / aspectRatio) : cropBox.h * 2;
+    const canvas = canvasRef.current;
+    canvas.width = Math.round(outW); canvas.height = Math.round(outH);
     const ctx = canvas.getContext("2d")!;
-    // Always fill white so areas outside the image get a white background
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outW, outH);
-    // Calculate where the image sits relative to the crop box
-    const destX = (imd.x - crop.x) * (outW / crop.w);
-    const destY = (imd.y - crop.y) * (outH / crop.h);
-    const destW = imd.w * (outW / crop.w);
-    const destH = imd.h * (outH / crop.h);
-    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, destW, destH);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Map crop box to image coordinates
+    const imgScale = baseScale * zoom;
+    const srcX = (cropBox.x - imgPos.x) / imgScale;
+    const srcY = (cropBox.y - imgPos.y) / imgScale;
+    const srcW = cropBox.w / imgScale;
+    const srcH = cropBox.h / imgScale;
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(b => { if (b) onConfirm(b); }, format === "png" ? "image/png" : "image/jpeg", format === "jpeg" ? 0.92 : undefined);
   };
 
   const handles = ["nw","n","ne","e","se","s","sw","w"];
-  const hPos: Record<string, React.CSSProperties> = { nw:{top:-5,left:-5},n:{top:-5,left:"50%",transform:"translateX(-50%)"},ne:{top:-5,right:-5},e:{top:"50%",right:-5,transform:"translateY(-50%)"},se:{bottom:-5,right:-5},s:{bottom:-5,left:"50%",transform:"translateX(-50%)"},sw:{bottom:-5,left:-5},w:{top:"50%",left:-5,transform:"translateY(-50%)"} };
+  const hPos: Record<string, React.CSSProperties> = { nw:{top:-6,left:-6},n:{top:-6,left:"50%",transform:"translateX(-50%)"},ne:{top:-6,right:-6},e:{top:"50%",right:-6,transform:"translateY(-50%)"},se:{bottom:-6,right:-6},s:{bottom:-6,left:"50%",transform:"translateX(-50%)"},sw:{bottom:-6,left:-6},w:{top:"50%",left:-6,transform:"translateY(-50%)"} };
   const hCursor: Record<string,string> = { nw:"nwse-resize",ne:"nesw-resize",se:"nwse-resize",sw:"nesw-resize",n:"ns-resize",s:"ns-resize",e:"ew-resize",w:"ew-resize" };
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:12}}>
-      <div style={{background:"var(--bg)",borderRadius:14,padding:16,width:"100%",maxWidth:freeWidth?600:440}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+      <div style={{background:"var(--bg)",borderRadius:14,padding:16,width:"100%",maxWidth:460}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
           <span style={{fontWeight:600,fontSize:15}}>{t("adjustImage")}</span>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
         </div>
-        <p style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>{t("cropHint")}</p>
-        <div ref={containerRef} style={{width:"100%",height:CH,background:"#fff",borderRadius:8,position:"relative",overflow:"hidden",userSelect:"none",touchAction:"none"}}>
-          {/* Grey background to distinguish container from white fill area */}
-          <div style={{position:"absolute",inset:0,background:"#ccc"}} />
-          {imgBase.w > 0 && <img src={imageSrc} style={{position:"absolute",left:imgDisplay.x,top:imgDisplay.y,width:imgDisplay.w,height:imgDisplay.h,pointerEvents:"none",zIndex:1}} />}
-          {imgBase.w > 0 && <>
-            <div style={{position:"absolute",left:imgDisplay.x,top:imgDisplay.y,width:imgDisplay.w,height:crop.y-imgDisplay.y,background:"rgba(0,0,0,0.5)",zIndex:2}} />
-            <div style={{position:"absolute",left:imgDisplay.x,top:crop.y,width:crop.x-imgDisplay.x,height:crop.h,background:"rgba(0,0,0,0.5)",zIndex:2}} />
-            <div style={{position:"absolute",left:crop.x+crop.w,top:crop.y,width:imgDisplay.x+imgDisplay.w-crop.x-crop.w,height:crop.h,background:"rgba(0,0,0,0.5)",zIndex:2}} />
-            <div style={{position:"absolute",left:imgDisplay.x,top:crop.y+crop.h,width:imgDisplay.w,height:imgDisplay.y+imgDisplay.h-crop.y-crop.h,background:"rgba(0,0,0,0.5)",zIndex:2}} />
-          </>}
-          <div onMouseDown={e=>onMouseDown(e,"move")} onTouchStart={e=>onTouchStart(e,"move")}
-            style={{position:"absolute",left:crop.x,top:crop.y,width:crop.w,height:crop.h,border:"2px solid #1a1a1a",boxSizing:"border-box",cursor:"move",touchAction:"none",zIndex:3}}>
-            <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
-              {[1,2].map(i=><div key={i} style={{position:"absolute",left:`${i*33.33}%`,top:0,bottom:0,borderLeft:"1px solid rgba(255,255,255,0.3)"}} />)}
-              {[1,2].map(i=><div key={i} style={{position:"absolute",top:`${i*33.33}%`,left:0,right:0,borderTop:"1px solid rgba(255,255,255,0.3)"}} />)}
+        <p style={{fontSize:11,color:"var(--text4)",marginBottom:10}}>Arrastra la imagen para moverla · Arrastra el borde del recuadre para redimensionar · Zoom con el slider</p>
+
+        {/* Crop container */}
+        <div style={{width:CW,height:CH,background:"#888",borderRadius:8,position:"relative",overflow:"hidden",userSelect:"none",margin:"0 auto"}}>
+          {/* Image — draggable */}
+          {loaded && (
+            <img src={imageSrc}
+              onMouseDown={e=>{e.preventDefault();startDrag("img",e.clientX,e.clientY);}}
+              onTouchStart={e=>{startDrag("img",e.touches[0].clientX,e.touches[0].clientY);}}
+              style={{position:"absolute",left:imgPos.x,top:imgPos.y,width:imgW,height:imgH,cursor:"grab",touchAction:"none",userSelect:"none"}}
+              draggable={false}
+            />
+          )}
+          {/* Dark overlay outside crop box */}
+          {loaded && <>
+            <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:2}}>
+              {/* top */}
+              <div style={{position:"absolute",left:0,top:0,right:0,height:cropBox.y,background:"rgba(0,0,0,0.5)"}} />
+              {/* bottom */}
+              <div style={{position:"absolute",left:0,top:cropBox.y+cropBox.h,right:0,bottom:0,background:"rgba(0,0,0,0.5)"}} />
+              {/* left */}
+              <div style={{position:"absolute",left:0,top:cropBox.y,width:cropBox.x,height:cropBox.h,background:"rgba(0,0,0,0.5)"}} />
+              {/* right */}
+              <div style={{position:"absolute",left:cropBox.x+cropBox.w,top:cropBox.y,right:0,height:cropBox.h,background:"rgba(0,0,0,0.5)"}} />
             </div>
-            {handles.map(h => {
-              if (aspectRatio===1 && ["n","s"].includes(h)) return null;
-              if (freeWidth && ["n","s","nw","ne","sw","se"].includes(h)) return null;
-              return <div key={h} onMouseDown={e=>{e.stopPropagation();onMouseDown(e,h);}} onTouchStart={e=>{e.stopPropagation();onTouchStart(e,h);}}
-                style={{position:"absolute",width:14,height:14,background:"var(--bg)",borderRadius:2,cursor:hCursor[h],...hPos[h],touchAction:"none"}} />;
-            })}
-          </div>
+            {/* Crop box border */}
+            <div
+              onMouseDown={e=>{e.stopPropagation();e.preventDefault();startDrag("crop",e.clientX,e.clientY);}}
+              onTouchStart={e=>{e.stopPropagation();startDrag("crop",e.touches[0].clientX,e.touches[0].clientY);}}
+              style={{position:"absolute",left:cropBox.x,top:cropBox.y,width:cropBox.w,height:cropBox.h,border:"2px solid #fff",boxSizing:"border-box",cursor:"move",zIndex:3,touchAction:"none"}}>
+              {/* Grid lines */}
+              <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
+                {[1,2].map(i=><div key={i} style={{position:"absolute",left:`${i*33.33}%`,top:0,bottom:0,borderLeft:"1px solid rgba(255,255,255,0.4)"}} />)}
+                {[1,2].map(i=><div key={i} style={{position:"absolute",top:`${i*33.33}%`,left:0,right:0,borderTop:"1px solid rgba(255,255,255,0.4)"}} />)}
+              </div>
+              {/* Resize handles */}
+              {handles.map(h => {
+                if (aspectRatio===1 && ["n","s"].includes(h)) return null;
+                if (freeWidth && ["n","s","nw","ne","sw","se"].includes(h)) return null;
+                return <div key={h}
+                  onMouseDown={e=>{e.stopPropagation();e.preventDefault();startDrag(h,e.clientX,e.clientY);}}
+                  onTouchStart={e=>{e.stopPropagation();startDrag(h,e.touches[0].clientX,e.touches[0].clientY);}}
+                  style={{position:"absolute",width:12,height:12,background:"#fff",borderRadius:2,cursor:hCursor[h],...hPos[h],zIndex:4,touchAction:"none"}} />;
+              })}
+            </div>
+          </>}
         </div>
+
+        {/* Zoom slider */}
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:12}}>
           <span style={{fontSize:13,color:"var(--text3)",flexShrink:0}}>{t("zoom")}</span>
-          <input ref={sliderRef} type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5" value={Math.round(zoom*100)}
+          <input type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5"
+            value={Math.round(zoom*100)}
             onChange={e=>handleZoom(Number(e.target.value)/100)}
-            onTouchStart={e=>e.stopPropagation()}
-            onTouchMove={e=>e.stopPropagation()}
-            style={{flex:1,cursor:"pointer",touchAction:"none"}} />
+            style={{flex:1,cursor:"pointer"}} />
           <span style={{fontSize:12,color:"var(--text3)",minWidth:36,textAlign:"right"}}>{Math.round(zoom*100)}%</span>
         </div>
+
         <canvas ref={canvasRef} style={{display:"none"}} />
         <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14}}>
           <button onClick={onClose} style={{padding:"7px 14px",fontSize:13,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg3)",cursor:"pointer"}}>{t("cancel")}</button>
