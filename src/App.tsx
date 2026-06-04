@@ -352,14 +352,16 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
   const clamp = useCallback((c: typeof crop, imd: { x: number; y: number; w: number; h: number }) => {
     let { x, y, w, h } = c;
     const MIN = 20; w = Math.max(w, MIN); h = Math.max(h, MIN);
-    // In freeWidth mode restrict x to image bounds; otherwise allow crop outside image (white fill)
+    // In freeWidth mode restrict x/w to image bounds
     if (freeWidth) {
       x = Math.max(imd.x, Math.min(x, imd.x + imd.w - w));
       w = Math.min(w, imd.x + imd.w - x);
     }
-    // Keep crop inside the container
-    x = Math.max(0, Math.min(x, CW - w));
-    y = Math.max(0, Math.min(y, CH - h));
+    // Keep crop inside the container (allow going outside image for white fill)
+    x = Math.max(0, Math.min(x, CW - MIN));
+    y = Math.max(0, Math.min(y, CH - MIN));
+    w = Math.min(w, CW - x);
+    h = Math.min(h, CH - y);
     if (aspectRatio) h = w / aspectRatio;
     return { x, y, w, h };
   }, [aspectRatio, freeWidth, CW, CH]);
@@ -451,7 +453,11 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:12}}>
           <span style={{fontSize:13,color:"var(--text3)",flexShrink:0}}>{t("zoom")}</span>
-          <input type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5" value={Math.round(zoom*100)} onChange={e=>handleZoom(Number(e.target.value)/100)} style={{flex:1,cursor:"pointer"}} />
+          <input type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5" value={Math.round(zoom*100)}
+            onChange={e=>handleZoom(Number(e.target.value)/100)}
+            onTouchStart={e=>e.stopPropagation()}
+            onTouchMove={e=>e.stopPropagation()}
+            style={{flex:1,cursor:"pointer",touchAction:"none"}} />
           <span style={{fontSize:12,color:"var(--text3)",minWidth:36,textAlign:"right"}}>{Math.round(zoom*100)}%</span>
         </div>
         <canvas ref={canvasRef} style={{display:"none"}} />
