@@ -390,7 +390,7 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
         }));
       } else {
         // resize handles
-        setCropBox(prev => {
+        setCropBox(() => {
           let { x, y, w, h } = startCrop;
           if (mode.includes("e")) w = Math.max(20, startCrop.w + dx);
           if (mode.includes("s")) h = Math.max(20, startCrop.h + dy);
