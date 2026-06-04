@@ -441,22 +441,31 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
   const handleConfirm = () => {
     if (!imgRef.current || !canvasRef.current) return;
     const img = imgRef.current;
-    // Output matches crop box proportions, max 600px on longest side
-    const maxOut = 600;
-    const outW = cropBox.w >= cropBox.h ? maxOut : Math.round(maxOut * cropBox.w / cropBox.h);
-    const outH = cropBox.h > cropBox.w ? maxOut : Math.round(maxOut * cropBox.h / cropBox.w);
+    const outSize = 600;
     const canvas = canvasRef.current;
-    canvas.width = outW; canvas.height = outH;
+    canvas.width = outSize; canvas.height = outSize;
     const ctx = canvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outW, outH);
-    const scaleW = outW / cropBox.w;
-    const scaleH = outH / cropBox.h;
-    const destX = (imgPos.x - cropBox.x) * scaleW;
-    const destY = (imgPos.y - cropBox.y) * scaleH;
-    const destW = imgW * scaleW;
-    const destH = imgH * scaleH;
+    ctx.fillRect(0, 0, outSize, outSize);
+    // Scale so the longest side of the crop box fits in outSize
+    const scale = outSize / Math.max(cropBox.w, cropBox.h);
+    // Center the crop box content in the square output
+    const drawW = cropBox.w * scale;
+    const drawH = cropBox.h * scale;
+    const padX = (outSize - drawW) / 2;
+    const padY = (outSize - drawH) / 2;
+    // Where the image sits relative to crop box, scaled to output
+    const destX = padX + (imgPos.x - cropBox.x) * scale;
+    const destY = padY + (imgPos.y - cropBox.y) * scale;
+    const destW = imgW * scale;
+    const destH = imgH * scale;
+    // Clip to the crop box area so nothing outside it bleeds in
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padX, padY, drawW, drawH);
+    ctx.clip();
     ctx.drawImage(img, destX, destY, destW, destH);
+    ctx.restore();
     canvas.toBlob(b => { if (b) onConfirm(b); }, format === "png" ? "image/png" : "image/jpeg", format === "jpeg" ? 0.92 : undefined);
   };
 
