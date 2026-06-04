@@ -372,10 +372,11 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
     return { x: t2.clientX, y: t2.clientY };
   };
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const onMove = (e: MouseEvent | TouchEvent) => {
       if (!dragging.current) return;
-      if ("touches" in e && dragging.current.mode !== "img") e.preventDefault();
       const { x, y } = getPos(e);
       const dx = x - dragging.current.startX, dy = y - dragging.current.startY;
       const { mode, startPos, startCrop } = dragging.current;
@@ -389,14 +390,13 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
           y: Math.max(0, Math.min(startCrop.y + dy, CH - prev.h)),
         }));
       } else {
-        // resize handles
+        // resize handles — no aspect ratio enforcement, free resize
         setCropBox(() => {
           let { x, y, w, h } = startCrop;
           if (mode.includes("e")) w = Math.max(20, startCrop.w + dx);
           if (mode.includes("s")) h = Math.max(20, startCrop.h + dy);
           if (mode.includes("w")) { x = startCrop.x + dx; w = Math.max(20, startCrop.w - dx); }
           if (mode.includes("n")) { y = startCrop.y + dy; h = Math.max(20, startCrop.h - dy); }
-          if (aspectRatio) h = w / aspectRatio;
           x = Math.max(0, Math.min(x, CW - w));
           y = Math.max(0, Math.min(y, CH - h));
           w = Math.min(w, CW - x); h = Math.min(h, CH - y);
@@ -407,7 +407,9 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
     const onUp = () => { dragging.current = null; };
     const onMouseMove = (e: MouseEvent) => onMove(e);
     const onTouchMove = (e: TouchEvent) => {
-      if (dragging.current && dragging.current.mode !== "img") e.preventDefault();
+      // Only intercept touches that started on the crop container, not the slider
+      if (!dragging.current) return;
+      e.preventDefault();
       onMove(e);
     };
     window.addEventListener("mousemove", onMouseMove);
@@ -420,7 +422,7 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onUp);
     };
-  }, [aspectRatio, CW, CH]);
+  }, [CW, CH]);
 
   const startDrag = (mode: string, clientX: number, clientY: number) => {
     dragging.current = { mode, startX: clientX, startY: clientY, startPos: { ...imgPos }, startCrop: { ...cropBox } };
@@ -470,7 +472,7 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
         <p style={{fontSize:11,color:"var(--text4)",marginBottom:10}}>Arrastra la imagen para moverla · Arrastra el borde del recuadre para redimensionar · Zoom con el slider</p>
 
         {/* Crop container */}
-        <div style={{width:CW,height:CH,background:"#888",borderRadius:8,position:"relative",overflow:"hidden",userSelect:"none",margin:"0 auto"}}>
+        <div ref={containerRef} style={{width:CW,height:CH,background:"#888",borderRadius:8,position:"relative",overflow:"hidden",userSelect:"none",margin:"0 auto"}}>
           {/* Image — draggable */}
           {loaded && (
             <img src={imageSrc}
@@ -521,7 +523,9 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
           <input type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5"
             value={Math.round(zoom*100)}
             onChange={e=>handleZoom(Number(e.target.value)/100)}
-            style={{flex:1,cursor:"pointer"}} />
+            onMouseDown={e=>e.stopPropagation()}
+            onTouchStart={e=>{e.stopPropagation(); dragging.current=null;}}
+            style={{flex:1,cursor:"pointer",touchAction:"pan-x"}} />
           <span style={{fontSize:12,color:"var(--text3)",minWidth:36,textAlign:"right"}}>{Math.round(zoom*100)}%</span>
         </div>
 
