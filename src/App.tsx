@@ -405,7 +405,6 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, outW, outH);
     // Calculate where the image sits relative to the crop box
-    const scaleX = img.naturalWidth / imd.w, scaleY = img.naturalHeight / imd.h;
     const destX = (imd.x - crop.x) * (outW / crop.w);
     const destY = (imd.y - crop.y) * (outH / crop.h);
     const destW = imd.w * (outW / crop.w);
