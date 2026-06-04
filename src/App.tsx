@@ -851,7 +851,11 @@ function SearchResults({ query, filterCat, filterSeriesId, data, owned, onToggle
   const results: { figure:Figure; series:Series; set:FigureSet }[] = [];
   data.forEach(series => {
     if (filterCat !== "all" && series.category !== filterCat) return;
-    if (filterSeriesId !== "all" && series.id !== filterSeriesId) return;
+    if (filterSeriesId !== "all" && series.id !== filterSeriesId) {
+      // Also match other series with the same name (e.g. oficial + resina)
+      const selectedSeries = data.find(s=>s.id===filterSeriesId);
+      if (!selectedSeries || series.name !== selectedSeries.name) return;
+    }
     const allSets = [...series.sets, ...(series.groups??[]).flatMap(g=>g.sets)];
     allSets.forEach(set => set.figures.forEach(figure => {
       const combined = `${figure.name} ${series.name} ${set.name}`.toLowerCase();
@@ -1333,7 +1337,7 @@ export default function App() {
           </select>
           <select value={filterSeriesId} onChange={e=>setFilterSeriesId(e.target.value==="all"?"all":Number(e.target.value))} style={{height:34,padding:"0 8px",fontSize:12,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg)",cursor:"pointer"}}>
             <option value="all">{t("allSeries")}</option>
-            {data.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+            {data.filter((s,i,arr)=>arr.findIndex(x=>x.name===s.name)===i).map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
           </select>
         </>}
         <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
