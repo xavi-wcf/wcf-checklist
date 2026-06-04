@@ -352,12 +352,17 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
   const clamp = useCallback((c: typeof crop, imd: { x: number; y: number; w: number; h: number }) => {
     let { x, y, w, h } = c;
     const MIN = 20; w = Math.max(w, MIN); h = Math.max(h, MIN);
-    x = Math.max(imd.x, Math.min(x, imd.x + imd.w - w));
-    w = Math.min(w, imd.x + imd.w - x);
-    if (!freeWidth) { y = Math.max(imd.y, Math.min(y, imd.y + imd.h - h)); h = Math.min(h, imd.y + imd.h - y); }
+    // In freeWidth mode restrict x to image bounds; otherwise allow crop outside image (white fill)
+    if (freeWidth) {
+      x = Math.max(imd.x, Math.min(x, imd.x + imd.w - w));
+      w = Math.min(w, imd.x + imd.w - x);
+    }
+    // Keep crop inside the container
+    x = Math.max(0, Math.min(x, CW - w));
+    y = Math.max(0, Math.min(y, CH - h));
     if (aspectRatio) h = w / aspectRatio;
     return { x, y, w, h };
-  }, [aspectRatio, freeWidth]);
+  }, [aspectRatio, freeWidth, CW, CH]);
 
   const handleZoom = (z: number) => { const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z)); setZoom(nz); setCrop(prev => clamp(prev, getImgDisplay(nz))); };
 
@@ -392,14 +397,20 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
   const handleConfirm = () => {
     if (!imgRef.current || !canvasRef.current) return;
     const img = imgRef.current, imd = imgDisplayRef.current;
-    const scaleX = img.naturalWidth / imd.w, scaleY = img.naturalHeight / imd.h;
-    const sx = (crop.x - imd.x) * scaleX, sy = (crop.y - imd.y) * scaleY;
-    const sw = crop.w * scaleX, sh = crop.h * scaleY;
-    const outW = aspectRatio ? 600 : Math.round(sw), outH = aspectRatio ? Math.round(600 / aspectRatio) : Math.round(sh);
+    const outW = aspectRatio ? 600 : Math.round(crop.w * (img.naturalWidth / imd.w));
+    const outH = aspectRatio ? Math.round(600 / aspectRatio) : Math.round(crop.h * (img.naturalHeight / imd.h));
     const canvas = canvasRef.current; canvas.width = outW; canvas.height = outH;
     const ctx = canvas.getContext("2d")!;
-    if (format === "jpeg") { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, outW, outH); }
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+    // Always fill white so areas outside the image get a white background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, outW, outH);
+    // Calculate where the image sits relative to the crop box
+    const scaleX = img.naturalWidth / imd.w, scaleY = img.naturalHeight / imd.h;
+    const destX = (imd.x - crop.x) * (outW / crop.w);
+    const destY = (imd.y - crop.y) * (outH / crop.h);
+    const destW = imd.w * (outW / crop.w);
+    const destH = imd.h * (outH / crop.h);
+    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, destW, destH);
     canvas.toBlob(b => { if (b) onConfirm(b); }, format === "png" ? "image/png" : "image/jpeg", format === "jpeg" ? 0.92 : undefined);
   };
 
@@ -415,16 +426,18 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
         </div>
         <p style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>{t("cropHint")}</p>
-        <div ref={containerRef} style={{width:"100%",height:CH,background:"#111",borderRadius:8,position:"relative",overflow:"hidden",userSelect:"none",touchAction:"none"}}>
-          {imgBase.w > 0 && <img src={imageSrc} style={{position:"absolute",left:imgDisplay.x,top:imgDisplay.y,width:imgDisplay.w,height:imgDisplay.h,pointerEvents:"none"}} />}
+        <div ref={containerRef} style={{width:"100%",height:CH,background:"#fff",borderRadius:8,position:"relative",overflow:"hidden",userSelect:"none",touchAction:"none"}}>
+          {/* Grey background to distinguish container from white fill area */}
+          <div style={{position:"absolute",inset:0,background:"#ccc"}} />
+          {imgBase.w > 0 && <img src={imageSrc} style={{position:"absolute",left:imgDisplay.x,top:imgDisplay.y,width:imgDisplay.w,height:imgDisplay.h,pointerEvents:"none",zIndex:1}} />}
           {imgBase.w > 0 && <>
-            <div style={{position:"absolute",left:imgDisplay.x,top:imgDisplay.y,width:imgDisplay.w,height:crop.y-imgDisplay.y,background:"rgba(0,0,0,0.5)"}} />
-            <div style={{position:"absolute",left:imgDisplay.x,top:crop.y,width:crop.x-imgDisplay.x,height:crop.h,background:"rgba(0,0,0,0.5)"}} />
-            <div style={{position:"absolute",left:crop.x+crop.w,top:crop.y,width:imgDisplay.x+imgDisplay.w-crop.x-crop.w,height:crop.h,background:"rgba(0,0,0,0.5)"}} />
-            <div style={{position:"absolute",left:imgDisplay.x,top:crop.y+crop.h,width:imgDisplay.w,height:imgDisplay.y+imgDisplay.h-crop.y-crop.h,background:"rgba(0,0,0,0.5)"}} />
+            <div style={{position:"absolute",left:imgDisplay.x,top:imgDisplay.y,width:imgDisplay.w,height:crop.y-imgDisplay.y,background:"rgba(0,0,0,0.5)",zIndex:2}} />
+            <div style={{position:"absolute",left:imgDisplay.x,top:crop.y,width:crop.x-imgDisplay.x,height:crop.h,background:"rgba(0,0,0,0.5)",zIndex:2}} />
+            <div style={{position:"absolute",left:crop.x+crop.w,top:crop.y,width:imgDisplay.x+imgDisplay.w-crop.x-crop.w,height:crop.h,background:"rgba(0,0,0,0.5)",zIndex:2}} />
+            <div style={{position:"absolute",left:imgDisplay.x,top:crop.y+crop.h,width:imgDisplay.w,height:imgDisplay.y+imgDisplay.h-crop.y-crop.h,background:"rgba(0,0,0,0.5)",zIndex:2}} />
           </>}
           <div onMouseDown={e=>onMouseDown(e,"move")} onTouchStart={e=>onTouchStart(e,"move")}
-            style={{position:"absolute",left:crop.x,top:crop.y,width:crop.w,height:crop.h,border:"2px solid #fff",boxSizing:"border-box",cursor:"move",touchAction:"none"}}>
+            style={{position:"absolute",left:crop.x,top:crop.y,width:crop.w,height:crop.h,border:"2px solid #1a1a1a",boxSizing:"border-box",cursor:"move",touchAction:"none",zIndex:3}}>
             <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
               {[1,2].map(i=><div key={i} style={{position:"absolute",left:`${i*33.33}%`,top:0,bottom:0,borderLeft:"1px solid rgba(255,255,255,0.3)"}} />)}
               {[1,2].map(i=><div key={i} style={{position:"absolute",top:`${i*33.33}%`,left:0,right:0,borderTop:"1px solid rgba(255,255,255,0.3)"}} />)}
