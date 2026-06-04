@@ -389,14 +389,26 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
       setCrop(clampRef.current({ x, y, w, h }, imgDisplayRef.current));
     };
     const onMove = (e: MouseEvent) => applyDrag(e.clientX, e.clientY);
-    const onTouch = (e: TouchEvent) => { e.preventDefault(); applyDrag(e.touches[0].clientX, e.touches[0].clientY); };
+    const onTouch = (e: TouchEvent) => {
+      if (!dragging.current) return;
+      e.preventDefault(); // only prevent scroll when actually dragging
+      applyDrag(e.touches[0].clientX, e.touches[0].clientY);
+    };
     const onUp = () => { dragging.current = null; };
     window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp);
     window.addEventListener("touchmove", onTouch, { passive: false }); window.addEventListener("touchend", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); window.removeEventListener("touchmove", onTouch); window.removeEventListener("touchend", onUp); };
   }, []);
 
-  const handleConfirm = () => {
+  const sliderRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = sliderRef.current;
+    if (!el) return;
+    const onSliderTouch = (e: TouchEvent) => { e.stopPropagation(); };
+    el.addEventListener("touchstart", onSliderTouch, { passive: true });
+    el.addEventListener("touchmove", onSliderTouch, { passive: true });
+    return () => { el.removeEventListener("touchstart", onSliderTouch); el.removeEventListener("touchmove", onSliderTouch); };
+  }, []);
     if (!imgRef.current || !canvasRef.current) return;
     const img = imgRef.current, imd = imgDisplayRef.current;
     const outW = aspectRatio ? 600 : Math.round(crop.w * (img.naturalWidth / imd.w));
@@ -453,7 +465,7 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:12}}>
           <span style={{fontSize:13,color:"var(--text3)",flexShrink:0}}>{t("zoom")}</span>
-          <input type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5" value={Math.round(zoom*100)}
+          <input ref={sliderRef} type="range" min={Math.round(MIN_ZOOM*100)} max={Math.round(MAX_ZOOM*100)} step="5" value={Math.round(zoom*100)}
             onChange={e=>handleZoom(Number(e.target.value)/100)}
             onTouchStart={e=>e.stopPropagation()}
             onTouchMove={e=>e.stopPropagation()}
