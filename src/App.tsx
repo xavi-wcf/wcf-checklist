@@ -170,6 +170,9 @@ function LangProvider({ value, children }: { value: { t: (key: TKey, ...args: un
 }
 const useTr = () => useContext(LangCtx);
 
+const AdminCtx = createContext(false);
+const useAdmin = () => useContext(AdminCtx);
+
 function useLang() {
   const [lang, setLang] = useState<LangCode>(() => (localStorage.getItem("wcf_lang") as LangCode) ?? "es");
   const saveLang = (l: LangCode) => { setLang(l); localStorage.setItem("wcf_lang", l); };
@@ -276,18 +279,32 @@ function useOwned() {
   const [imgbbKey, setImgbbKeyState] = useState("");
   const [appLogo, setAppLogoState] = useState("");
   const [ready, setReady] = useState(false);
+
   useEffect(() => {
+    // Load owned/wishlist from localStorage (per device)
+    try {
+      const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
+      const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
+      setOwned(new Set(o)); setWishlist(new Set(w));
+    } catch {}
+    // Load app settings (imgbb key, logo) from Supabase — shared/admin only
     sbGet("wcf_owned").then(row => {
-      if (row) { setOwned(new Set(row.owned ?? [])); setWishlist(new Set(row.wishlist ?? [])); setImgbbKeyState(row.imgbb_key ?? ""); setAppLogoState(row.app_logo ?? ""); }
+      if (row) { setImgbbKeyState(row.imgbb_key ?? ""); setAppLogoState(row.app_logo ?? ""); }
       setReady(true);
     });
   }, []);
-  const save = (o: Set<number>, w: Set<number>, key?: string, logo?: string) =>
-    sbUpsert("wcf_owned", { owned: [...o], wishlist: [...w], imgbb_key: key ?? imgbbKey, app_logo: logo ?? appLogo });
-  const toggle = (id: number) => setOwned(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); save(n, wishlist); return n; });
-  const toggleWish = (id: number) => setWishlist(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); save(owned, n); return n; });
-  const saveImgbbKey = (key: string) => { setImgbbKeyState(key); save(owned, wishlist, key); };
-  const saveAppLogo = (logo: string) => { setAppLogoState(logo); save(owned, wishlist, undefined, logo); };
+
+  const saveLocal = (o: Set<number>, w: Set<number>) => {
+    localStorage.setItem("wcf_owned", JSON.stringify([...o]));
+    localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
+  };
+  const saveSettings = (key?: string, logo?: string) =>
+    sbUpsert("wcf_owned", { imgbb_key: key ?? imgbbKey, app_logo: logo ?? appLogo });
+
+  const toggle = (id: number) => setOwned(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(n, wishlist); return n; });
+  const toggleWish = (id: number) => setWishlist(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(owned, n); return n; });
+  const saveImgbbKey = (key: string) => { setImgbbKeyState(key); saveSettings(key); };
+  const saveAppLogo = (logo: string) => { setAppLogoState(logo); saveSettings(undefined, logo); };
   return { owned, toggle, wishlist, toggleWish, imgbbKey, saveImgbbKey, appLogo, saveAppLogo, ready };
 }
 
@@ -746,6 +763,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
 }) {
   const { t } = useTr();
+  const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const [hover,setHover]=useState(false);
   const hasImage = !!figure.image && !imgError;
   const statusText = isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing");
@@ -755,8 +773,10 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
     <div style={{border:"1px solid "+(isOwned?color:isWished?"#f59e0b":"#e8e8e4"),borderRadius:10,background:isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s"}}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
       {hover && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
-        <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
-        <button onClick={e=>{e.stopPropagation();onDelete();}} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>🗑</button>
+        {isAdmin && <>
+          <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
+          <button onClick={e=>{e.stopPropagation();onDelete();}} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>🗑</button>
+        </>}
         {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"#fff",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
       </div>}
       {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
@@ -820,7 +840,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   onAddFigure:(f:Omit<Figure,"id">)=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
 }) {
   const { t, lang } = useTr();
-  const [open,setOpen]=useState(false); const [editSet,setEditSet]=useState(false);
+  const isAdmin = useAdmin();
   const [addFigure,setAddFigure]=useState(false); const [bulkAdd,setBulkAdd]=useState(false);
   const [editFigure,setEditFigure]=useState<Figure|null>(null);
   const [showMoveMenu,setShowMoveMenu]=useState(false);
@@ -855,7 +875,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
         <span style={{fontSize:18,color:"var(--text4)",transform:open?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0}}>⌄</span>
       </div>
       {open && <div style={{padding:"12px 16px 16px",borderTop:"1px solid var(--border)"}}>
-        <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",position:"relative"}}>
+        {isAdmin && <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",position:"relative"}}>
           <Btn small onClick={()=>setAddFigure(true)} variant="primary">{t("addFigure")}</Btn>
           <Btn small onClick={()=>setBulkAdd(true)} variant="primary">➕ Añadir varias</Btn>
           <Btn small onClick={()=>setEditSet(true)}>{t("editSetBtn")}</Btn>
@@ -879,7 +899,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
             </div>
           )}
           <Btn small onClick={onDeleteSet} variant="danger">{t("deleteSetBtn")}</Btn>
-        </div>
+        </div>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
           {set.figures.map(f=>(
             <FigureCard key={f.id} figure={f} color={color} isOwned={owned.has(f.id)} isWished={wishlist.has(f.id)}
@@ -1081,6 +1101,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
   onReorderSets:(from:number,to:number)=>void;
 }) {
   const { t } = useTr();
+  const isAdmin = useAdmin();
   const [open,setOpen]=useState(false);
   const [editGroup,setEditGroup]=useState(false);
   const [imgError,setImgError]=useState(false);
@@ -1100,9 +1121,11 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
           {complete ? t("complete") : `${ownedCount}/${total}`}
         </span>
         <div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
-          <button onClick={()=>setEditGroup(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"var(--text3)"}}>✏️</button>
-          <button onClick={onAddSet} style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"var(--text3)"}}>+ Set</button>
-          <button onClick={onDeleteGroup} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"#dc2626"}}>🗑</button>
+          {isAdmin && <>
+            <button onClick={()=>setEditGroup(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"var(--text3)"}}>✏️</button>
+            <button onClick={onAddSet} style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"var(--text3)"}}>+ Set</button>
+            <button onClick={onDeleteGroup} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 7px",fontSize:11,cursor:"pointer",color:"#dc2626"}}>🗑</button>
+          </>}
         </div>
         <span style={{fontSize:16,color:"var(--text4)",transform:open?"rotate(180deg)":"none",transition:"transform 0.2s",marginLeft:4}}>⌄</span>
       </div>
@@ -1318,6 +1341,30 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
 // ============================================================
 //  APP
 // ============================================================
+const ADMIN_PASSWORD = "Trunks1984!";
+
+function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>void }) {
+  const [pwd, setPwd] = useState("");
+  const [error, setError] = useState(false);
+  const check = () => {
+    if (pwd === ADMIN_PASSWORD) { onSuccess(); onClose(); }
+    else { setError(true); setPwd(""); }
+  };
+  return (
+    <Modal title="🔐 Modo admin" onClose={onClose}>
+      <p style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Introduce la contraseña para activar el modo edición.</p>
+      <input type="password" value={pwd} onChange={e=>{setPwd(e.target.value);setError(false);}} onKeyDown={e=>e.key==="Enter"&&check()}
+        placeholder="Contraseña" autoFocus
+        style={{width:"100%",padding:"8px 10px",fontSize:14,border:`1px solid ${error?"#dc2626":"var(--border)"}`,borderRadius:8,outline:"none",boxSizing:"border-box" as const,marginBottom:error?4:0}} />
+      {error && <p style={{fontSize:12,color:"#dc2626",marginBottom:0}}>Contraseña incorrecta</p>}
+      <div style={{marginTop:16,display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn onClick={onClose}>Cancelar</Btn>
+        <Btn onClick={check} variant="primary">Entrar</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 export default function App() {
   const { owned, toggle, wishlist, toggleWish, imgbbKey, saveImgbbKey, appLogo, saveAppLogo, ready: ownedReady } = useOwned();
   const { data, setData, ready: dataReady } = useData();
@@ -1326,6 +1373,8 @@ export default function App() {
   const ready = ownedReady && dataReady;
 
   const [activeCategory, setActiveCategory] = useState<CategoryType>("oficial");
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("wcf_admin") === "true");
+  const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState<number|null>(null);
   const [showWishlist, setShowWishlist] = useState(false);
   const [showAddSeries, setShowAddSeries] = useState(false);
@@ -1462,7 +1511,12 @@ export default function App() {
           <button onClick={toggleDark} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13}} title={dark?"Modo claro":"Modo oscuro"}>
             {dark ? "☀️" : "🌙"}
           </button>
-          <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13}}>⚙️</button>
+          <button onClick={()=>{ if(isAdmin){setIsAdmin(false);localStorage.removeItem("wcf_admin");} else setShowAdminPrompt(true); }}
+            style={{background:isAdmin?"#1a1a1a":"none",border:"1px solid "+(isAdmin?"#1a1a1a":"var(--border)"),borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13,color:isAdmin?"#fff":"var(--text3)"}}
+            title={isAdmin?"Salir del modo admin":"Modo admin"}>
+            {isAdmin?"🔓":"🔒"}
+          </button>
+          {isAdmin && <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13}}>⚙️</button>}
         </div>
       </div>
 
@@ -1509,7 +1563,7 @@ export default function App() {
                 <span style={{fontSize:13,fontWeight:showWishlist?600:400,color:showWishlist?"#92400e":"#555",flex:1}}>{t("wishlist")}</span>
                 {wishlistCount > 0 && <span style={{fontSize:11,background:"#f59e0b",color:"#fff",borderRadius:10,padding:"1px 7px",fontWeight:600}}>{wishlistCount}</span>}
               </div>
-              <Btn onClick={()=>setShowAddSeries(true)} variant="primary" small>{t("newSeries")}</Btn>
+              {isAdmin && <Btn onClick={()=>setShowAddSeries(true)} variant="primary" small>{t("newSeries")}</Btn>}
             </div>
           </>}
         </div>
@@ -1543,10 +1597,10 @@ export default function App() {
                   {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
                 </span>
                 <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-                  <Btn small onClick={()=>addGroup(series.id)} variant="primary">+ Grupo</Btn>
+                  {isAdmin && <><Btn small onClick={()=>addGroup(series.id)} variant="primary">+ Grupo</Btn>
                   <Btn small onClick={()=>addSet(series.id)} variant="primary">{t("newSet")}</Btn>
                   <Btn small onClick={()=>setEditSeriesData(series)}>✏️</Btn>
-                  <Btn small onClick={()=>deleteSeries(series.id)} variant="danger">🗑</Btn>
+                  <Btn small onClick={()=>deleteSeries(series.id)} variant="danger">🗑</Btn></>}
                 </div>
               </div>
               <div style={{marginBottom:20}}><ProgressBar value={seriesOwned(series)} total={seriesTotal(series)} color={series.color} /></div>
@@ -1607,7 +1661,10 @@ export default function App() {
 
   return (
     <LangProvider value={langValue}>
-      {appContent}
+      <AdminCtx.Provider value={isAdmin}>
+        {appContent}
+        {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
+      </AdminCtx.Provider>
     </LangProvider>
   );
 }
