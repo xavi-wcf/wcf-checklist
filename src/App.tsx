@@ -841,6 +841,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
 }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
+  const [open,setOpen]=useState(false); const [editSet,setEditSet]=useState(false);
   const [addFigure,setAddFigure]=useState(false); const [bulkAdd,setBulkAdd]=useState(false);
   const [editFigure,setEditFigure]=useState<Figure|null>(null);
   const [showMoveMenu,setShowMoveMenu]=useState(false);
@@ -880,7 +881,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
           <Btn small onClick={()=>setBulkAdd(true)} variant="primary">➕ Añadir varias</Btn>
           <Btn small onClick={()=>setEditSet(true)}>{t("editSetBtn")}</Btn>
           <Btn small onClick={onDuplicate}>📋 Duplicar</Btn>
-          {onMoveToGroup && groups && groups.length > 0 && (
+          {!!onMoveToGroup && !!groups && groups.length > 0 && (
             <div style={{position:"relative"}}>
               <Btn small onClick={()=>setShowMoveMenu(m=>!m)}>📂 Mover a...</Btn>
               {showMoveMenu && (
