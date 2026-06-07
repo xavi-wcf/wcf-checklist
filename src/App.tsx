@@ -1345,7 +1345,7 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
         return (
           <div key={s.id}
             data-seriesidx={idx}
-            draggable
+            draggable={!dragLocked}
             onDragStart={()=>handleDragStart(idx)}
             onDragOver={e=>handleDragOver(e,idx)}
             onDrop={()=>handleDrop(idx)}
@@ -1595,9 +1595,12 @@ export default function App() {
       <div style={{display:"flex",flex:1}}>
         {/* SIDEBAR */}
         {(!isMobile || showMobileNav) && (
-        <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
-          style={{position:isMobile?"fixed":"sticky",top:isMobile?0:57,left:0,right:isMobile?0:undefined,bottom:0,zIndex:isMobile?100:undefined,width:isMobile?"100%":210,height:isMobile?"100vh":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.6)":"var(--bg2)",display:"flex",flexDirection:"column",touchAction:isMobile?"none":"auto"}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:isMobile?280:210,display:"flex",flexDirection:"column",background:"var(--bg2)",borderRight:"1px solid var(--border)",flexShrink:0,flex:1,overflow:"hidden"}}>
+          <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
+            style={{position:isMobile?"fixed":"sticky",top:isMobile?0:57,left:0,bottom:0,zIndex:isMobile?100:undefined,width:isMobile?"100%":210,height:isMobile?"100dvh":"calc(100vh - 57px)",display:"flex",touchAction:isMobile?"none":"auto"}}>
+
+            {/* Sidebar panel */}
+            <div onClick={e=>e.stopPropagation()}
+              style={{width:isMobile?280:210,height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",borderRight:"1px solid var(--border)",flexShrink:0}}>
           {isMobile && <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg2)",flexShrink:0}}>
             <span style={{fontWeight:700,fontSize:15,color:"var(--text)"}}>{t("seriesLabel")}</span>
             <button onClick={()=>setShowMobileNav(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)",lineHeight:1}}>✕</button>
@@ -1617,7 +1620,7 @@ export default function App() {
               );
             })}
           </div>
-          {!isSearchMode && <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden",minHeight:0}}>
+          {!isSearchMode && <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
             <div style={{fontSize:11,fontWeight:600,color:"var(--text4)",padding:"10px 16px 6px",textTransform:"uppercase",letterSpacing:"0.08em",flexShrink:0}}>{t("seriesLabel")}</div>
             <div style={{flex:1,overflowY:"auto",minHeight:0}}>
               {filteredSeries.length===0 && <div style={{padding:"12px 16px",fontSize:13,color:"var(--text4)"}}>{t("noSeries")}</div>}
@@ -1642,8 +1645,11 @@ export default function App() {
               {isAdmin && <Btn onClick={()=>setShowAddSeries(true)} variant="primary" small>{t("newSeries")}</Btn>}
             </div>
           </div>}
-        </div>
-        </div>)}
+            </div>
+            {/* Dark overlay - click to close */}
+            {isMobile && <div style={{flex:1,background:"rgba(0,0,0,0.5)"}} />}
+          </div>
+        )}
 
         {/* MAIN */}
         <div style={{flex:1,padding:isMobile?"12px 12px 20px":"20px 24px",overflowY:"auto",position:"relative"}}>
