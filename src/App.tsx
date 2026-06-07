@@ -1460,10 +1460,12 @@ export default function App() {
 
   const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:activeCategory,sets:[],groups:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
   const [dragLocked, setDragLocked] = useState(false);
+  const [reorderKey, setReorderKey] = useState(0);
   const reorderSeries = (fromIdx:number, toIdx:number) => {
     setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===activeCategory); const others=all.filter(s=>s.category!==activeCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
     setDragLocked(true);
-    setTimeout(()=>setDragLocked(false), 1200);
+    setReorderKey(k=>k+1);
+    setTimeout(()=>setDragLocked(false), 1500);
   };
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
   const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
@@ -1625,6 +1627,7 @@ export default function App() {
             <div style={{flex:1,overflowY:"auto",minHeight:0}}>
               {filteredSeries.length===0 && <div style={{padding:"12px 16px",fontSize:13,color:"var(--text4)"}}>{t("noSeries")}</div>}
               <DraggableSeriesList
+                key={reorderKey}
                 series={filteredSeries}
                 effectiveSelected={effectiveSelected}
                 showWishlist={showWishlist}
