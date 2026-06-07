@@ -1162,20 +1162,37 @@ function DraggableGroupList({ groups, color, owned, wishlist, apiKey, onToggle, 
   const dragIdx = useRef<number|null>(null);
   const [dragOver, setDragOver] = useState<number|null>(null);
 
+  const longPressTimer3 = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const groupTouchIdx = useRef<number|null>(null);
   const handleDragStart = (idx:number) => { dragIdx.current=idx; };
   const handleDragOver = (e:React.DragEvent, idx:number) => { e.preventDefault(); setDragOver(idx); };
   const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorderGroups(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
   const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
+  const handleGroupTouchStart = (_e:React.TouchEvent, idx:number) => { longPressTimer3.current=setTimeout(()=>{groupTouchIdx.current=idx;setDragOver(idx);},400); };
+  const handleGroupTouchMove = () => { if(longPressTimer3.current){clearTimeout(longPressTimer3.current);longPressTimer3.current=null;} };
+  const handleGroupTouchEnd = (e:React.TouchEvent) => {
+    if(longPressTimer3.current){clearTimeout(longPressTimer3.current);longPressTimer3.current=null;}
+    if(groupTouchIdx.current===null) return;
+    const t=e.changedTouches[0];
+    const els=document.elementsFromPoint(t.clientX,t.clientY);
+    const target=els.find(el=>el.hasAttribute("data-groupidx"));
+    if(target){const toIdx=parseInt(target.getAttribute("data-groupidx")!);if(toIdx!==groupTouchIdx.current)onReorderGroups(groupTouchIdx.current,toIdx);}
+    groupTouchIdx.current=null;setDragOver(null);
+  };
 
   return (
     <div>
       {groups.map((g, idx) => (
         <div key={g.id}
+          data-groupidx={idx}
           draggable
           onDragStart={()=>handleDragStart(idx)}
           onDragOver={e=>handleDragOver(e,idx)}
           onDrop={()=>handleDrop(idx)}
           onDragEnd={handleDragEnd}
+          onTouchStart={e=>handleGroupTouchStart(e,idx)}
+          onTouchMove={handleGroupTouchMove}
+          onTouchEnd={handleGroupTouchEnd}
           style={{opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?`2px solid ${color}`:"none",borderRadius:14,transition:"opacity 0.15s,outline 0.1s",marginBottom:16,cursor:"grab"}}>
           <GroupCard
             group={g} color={color} owned={owned} wishlist={wishlist} apiKey={apiKey}
@@ -1249,6 +1266,7 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
           onDrop={()=>handleDrop(idx)}
           onDragEnd={handleDragEnd}
           onTouchStart={e=>handleTouchStart(e,idx)}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{
             opacity: dragIdx.current===idx ? 0.4 : 1,
@@ -1295,8 +1313,13 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
   const handleDragOver = (e:React.DragEvent, idx:number) => { e.preventDefault(); setDragOver(idx); };
   const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorder(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
   const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
-  const handleTouchStart = (_e:React.TouchEvent, idx:number) => { touchDragIdx.current=idx; };
+  const longPressTimer2 = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const handleTouchStart = (e:React.TouchEvent, idx:number) => {
+    longPressTimer2.current = setTimeout(() => { touchDragIdx.current=idx; setDragOver(idx); }, 400);
+  };
+  const handleTouchMove2 = () => { if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;} };
   const handleTouchEnd = (e:React.TouchEvent) => {
+    if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;}
     if(touchDragIdx.current===null) return;
     const t=e.changedTouches[0];
     const els=document.elementsFromPoint(t.clientX,t.clientY);
@@ -1318,6 +1341,7 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
             onDrop={()=>handleDrop(idx)}
             onDragEnd={handleDragEnd}
             onTouchStart={e=>handleTouchStart(e,idx)}
+            onTouchMove={handleTouchMove2}
             onTouchEnd={handleTouchEnd}
             onClick={()=>onSelect(s.id)}
             style={{cursor:"grab",borderRight:active?"2px solid "+s.color:"2px solid transparent",position:"relative",overflow:"hidden",opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?"2px solid "+s.color:"none",transition:"opacity 0.15s,outline 0.1s"}}>
@@ -1558,7 +1582,7 @@ export default function App() {
         {(!isMobile || showMobileNav) && (
         <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
           style={{position:isMobile?"fixed":"sticky",top:isMobile?0:57,left:0,right:isMobile?0:undefined,bottom:0,zIndex:isMobile?100:undefined,width:isMobile?"100%":210,height:isMobile?"100vh":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.6)":"var(--bg2)",display:"flex",flexDirection:"column",touchAction:isMobile?"none":"auto"}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:260,height:"100%",background:"var(--bg2)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto",flexShrink:0}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:isMobile?280:210,height:"100%",maxHeight:"100vh",background:"var(--bg2)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto",flexShrink:0}}>
           {isMobile && <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg2)",flexShrink:0}}>
             <span style={{fontWeight:700,fontSize:15,color:"var(--text)"}}>{t("seriesLabel")}</span>
             <button onClick={()=>setShowMobileNav(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)",lineHeight:1}}>✕</button>
@@ -1593,7 +1617,7 @@ export default function App() {
               />
             </div>
             <div style={{padding:"10px 14px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
-              <div onClick={()=>{setShowWishlist(true);setSearchActive(false);setSearchQuery("");}}
+              <div onClick={()=>{setShowWishlist(true);setSearchActive(false);setSearchQuery("");if(isMobile)setShowMobileNav(false);}}
                 style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",background:showWishlist?"#fef3c7":"transparent",border:showWishlist?"1px solid #fcd34d":"1px solid transparent"}}>
                 <span style={{fontSize:16}}>💛</span>
                 <span style={{fontSize:13,fontWeight:showWishlist?600:400,color:showWishlist?"#92400e":"#555",flex:1}}>{t("wishlist")}</span>
