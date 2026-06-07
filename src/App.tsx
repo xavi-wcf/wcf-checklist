@@ -765,6 +765,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   const { t } = useTr();
   const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const [hover,setHover]=useState(false);
+  const isMobileDevice = window.innerWidth < 768;
   const hasImage = !!figure.image && !imgError;
   const statusText = isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing");
   const statusColor = isOwned ? color : isWished ? "#d97706" : "#aaa";
@@ -772,12 +773,12 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   return (
     <div style={{border:"1px solid "+(isOwned?color:isWished?"#f59e0b":"#e8e8e4"),borderRadius:10,background:isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s"}}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
-      {hover && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
-        {isAdmin && <>
+      {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
+        {isAdmin && hover && <>
           <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
           <button onClick={e=>{e.stopPropagation();onDelete();}} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>🗑</button>
         </>}
-        {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"#fff",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
+        {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
       </div>}
       {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
       {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
