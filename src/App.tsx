@@ -1243,7 +1243,7 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
 
   const handleTouchStart = (e: React.TouchEvent, idx: number) => {
     touchY.current = e.touches[0].clientY;
-    longPressTimer.current = setTimeout(() => { touchDragIdx.current = idx; setDragOver(idx); }, 400);
+    longPressTimer.current = setTimeout(() => { touchDragIdx.current = idx; setDragOver(idx); }, 500);
   };
   const handleTouchMove = () => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
@@ -1320,12 +1320,21 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
   const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorder(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
   const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
   const longPressTimer2 = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const reorderCooldown = useRef(false);
   const handleTouchStart = (_e:React.TouchEvent, idx:number) => {
-    longPressTimer2.current = setTimeout(() => { touchDragIdx.current=idx; setDragOver(idx); }, 400);
+    if (reorderCooldown.current) return;
+    longPressTimer2.current = setTimeout(() => { touchDragIdx.current=idx; setDragOver(idx); }, 500);
   };
   const handleTouchMove2 = () => { if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;} };
   const handleTouchEnd = (e:React.TouchEvent) => {
     if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;}
+    if(touchDragIdx.current===null) return;
+    const t=e.changedTouches[0];
+    const els=document.elementsFromPoint(t.clientX,t.clientY);
+    const target=els.find(el=>el.hasAttribute("data-seriesidx"));
+    if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);reorderCooldown.current=true;setTimeout(()=>{reorderCooldown.current=false;},600);}}
+    touchDragIdx.current=null;setDragOver(null);
+  };
     if(touchDragIdx.current===null) return;
     const t=e.changedTouches[0];
     const els=document.elementsFromPoint(t.clientX,t.clientY);
@@ -1608,9 +1617,9 @@ export default function App() {
               );
             })}
           </div>
-          {!isSearchMode && <>
-            <div style={{fontSize:11,fontWeight:600,color:"var(--text4)",padding:"10px 16px 6px",textTransform:"uppercase",letterSpacing:"0.08em"}}>{t("seriesLabel")}</div>
-            <div style={{flex:1,overflowY:"auto"}}>
+          {!isSearchMode && <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden",minHeight:0}}>
+            <div style={{fontSize:11,fontWeight:600,color:"var(--text4)",padding:"10px 16px 6px",textTransform:"uppercase",letterSpacing:"0.08em",flexShrink:0}}>{t("seriesLabel")}</div>
+            <div style={{flex:1,overflowY:"auto",minHeight:0}}>
               {filteredSeries.length===0 && <div style={{padding:"12px 16px",fontSize:13,color:"var(--text4)"}}>{t("noSeries")}</div>}
               <DraggableSeriesList
                 series={filteredSeries}
@@ -1618,11 +1627,11 @@ export default function App() {
                 showWishlist={showWishlist}
                 seriesOwned={seriesOwned}
                 seriesTotal={seriesTotal}
-                onSelect={(sid)=>{setSelectedSeries(sid);setShowWishlist(false);}}
+                onSelect={(sid)=>{setSelectedSeries(sid);setShowWishlist(false);if(isMobile)setShowMobileNav(false);}}
                 onReorder={reorderSeries}
               />
             </div>
-            <div style={{padding:"10px 14px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{padding:"10px 14px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8,flexShrink:0}}>
               <div onClick={()=>{setShowWishlist(true);setSearchActive(false);setSearchQuery("");if(isMobile)setShowMobileNav(false);}}
                 style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",background:showWishlist?"#fef3c7":"transparent",border:showWishlist?"1px solid #fcd34d":"1px solid transparent"}}>
                 <span style={{fontSize:16}}>💛</span>
@@ -1631,7 +1640,7 @@ export default function App() {
               </div>
               {isAdmin && <Btn onClick={()=>setShowAddSeries(true)} variant="primary" small>{t("newSeries")}</Btn>}
             </div>
-          </>}
+          </div>}
         </div>
         </div>)}
 
