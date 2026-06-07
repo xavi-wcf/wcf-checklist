@@ -1231,6 +1231,7 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
   // Touch drag state
   const touchDragIdx = useRef<number|null>(null);
   const touchY = useRef(0);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   const handleDragStart = (idx: number) => { dragIdx.current = idx; };
   const handleDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOver(idx); };
@@ -1241,9 +1242,14 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
   const handleDragEnd = () => { dragIdx.current = null; setDragOver(null); };
 
   const handleTouchStart = (e: React.TouchEvent, idx: number) => {
-    touchDragIdx.current = idx; touchY.current = e.touches[0].clientY;
+    touchY.current = e.touches[0].clientY;
+    longPressTimer.current = setTimeout(() => { touchDragIdx.current = idx; setDragOver(idx); }, 400);
+  };
+  const handleTouchMove = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
     if (touchDragIdx.current === null) return;
     const touch = e.changedTouches[0];
     const els = document.elementsFromPoint(touch.clientX, touch.clientY);
@@ -1314,7 +1320,7 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
   const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorder(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
   const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
   const longPressTimer2 = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const handleTouchStart = (e:React.TouchEvent, idx:number) => {
+  const handleTouchStart = (_e:React.TouchEvent, idx:number) => {
     longPressTimer2.current = setTimeout(() => { touchDragIdx.current=idx; setDragOver(idx); }, 400);
   };
   const handleTouchMove2 = () => { if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;} };
