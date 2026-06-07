@@ -1173,8 +1173,8 @@ function DraggableGroupList({ groups, color, owned, wishlist, apiKey, onToggle, 
   const handleGroupTouchEnd = (e:React.TouchEvent) => {
     if(longPressTimer3.current){clearTimeout(longPressTimer3.current);longPressTimer3.current=null;}
     if(groupTouchIdx.current===null) return;
-    const t=e.changedTouches[0];
-    const els=document.elementsFromPoint(t.clientX,t.clientY);
+    const touch2=e.changedTouches[0];
+    const els=document.elementsFromPoint(touch2.clientX,touch2.clientY);
     const target=els.find(el=>el.hasAttribute("data-groupidx"));
     if(target){const toIdx=parseInt(target.getAttribute("data-groupidx")!);if(toIdx!==groupTouchIdx.current)onReorderGroups(groupTouchIdx.current,toIdx);}
     groupTouchIdx.current=null;setDragOver(null);
@@ -1329,8 +1329,8 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
   const handleTouchEnd = (e:React.TouchEvent) => {
     if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;}
     if(touchDragIdx.current===null) return;
-    const t=e.changedTouches[0];
-    const els=document.elementsFromPoint(t.clientX,t.clientY);
+    const touch2=e.changedTouches[0];
+    const els=document.elementsFromPoint(touch2.clientX,touch2.clientY);
     const target=els.find(el=>el.hasAttribute("data-seriesidx"));
     if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);reorderCooldown.current=true;setTimeout(()=>{reorderCooldown.current=false;},600);}}
     touchDragIdx.current=null;setDragOver(null);
