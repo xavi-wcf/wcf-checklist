@@ -1308,9 +1308,10 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
 // ============================================================
 //  DRAGGABLE SERIES LIST
 // ============================================================
-function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOwned, seriesTotal, onSelect, onReorder }: {
+function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOwned, seriesTotal, dragLocked, onSelect, onReorder }: {
   series: Series[]; effectiveSelected: number|null; showWishlist: boolean;
   seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
+  dragLocked?: boolean;
   onSelect:(sid:number)=>void; onReorder:(from:number,to:number)=>void;
 }) {
   const dragIdx = useRef<number|null>(null);
@@ -1322,9 +1323,8 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
   const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorder(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
   const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
   const longPressTimer2 = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const lastReorderTime = useRef(0);
   const handleTouchStart = (_e:React.TouchEvent, idx:number) => {
-    if (Date.now() - lastReorderTime.current < 1000) return;
+    if (dragLocked) return;
     longPressTimer2.current = setTimeout(() => { touchDragIdx.current=idx; setDragOver(idx); }, 500);
   };
   const handleTouchMove2 = () => { if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;} };
@@ -1334,7 +1334,7 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
     const touch2=e.changedTouches[0];
     const els=document.elementsFromPoint(touch2.clientX,touch2.clientY);
     const target=els.find(el=>el.hasAttribute("data-seriesidx"));
-    if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);lastReorderTime.current=Date.now();}}
+    if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);}}
     touchDragIdx.current=null;setDragOver(null);
   };
 
@@ -1459,7 +1459,12 @@ export default function App() {
   const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
 
   const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:activeCategory,sets:[],groups:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
-  const reorderSeries = (fromIdx:number, toIdx:number) => setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===activeCategory); const others=all.filter(s=>s.category!==activeCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
+  const [dragLocked, setDragLocked] = useState(false);
+  const reorderSeries = (fromIdx:number, toIdx:number) => {
+    setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===activeCategory); const others=all.filter(s=>s.category!==activeCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
+    setDragLocked(true);
+    setTimeout(()=>setDragLocked(false), 1200);
+  };
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
   const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
   const addSet = (sid:number, gid?:number) => {
@@ -1592,7 +1597,7 @@ export default function App() {
         {(!isMobile || showMobileNav) && (
         <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
           style={{position:isMobile?"fixed":"sticky",top:isMobile?0:57,left:0,right:isMobile?0:undefined,bottom:0,zIndex:isMobile?100:undefined,width:isMobile?"100%":210,height:isMobile?"100vh":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.6)":"var(--bg2)",display:"flex",flexDirection:"column",touchAction:isMobile?"none":"auto"}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:isMobile?280:210,display:"flex",flexDirection:"column",background:"var(--bg2)",borderRight:"1px solid var(--border)",flexShrink:0,height:"100%",overflow:"hidden"}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:isMobile?280:210,display:"flex",flexDirection:"column",background:"var(--bg2)",borderRight:"1px solid var(--border)",flexShrink:0,flex:1,overflow:"hidden"}}>
           {isMobile && <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg2)",flexShrink:0}}>
             <span style={{fontWeight:700,fontSize:15,color:"var(--text)"}}>{t("seriesLabel")}</span>
             <button onClick={()=>setShowMobileNav(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)",lineHeight:1}}>✕</button>
@@ -1622,6 +1627,7 @@ export default function App() {
                 showWishlist={showWishlist}
                 seriesOwned={seriesOwned}
                 seriesTotal={seriesTotal}
+                dragLocked={dragLocked}
                 onSelect={(sid)=>{setSelectedSeries(sid);setShowWishlist(false);if(isMobile)setShowMobileNav(false);}}
                 onReorder={reorderSeries}
               />
