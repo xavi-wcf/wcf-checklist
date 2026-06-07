@@ -1335,13 +1335,6 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
     if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);reorderCooldown.current=true;setTimeout(()=>{reorderCooldown.current=false;},600);}}
     touchDragIdx.current=null;setDragOver(null);
   };
-    if(touchDragIdx.current===null) return;
-    const t=e.changedTouches[0];
-    const els=document.elementsFromPoint(t.clientX,t.clientY);
-    const target=els.find(el=>el.hasAttribute("data-seriesidx"));
-    if(target){ const toIdx=parseInt(target.getAttribute("data-seriesidx")!); if(toIdx!==touchDragIdx.current) onReorder(touchDragIdx.current,toIdx); }
-    touchDragIdx.current=null; setDragOver(null);
-  };
 
   return (
     <div>
