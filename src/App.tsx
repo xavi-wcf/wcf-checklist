@@ -1232,6 +1232,7 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
   const touchDragIdx = useRef<number|null>(null);
   const touchY = useRef(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const lastReorderTimeSet = useRef(0);
 
   const handleDragStart = (idx: number) => { dragIdx.current = idx; };
   const handleDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOver(idx); };
@@ -1242,6 +1243,7 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
   const handleDragEnd = () => { dragIdx.current = null; setDragOver(null); };
 
   const handleTouchStart = (e: React.TouchEvent, idx: number) => {
+    if (Date.now() - lastReorderTimeSet.current < 1000) return;
     touchY.current = e.touches[0].clientY;
     longPressTimer.current = setTimeout(() => { touchDragIdx.current = idx; setDragOver(idx); }, 500);
   };
@@ -1256,7 +1258,7 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
     const target = els.find(el => el.hasAttribute("data-setidx"));
     if (target) {
       const toIdx = parseInt(target.getAttribute("data-setidx")!);
-      if (toIdx !== touchDragIdx.current) onReorder(touchDragIdx.current, toIdx);
+      if (toIdx !== touchDragIdx.current) { onReorder(touchDragIdx.current, toIdx); lastReorderTimeSet.current = Date.now(); }
     }
     touchDragIdx.current = null; setDragOver(null);
   };
@@ -1320,9 +1322,9 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
   const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorder(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
   const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
   const longPressTimer2 = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const reorderCooldown = useRef(false);
+  const lastReorderTime = useRef(0);
   const handleTouchStart = (_e:React.TouchEvent, idx:number) => {
-    if (reorderCooldown.current) return;
+    if (Date.now() - lastReorderTime.current < 1000) return;
     longPressTimer2.current = setTimeout(() => { touchDragIdx.current=idx; setDragOver(idx); }, 500);
   };
   const handleTouchMove2 = () => { if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;} };
@@ -1332,7 +1334,7 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
     const touch2=e.changedTouches[0];
     const els=document.elementsFromPoint(touch2.clientX,touch2.clientY);
     const target=els.find(el=>el.hasAttribute("data-seriesidx"));
-    if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);reorderCooldown.current=true;setTimeout(()=>{reorderCooldown.current=false;},600);}}
+    if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);lastReorderTime.current=Date.now();}}
     touchDragIdx.current=null;setDragOver(null);
   };
 
@@ -1590,12 +1592,12 @@ export default function App() {
         {(!isMobile || showMobileNav) && (
         <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
           style={{position:isMobile?"fixed":"sticky",top:isMobile?0:57,left:0,right:isMobile?0:undefined,bottom:0,zIndex:isMobile?100:undefined,width:isMobile?"100%":210,height:isMobile?"100vh":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.6)":"var(--bg2)",display:"flex",flexDirection:"column",touchAction:isMobile?"none":"auto"}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:isMobile?280:210,height:"100%",maxHeight:"100vh",background:"var(--bg2)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto",flexShrink:0}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:isMobile?280:210,display:"flex",flexDirection:"column",background:"var(--bg2)",borderRight:"1px solid var(--border)",flexShrink:0,height:"100%",overflow:"hidden"}}>
           {isMobile && <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg2)",flexShrink:0}}>
             <span style={{fontWeight:700,fontSize:15,color:"var(--text)"}}>{t("seriesLabel")}</span>
             <button onClick={()=>setShowMobileNav(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)",lineHeight:1}}>✕</button>
           </div>}
-          <div style={{padding:"10px 10px 8px",borderBottom:"1px solid var(--border)"}}>
+          <div style={{padding:"10px 10px 8px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
             {(["oficial","resina"] as CategoryType[]).map(cat=>{
               const active = cat===activeCategory && !isSearchMode;
               return (
