@@ -1393,11 +1393,16 @@ export default function App() {
 
   useEffect(() => {
     if (isMobile && showMobileNav) {
+      document.documentElement.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
     } else {
+      document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
   }, [isMobile, showMobileNav]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -1552,7 +1557,7 @@ export default function App() {
         {/* SIDEBAR */}
         {(!isMobile || showMobileNav) && (
         <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
-          style={{position:isMobile?"fixed":"sticky",top:isMobile?0:57,left:0,right:isMobile?0:undefined,bottom:0,zIndex:isMobile?100:undefined,width:isMobile?"100%":210,height:isMobile?"100vh":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.6)":"var(--bg2)",display:"flex",flexDirection:"column"}}>
+          style={{position:isMobile?"fixed":"sticky",top:isMobile?0:57,left:0,right:isMobile?0:undefined,bottom:0,zIndex:isMobile?100:undefined,width:isMobile?"100%":210,height:isMobile?"100vh":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.6)":"var(--bg2)",display:"flex",flexDirection:"column",touchAction:isMobile?"none":"auto"}}>
           <div onClick={e=>e.stopPropagation()} style={{width:260,height:"100%",background:"var(--bg2)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto",flexShrink:0}}>
           {isMobile && <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg2)",flexShrink:0}}>
             <span style={{fontWeight:700,fontSize:15,color:"var(--text)"}}>{t("seriesLabel")}</span>
