@@ -1543,7 +1543,7 @@ export default function App() {
         {/* SIDEBAR */}
         {(!isMobile || showMobileNav) && (
         <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
-          style={{position:isMobile?"fixed":"sticky",inset:isMobile?"57px 0 0 0":undefined,top:isMobile?57:57,zIndex:isMobile?40:undefined,width:isMobile?"100%":210,height:isMobile?"calc(100vh - 57px)":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.4)":"var(--bg2)",display:"flex",flexDirection:"column"}}>
+          style={{position:isMobile?"fixed":"sticky",top:57,left:0,right:0,bottom:0,zIndex:isMobile?40:undefined,width:isMobile?"100%":210,height:"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.5)":"var(--bg2)",display:"flex",flexDirection:"column"}}>
           <div onClick={e=>e.stopPropagation()} style={{width:210,height:"100%",background:"var(--bg2)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto",flexShrink:0}}>
           <div style={{padding:"10px 10px 8px",borderBottom:"1px solid var(--border)"}}>
             {(["oficial","resina"] as CategoryType[]).map(cat=>{
