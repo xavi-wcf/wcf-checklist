@@ -1486,6 +1486,12 @@ export default function App() {
       {/* TOP BAR — sticky, siempre visible */}
       <div style={{position:"sticky",top:0,zIndex:50,borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,background:"var(--bg)",flexShrink:0}}>
         {!appLogo && <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap"}}>{t("appTitle")}</span>}
+        {isMobile && (
+          <button onClick={()=>setShowMobileNav(n=>!n)}
+            style={{background:showMobileNav?"var(--bg3)":"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:16,lineHeight:1,flexShrink:0}}>
+            {showMobileNav ? "✕" : "☰"}
+          </button>
+        )}
         <div style={{flex:1,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:34,background:"var(--bg2)"}}>
           <span style={{color:"var(--text4)",fontSize:14}}>🔍</span>
           <input value={searchQuery} onChange={e=>{setSearchQuery(e.target.value);setSearchActive(true);}} onFocus={()=>setSearchActive(true)}
@@ -1534,8 +1540,11 @@ export default function App() {
       </div>}
 
       <div style={{display:"flex",flex:1}}>
-        {/* SIDEBAR — hidden on mobile */}
-        {!isMobile && <div style={{width:210,borderRight:"1px solid var(--border)",background:"var(--bg2)",flexShrink:0,display:"flex",flexDirection:"column",position:"sticky",top:57,height:"calc(100vh - 57px)",overflowY:"auto"}}>
+        {/* SIDEBAR */}
+        {(!isMobile || showMobileNav) && (
+        <div onClick={isMobile?()=>setShowMobileNav(false):undefined}
+          style={{position:isMobile?"fixed":"sticky",inset:isMobile?"57px 0 0 0":undefined,top:isMobile?57:57,zIndex:isMobile?40:undefined,width:isMobile?"100%":210,height:isMobile?"calc(100vh - 57px)":"calc(100vh - 57px)",background:isMobile?"rgba(0,0,0,0.4)":"var(--bg2)",display:"flex",flexDirection:"column"}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:210,height:"100%",background:"var(--bg2)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto",flexShrink:0}}>
           <div style={{padding:"10px 10px 8px",borderBottom:"1px solid var(--border)"}}>
             {(["oficial","resina"] as CategoryType[]).map(cat=>{
               const active = cat===activeCategory && !isSearchMode;
@@ -1575,10 +1584,11 @@ export default function App() {
               {isAdmin && <Btn onClick={()=>setShowAddSeries(true)} variant="primary" small>{t("newSeries")}</Btn>}
             </div>
           </>}
-        </div>}
+        </div>
+        </div>)}
 
         {/* MAIN */}
-        <div style={{flex:1,padding:isMobile?"12px 12px 80px":"20px 24px",overflowY:"auto",position:"relative"}}>
+        <div style={{flex:1,padding:isMobile?"12px 12px 20px":"20px 24px",overflowY:"auto",position:"relative"}}>
           <div style={{position:"relative",zIndex:1}}>
           {isSearchMode && (
             <div>
@@ -1665,51 +1675,6 @@ export default function App() {
       {showAddSeries && <SeriesModal category={activeCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
-
-      {/* MOBILE BOTTOM NAV */}
-      {isMobile && <>
-        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:50,background:"var(--bg)",borderTop:"1px solid var(--border)",display:"flex",alignItems:"stretch",height:60}}>
-          {/* Category tabs */}
-          {(["oficial","resina"] as CategoryType[]).map(cat=>(
-            <button key={cat} onClick={()=>{setActiveCategory(cat);setShowWishlist(false);setSearchActive(false);setSearchQuery("");setShowMobileNav(false);setSelectedSeries(data.filter(s=>s.category===cat)[0]?.id??null);}}
-              style={{flex:1,border:"none",background:activeCategory===cat&&!showWishlist&&!isSearchMode?"var(--bg2)":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,borderTop:activeCategory===cat&&!showWishlist&&!isSearchMode?"2px solid #0F6E56":"2px solid transparent"}}>
-              <span style={{fontSize:18}}>{cat==="oficial"?"🏷️":"🎨"}</span>
-              <span style={{fontSize:10,color:"var(--text3)",fontWeight:500}}>{cat==="oficial"?t("officialBadge"):t("resinBadge")}</span>
-            </button>
-          ))}
-          {/* Series list button */}
-          <button onClick={()=>setShowMobileNav(n=>!n)}
-            style={{flex:1,border:"none",background:showMobileNav?"var(--bg2)":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,borderTop:showMobileNav?"2px solid #0F6E56":"2px solid transparent"}}>
-            <span style={{fontSize:18}}>📋</span>
-            <span style={{fontSize:10,color:"var(--text3)",fontWeight:500}}>{t("seriesLabel")}</span>
-          </button>
-          {/* Wishlist button */}
-          <button onClick={()=>{setShowWishlist(true);setShowMobileNav(false);setSearchActive(false);setSearchQuery("");}}
-            style={{flex:1,border:"none",background:showWishlist?"var(--bg2)":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,position:"relative",borderTop:showWishlist?"2px solid #f59e0b":"2px solid transparent"}}>
-            <span style={{fontSize:18}}>💛</span>
-            <span style={{fontSize:10,color:"var(--text3)",fontWeight:500}}>{t("wishlist")}</span>
-            {wishlistCount>0 && <span style={{position:"absolute",top:6,right:"50%",marginRight:-20,background:"#f59e0b",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"1px 5px"}}>{wishlistCount}</span>}
-          </button>
-        </div>
-
-        {/* Mobile series drawer */}
-        {showMobileNav && (
-          <div style={{position:"fixed",bottom:60,left:0,right:0,zIndex:49,background:"var(--bg)",borderTop:"1px solid var(--border)",maxHeight:"60vh",overflowY:"auto"}}>
-            <DraggableSeriesList
-              series={filteredSeries}
-              effectiveSelected={effectiveSelected}
-              showWishlist={showWishlist}
-              seriesOwned={seriesOwned}
-              seriesTotal={seriesTotal}
-              onSelect={(sid)=>{setSelectedSeries(sid);setShowWishlist(false);setShowMobileNav(false);}}
-              onReorder={reorderSeries}
-            />
-            {isAdmin && <div style={{padding:"10px 16px"}}>
-              <Btn onClick={()=>setShowAddSeries(true)} variant="primary" small>{t("newSeries")}</Btn>
-            </div>}
-          </div>
-        )}
-      </>}
     </div>
   );
 
