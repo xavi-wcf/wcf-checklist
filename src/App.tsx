@@ -924,6 +924,12 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
   const { t, lang } = useTr();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
   const formatDate = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
+  const MONTHS_FULL: Record<LangCode, string[]> = {
+    es: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+    en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+    th: ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],
+  };
+  const formatDateFull = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${MONTHS_FULL[lang][parseInt(m)-1]} ${y}`; };
   return (
     <div style={{border:"1px solid "+(isOwned?series.color:isWished?"#f59e0b":"var(--border)"),borderRadius:8,background:isOwned?series.color+"18":isWished?"#fffbeb":"var(--card-bg)",overflow:"hidden",transition:"transform 0.15s",position:"relative"}}
       onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
@@ -950,10 +956,14 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
         {compact ? <>
           {/* Line 2 — figure name, 1 line, shrinking font */}
           <div style={{fontWeight:600,lineHeight:1.3,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontSize:figure.name.length>14?9:figure.name.length>10?10:11}}>{figure.name}</div>
-          {/* Line 3 — set name, 1 line */}
-          <div style={{fontSize:9,color:"var(--text4)",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
-          {/* Line 4 — date only for oficial */}
-          {series.category==="oficial" && set.releaseDate && <div style={{fontSize:9,color:"var(--text4)"}}>{formatDate(set.releaseDate)}</div>}
+          {/* Line 3 — group (resina) or set name */}
+          <div style={{fontSize:9,color:"var(--text4)",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            {series.category==="resina" && groupName ? groupName : set.name}
+          </div>
+          {/* Line 4 — set name with calendar (resina) or full date with calendar (oficial) */}
+          <div style={{fontSize:9,color:"var(--text4)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            {series.category==="resina" ? `📅 ${set.name}` : (set.releaseDate ? `📅 ${formatDateFull(set.releaseDate)}` : "")}
+          </div>
         </> : <>
           <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
           <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
@@ -1388,7 +1398,7 @@ export default function App() {
   // ── Filter/sort/size state (independent per tab) ───────────
   const [colSearch,  setColSearch]  = useState("");
   const [colSort,    setColSort]    = useState<"alpha"|"date">("date");
-  const [colSize,    setColSize]    = useState<"s"|"m"|"l">("s");
+  const [colSize,    setColSize]    = useState<"s"|"m"|"l">("m");
   const [colSeries,  setColSeries]  = useState<number|"all">("all");
 
   const [dbSearch,   setDbSearch]   = useState("");
