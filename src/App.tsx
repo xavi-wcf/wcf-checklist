@@ -1601,7 +1601,7 @@ export default function App() {
                 <div style={{fontSize:12,color:"var(--text3)",marginBottom:8}}>{dbFigures.length} figura{dbFigures.length!==1?"s":""}</div>
                 <div style={{display:"grid",gridTemplateColumns:sizeToColumns[dbSize],gap:8}}>
                   {dbFigures.map(({figure,set,series,groupName})=>(
-                    <SearchResultCard key={figure.id} figure={figure} series={series} set={set}
+                    <SearchResultCard key={figure.id} figure={figure} series={series} set={set} groupName={groupName}
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                       onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
                   ))}
