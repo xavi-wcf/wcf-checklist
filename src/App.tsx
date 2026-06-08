@@ -1401,12 +1401,11 @@ export default function App() {
   const dbFilteredSeries = data.filter(s=>s.category===dbActiveCategory);
   const dbSeriesObj = dbSelectedSeries ? data.find(s=>s.id===dbSelectedSeries)??null : null;
 
-  type FlatFigure = { figure:Figure; set:FigureSet; series:Series };
-  const allFlat: FlatFigure[] = data.flatMap(series =>
-    [...series.sets, ...(series.groups??[]).flatMap(g=>g.sets)].flatMap(set =>
-      set.figures.map(figure => ({ figure, set, series }))
-    )
-  );
+  type FlatFigure = { figure:Figure; set:FigureSet; series:Series; groupName?:string };
+  const allFlat: FlatFigure[] = data.flatMap(series => [
+    ...series.sets.flatMap(set => set.figures.map(figure => ({ figure, set, series }))),
+    ...(series.groups??[]).flatMap(g => g.sets.flatMap(set => set.figures.map(figure => ({ figure, set, series, groupName: g.name }))))
+  ]);
 
   const applyFilters = (items: FlatFigure[], search: string, seriesF: number|"all", catF: "all"|CategoryType, statusF: string) =>
     items.filter(({figure,series}) => {
@@ -1556,9 +1555,9 @@ export default function App() {
                 <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Aún no has marcado ninguna figura.</div>
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
-                  {colOwned.map(({figure,set,series})=>(
+                  {colOwned.map(({figure,set,series,groupName})=>(
                     <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?90:colSize==="m"?130:170,scrollSnapAlign:"start"}}>
-                      <SearchResultCard figure={figure} series={series} set={set}
+                      <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
                         isOwned={true} isWished={false}
                         onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
                     </div>
@@ -1578,9 +1577,9 @@ export default function App() {
                 <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Tu wishlist está vacía.</div>
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
-                  {colWishlist.map(({figure,set,series})=>(
+                  {colWishlist.map(({figure,set,series,groupName})=>(
                     <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?90:colSize==="m"?130:170,scrollSnapAlign:"start"}}>
-                      <SearchResultCard figure={figure} series={series} set={set}
+                      <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
                         isOwned={false} isWished={true}
                         onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
                     </div>
@@ -1601,7 +1600,7 @@ export default function App() {
               <div>
                 <div style={{fontSize:12,color:"var(--text3)",marginBottom:8}}>{dbFigures.length} figura{dbFigures.length!==1?"s":""}</div>
                 <div style={{display:"grid",gridTemplateColumns:sizeToColumns[dbSize],gap:8}}>
-                  {dbFigures.map(({figure,set,series})=>(
+                  {dbFigures.map(({figure,set,series,groupName})=>(
                     <SearchResultCard key={figure.id} figure={figure} series={series} set={set}
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                       onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
