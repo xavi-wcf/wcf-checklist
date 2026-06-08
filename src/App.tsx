@@ -1400,6 +1400,7 @@ export default function App() {
   const [colSort,    setColSort]    = useState<"alpha"|"date">("date");
   const [colSize,    setColSize]    = useState<"s"|"m"|"l">("m");
   const [colSeries,  setColSeries]  = useState<number|"all">("all");
+  const [colCategory, setColCategory] = useState<"all"|CategoryType>("all");
 
   const [dbSearch,   setDbSearch]   = useState("");
   const [dbFilter,   setDbFilter]   = useState<"all"|"owned"|"wishlist"|"missing">("all");
@@ -1447,17 +1448,13 @@ export default function App() {
   const applySort = (items: FlatFigure[], sort: "alpha"|"date") =>
     [...items].sort((a,b) => sort==="date" ? (a.set.releaseDate??"").localeCompare(b.set.releaseDate??"") : a.figure.name.localeCompare(b.figure.name));
 
-  const colOwned = applySort(
-    applyFilters(allFlat, colSearch, colSeries, "all", "owned"), colSort
-  );
-  const colWishlist = applySort(
-    applyFilters(allFlat, colSearch, colSeries, "all", "wishlist"), colSort
-  );
+  const colOwned = applySort(applyFilters(allFlat, colSearch, colSeries, colCategory, "owned"), colSort);
+  const colWishlist = applySort(applyFilters(allFlat, colSearch, colSeries, colCategory, "wishlist"), colSort);
   const dbFigures = applySort(applyFilters(allFlat, dbSearch, dbSeries, dbCategory, dbFilter), dbSort);
   const dbIsSearchMode = dbSearch.trim()!=="" || dbFilter!=="all" || dbSeries!=="all" || dbCategory!=="all";
 
   const sizeToColumns: Record<string,string> = { s:"repeat(auto-fill,minmax(90px,1fr))", m:"repeat(auto-fill,minmax(130px,1fr))", l:"repeat(auto-fill,minmax(180px,1fr))" };
-  const selectStyle: React.CSSProperties = {height:32,padding:"0 8px",fontSize:12,border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,background:"rgba(255,255,255,0.12)",cursor:"pointer",color:"#fff"};
+  const selectStyle: React.CSSProperties = {height:32,padding:"0 6px",fontSize:12,border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,background:"#0a5244",cursor:"pointer",color:"#fff"};
   const uniqSeries = data.filter((s,i,arr)=>arr.findIndex(x=>x.name===s.name)===i);
 
   const appContent = !ready ? (
@@ -1518,6 +1515,11 @@ export default function App() {
           {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"rgba(255,255,255,0.6)",fontSize:14}}>×</span>}
         </div>
         {activeTab==="collection" && <>
+          <select value={colCategory} onChange={e=>setColCategory(e.target.value as typeof colCategory)} style={selectStyle}>
+            <option value="all">{t("allCategories")}</option>
+            <option value="oficial">{t("officialBadge")}</option>
+            <option value="resina">{t("resinBadge")}</option>
+          </select>
           <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
             <option value="all">{t("allSeries")}</option>
             {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
@@ -1528,7 +1530,7 @@ export default function App() {
           </select>
           <div style={{display:"flex",gap:2}}>
             {(["s","m","l"] as const).map(sz=>(
-              <button key={sz} onClick={()=>setColSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:colSize===sz?"#fff":"rgba(255,255,255,0.12)",color:colSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
+              <button key={sz} onClick={()=>setColSize(sz)} style={{width:28,height:32,border:"1px solid rgba(255,255,255,0.3)",borderRadius:6,background:colSize===sz?"#fff":"rgba(255,255,255,0.12)",color:colSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
             ))}
           </div>
         </>}
@@ -1538,12 +1540,6 @@ export default function App() {
             <option value="oficial">{t("officialBadge")}</option>
             <option value="resina">{t("resinBadge")}</option>
           </select>
-          <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
-            <option value="all">Todas</option>
-            <option value="owned">{t("owned")}</option>
-            <option value="wishlist">{t("wishlist")}</option>
-            <option value="missing">{t("missing")}</option>
-          </select>
           <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
             <option value="all">{t("allSeries")}</option>
             {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
@@ -1551,6 +1547,12 @@ export default function App() {
           <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={selectStyle}>
             <option value="alpha">A-Z</option>
             <option value="date">📅 Fecha</option>
+          </select>
+          <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
+            <option value="all">Todas</option>
+            <option value="owned">{t("owned")}</option>
+            <option value="wishlist">{t("wishlist")}</option>
+            <option value="missing">{t("missing")}</option>
           </select>
         </>}
       </div>
