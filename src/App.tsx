@@ -920,40 +920,45 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
 // ============================================================
 //  SEARCH RESULT CARD
 // ============================================================
-function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void }) {
+function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, compact=false }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; compact?:boolean }) {
   const { t, lang } = useTr();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
   const formatDate = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
   return (
-    <div style={{border:"1px solid "+(isOwned?series.color:isWished?"#f59e0b":"var(--border)"),borderRadius:10,background:isOwned?series.color+"18":isWished?"#fffbeb":"var(--card-bg)",overflow:"hidden",transition:"transform 0.15s",position:"relative"}}
+    <div style={{border:"1px solid "+(isOwned?series.color:isWished?"#f59e0b":"var(--border)"),borderRadius:8,background:isOwned?series.color+"18":isWished?"#fffbeb":"var(--card-bg)",overflow:"hidden",transition:"transform 0.15s",position:"relative"}}
       onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-      {/* Wishlist button */}
       {!isOwned && (
         <button onClick={e=>{e.stopPropagation();onToggleWish();}}
-          style={{position:"absolute",top:6,left:6,zIndex:3,background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 5px",fontSize:12,cursor:"pointer",lineHeight:1}}>
+          style={{position:"absolute",top:4,left:4,zIndex:3,background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:5,padding:"1px 4px",fontSize:11,cursor:"pointer",lineHeight:1}}>
           {isWished?"💛":"🤍"}
         </button>
       )}
       <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"var(--missing-bg)",overflow:"hidden",position:"relative",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",cursor:"pointer"}}>
-        {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
-        {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
+        {isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
+        {isWished && !isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,fontSize:12}}>💛</div>}
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
-          : <div style={{textAlign:"center"}}><div style={{fontSize:34}}>{figure.emoji}</div></div>}
+          : <div style={{textAlign:"center"}}><div style={{fontSize:compact?24:34}}>{figure.emoji}</div></div>}
       </div>
-      <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+      <div style={{padding:compact?"4px 6px 6px":"8px 10px 10px"}}>
+        {!compact && <div style={{fontSize:11,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
           {series.emoji} {series.name}
           <span style={{padding:"1px 6px",borderRadius:8,fontSize:10,fontWeight:600,background:series.category==="oficial"?"#E1F5EE":"#ede9fe",color:series.category==="oficial"?"#0F6E56":"#7c3aed"}}>
             {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
           </span>
-        </div>
-        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
-        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
-        {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
-        <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:isWished?"#d97706":"var(--text4)",fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
-          <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:isWished?"#f59e0b":"#ccc",flexShrink:0}} />
-          {isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing")}
-        </div>
+        </div>}
+        <div style={{fontSize:compact?10:12,fontWeight:600,lineHeight:1.3,marginBottom:compact?1:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
+        {compact ? (
+          <div style={{fontSize:10,color:"var(--text4)"}}>{set.releaseDate ? formatDate(set.releaseDate) : (groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name)}</div>
+        ) : (
+          <>
+            <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
+            {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
+            <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:isWished?"#d97706":"var(--text4)",fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
+              <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:isWished?"#f59e0b":"#ccc",flexShrink:0}} />
+              {isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing")}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1556,9 +1561,9 @@ export default function App() {
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
                   {colOwned.map(({figure,set,series,groupName})=>(
-                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?90:colSize==="m"?130:170,scrollSnapAlign:"start"}}>
+                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
-                        isOwned={true} isWished={false}
+                        isOwned={true} isWished={false} compact
                         onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
                     </div>
                   ))}
@@ -1578,9 +1583,9 @@ export default function App() {
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
                   {colWishlist.map(({figure,set,series,groupName})=>(
-                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?90:colSize==="m"?130:170,scrollSnapAlign:"start"}}>
+                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
-                        isOwned={false} isWished={true}
+                        isOwned={false} isWished={true} compact
                         onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
                     </div>
                   ))}
