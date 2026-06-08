@@ -948,8 +948,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
           </span>
         </div>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
-        {groupName && <div style={{fontSize:11,color:"var(--text4)",marginBottom:1}}>📁 {groupName}</div>}
-        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{set.name}</div>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{groupName ? `${groupName} ${set.name}` : set.name}</div>
         {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
         <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:isWished?"#d97706":"var(--text4)",fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:isWished?"#f59e0b":"#ccc",flexShrink:0}} />
@@ -1250,7 +1249,7 @@ function DraggableSeriesList({ series, seriesOwned, seriesTotal, dragLocked, onS
             onTouchEnd={handleTouchEnd}
             onClick={()=>onSelect(s.id)}
             style={{cursor:"grab",position:"relative",overflow:"hidden",opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?"2px solid "+s.color:"none",transition:"opacity 0.15s,outline 0.1s",borderBottom:"1px solid var(--border)"}}>
-            {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",opacity:0.35,pointerEvents:"none"}} />}
+            {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",pointerEvents:"none"}} />}
             <div style={{position:"relative",padding:"8px 12px"}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                 {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:22,height:22,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:15}}>{s.emoji}</span>)}
@@ -1698,7 +1697,6 @@ export default function App() {
             style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fff":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:20}}>{icon}</span>
             {label}
-            {tab==="collection" && wishlistCount>0 && <span style={{position:"absolute",top:6,background:"#f59e0b",color:"#fff",borderRadius:10,fontSize:9,padding:"1px 5px",fontWeight:700}}>{wishlistCount}</span>}
           </button>
         ))}
       </div>
