@@ -940,25 +940,29 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
           : <div style={{textAlign:"center"}}><div style={{fontSize:compact?24:34}}>{figure.emoji}</div></div>}
       </div>
       <div style={{padding:compact?"4px 6px 6px":"8px 10px 10px"}}>
-        {!compact && <div style={{fontSize:11,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
-          {series.emoji} {series.name}
-          <span style={{padding:"1px 6px",borderRadius:8,fontSize:10,fontWeight:600,background:series.category==="oficial"?"#E1F5EE":"#ede9fe",color:series.category==="oficial"?"#0F6E56":"#7c3aed"}}>
+        {/* Line 1 — series + category tag (always) */}
+        <div style={{fontSize:10,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:3,flexWrap:"nowrap",overflow:"hidden"}}>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{series.name}</span>
+          <span style={{flexShrink:0,padding:"1px 4px",borderRadius:5,fontSize:9,fontWeight:600,background:series.category==="oficial"?"#E1F5EE":"#ede9fe",color:series.category==="oficial"?"#0F6E56":"#7c3aed",whiteSpace:"nowrap"}}>
             {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
           </span>
-        </div>}
-        <div style={{fontSize:compact?10:12,fontWeight:600,lineHeight:1.3,marginBottom:compact?1:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
-        {compact ? (
-          <div style={{fontSize:10,color:"var(--text4)"}}>{set.releaseDate ? formatDate(set.releaseDate) : (groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name)}</div>
-        ) : (
-          <>
-            <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
-            {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
-            <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:isWished?"#d97706":"var(--text4)",fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
-              <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:isWished?"#f59e0b":"#ccc",flexShrink:0}} />
-              {isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing")}
-            </div>
-          </>
-        )}
+        </div>
+        {compact ? <>
+          {/* Line 2 — figure name, 1 line, shrinking font */}
+          <div style={{fontWeight:600,lineHeight:1.3,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontSize:figure.name.length>14?9:figure.name.length>10?10:11}}>{figure.name}</div>
+          {/* Line 3 — set name, 1 line */}
+          <div style={{fontSize:9,color:"var(--text4)",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
+          {/* Line 4 — date only for oficial */}
+          {series.category==="oficial" && set.releaseDate && <div style={{fontSize:9,color:"var(--text4)"}}>{formatDate(set.releaseDate)}</div>}
+        </> : <>
+          <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
+          <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
+          {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
+          <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:isWished?"#d97706":"var(--text4)",fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:isOwned?series.color:isWished?"#f59e0b":"#ccc",flexShrink:0}} />
+            {isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing")}
+          </div>
+        </>}
       </div>
     </div>
   );
