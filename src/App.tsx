@@ -1349,7 +1349,7 @@ export default function App() {
   const [dbSearch,   setDbSearch]   = useState("");
   const [dbFilter,   setDbFilter]   = useState<"all"|"owned"|"wishlist"|"missing">("all");
   const [dbSort,     setDbSort]     = useState<"alpha"|"date">("date");
-  const [dbSize] = useState<"s"|"m"|"l">("s");
+  const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("s");
 
   type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"|"wishlist" };
   const [confirmFigure, setConfirmFigure] = useState<ConfirmFigure|null>(null);
@@ -1492,6 +1492,11 @@ export default function App() {
             <option value="alpha">{t("sortAZ")}</option>
             <option value="date">{t("sortDate")}</option>
           </select>
+          <div style={{display:"flex",gap:2}}>
+            {(["s","m","l"] as const).map(sz=>(
+              <button key={sz} onClick={()=>setDbSize(sz)} style={{width:28,height:32,border:"1px solid rgba(255,255,255,0.3)",borderRadius:6,background:dbSize===sz?"#fff":"#0a5244",color:dbSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
+            ))}
+          </div>
           <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
             <option value="all">{t("filterAll")}</option>
             <option value="owned">{t("owned")}</option>
