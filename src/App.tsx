@@ -1096,6 +1096,98 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
 // ============================================================
 //  APP
 // ============================================================
+// ============================================================
+//  SERIES GRID — draggable card grid
+// ============================================================
+function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
+  series: Series[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
+  onSelect:(id:number)=>void; onReorder:(from:number,to:number)=>void;
+}) {
+  const isAdmin = useAdmin();
+  const dragIdx = useRef<number|null>(null);
+  const [dragOver, setDragOver] = useState<number|null>(null);
+  const [dragging, setDragging] = useState<number|null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const touchStartPos = useRef({x:0,y:0});
+  const lastReorder = useRef(0);
+
+  const handleDragStart = (idx:number) => { dragIdx.current=idx; setDragging(idx); };
+  const handleDragOver = (e:React.DragEvent, idx:number) => { e.preventDefault(); setDragOver(idx); };
+  const handleDrop = (idx:number) => { if(dragIdx.current!==null&&dragIdx.current!==idx){onReorder(dragIdx.current,idx);} dragIdx.current=null; setDragging(null); setDragOver(null); };
+  const handleDragEnd = () => { dragIdx.current=null; setDragging(null); setDragOver(null); };
+
+  const handleTouchStart = (e:React.TouchEvent, idx:number) => {
+    if(Date.now()-lastReorder.current<1000) return;
+    touchStartPos.current={x:e.touches[0].clientX,y:e.touches[0].clientY};
+    longPressTimer.current = setTimeout(()=>{ setDragging(idx); dragIdx.current=idx; }, 500);
+  };
+  const handleTouchMove = (e:React.TouchEvent, idx:number) => {
+    const dx=Math.abs(e.touches[0].clientX-touchStartPos.current.x);
+    const dy=Math.abs(e.touches[0].clientY-touchStartPos.current.y);
+    if(dx>8||dy>8){ if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;} }
+    if(dragIdx.current===null) return;
+    e.preventDefault();
+    const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
+    const card=el?.closest("[data-seriesidx]");
+    if(card){ const to=parseInt(card.getAttribute("data-seriesidx")!); if(!isNaN(to)) setDragOver(to); }
+  };
+  const handleTouchEnd = (e:React.TouchEvent) => {
+    if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;}
+    if(dragIdx.current===null){
+      // was a tap — select
+      const el=document.elementFromPoint(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
+      const card=el?.closest("[data-seriesid]");
+      if(card){const id=parseInt(card.getAttribute("data-seriesid")!);if(!isNaN(id))onSelect(id);}
+    } else if(dragOver!==null&&dragOver!==dragIdx.current){
+      onReorder(dragIdx.current,dragOver); lastReorder.current=Date.now();
+    }
+    dragIdx.current=null; setDragging(null); setDragOver(null);
+  };
+
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+      {series.map((s,idx)=>{
+        const ownedC=seriesOwned(s), totalC=seriesTotal(s);
+        const pct=totalC?Math.round(ownedC/totalC*100):0;
+        const isDragging=dragging===idx, isOver=dragOver===idx&&dragging!==idx;
+        return (
+          <div key={s.id}
+            data-seriesidx={idx}
+            data-seriesid={s.id}
+            draggable={isAdmin}
+            onDragStart={isAdmin?()=>handleDragStart(idx):undefined}
+            onDragOver={isAdmin?e=>handleDragOver(e,idx):undefined}
+            onDrop={isAdmin?()=>handleDrop(idx):undefined}
+            onDragEnd={isAdmin?handleDragEnd:undefined}
+            onTouchStart={isAdmin?e=>handleTouchStart(e,idx):undefined}
+            onTouchMove={isAdmin?e=>handleTouchMove(e,idx):undefined}
+            onTouchEnd={isAdmin?e=>handleTouchEnd(e):undefined}
+            onClick={()=>{ if(dragIdx.current===null) onSelect(s.id); }}
+            style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:isAdmin?"grab":"pointer",aspectRatio:"1",background:"var(--bg2)",border:isOver?"2px solid #0F6E56":"1px solid var(--border)",opacity:isDragging?0.4:1,transition:"transform 0.15s,box-shadow 0.15s,opacity 0.15s",touchAction:"none"}}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
+            {s.bgImage
+              ? <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
+              : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.3,pointerEvents:"none"}}>{s.emoji}</div>
+            }
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 50%,rgba(0,0,0,0) 100%)",pointerEvents:"none"}} />
+            <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px",pointerEvents:"none"}}>
+              {s.logo
+                ? <img src={s.logo} alt={s.name} style={{height:20,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:4,display:"block"}} />
+                : <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:4,lineHeight:1.2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>{s.name}</div>
+              }
+              <div style={{height:3,background:"rgba(255,255,255,0.25)",borderRadius:2,overflow:"hidden",marginBottom:2}}>
+                <div style={{height:"100%",width:pct+"%",background:pct===100?"#4ade80":s.color,borderRadius:2}} />
+              </div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.7)"}}>{ownedC}/{totalC}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const ADMIN_PASSWORD = "wcf2024admin";
 
 function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>void }) {
@@ -1518,38 +1610,21 @@ export default function App() {
               </div>
               {dbFilteredSeries.length===0
                 ? <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}</div>
-                : <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
-                    {dbFilteredSeries.map(s => {
-                      const ownedC = seriesOwned(s), totalC = seriesTotal(s);
-                      const pct = totalC ? Math.round(ownedC/totalC*100) : 0;
-                      return (
-                        <div key={s.id} onClick={()=>setDbSelectedSeries(s.id)}
-                          style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:"pointer",aspectRatio:"1",background:"var(--bg2)",border:"1px solid var(--border)",transition:"transform 0.15s,box-shadow 0.15s"}}
-                          onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
-                          onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
-                          {/* Background image or emoji */}
-                          {s.bgImage
-                            ? <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />
-                            : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.3}}>{s.emoji}</div>
-                          }
-                          {/* Gradient overlay */}
-                          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0) 100%)"}} />
-                          {/* Content */}
-                          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px"}}>
-                            {s.logo
-                              ? <img src={s.logo} alt={s.name} style={{height:20,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:4,display:"block"}} />
-                              : <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:4,lineHeight:1.2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>{s.name}</div>
-                            }
-                            {/* Progress bar */}
-                            <div style={{height:3,background:"rgba(255,255,255,0.25)",borderRadius:2,overflow:"hidden",marginBottom:2}}>
-                              <div style={{height:"100%",width:pct+"%",background:pct===100?"#4ade80":s.color,borderRadius:2,transition:"width 0.3s"}} />
-                            </div>
-                            <div style={{fontSize:9,color:"rgba(255,255,255,0.7)"}}>{ownedC}/{totalC}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                : <SeriesGrid
+                    series={dbFilteredSeries}
+                    seriesOwned={seriesOwned}
+                    seriesTotal={seriesTotal}
+                    onSelect={setDbSelectedSeries}
+                    onReorder={(from,to)=>{
+                      setData(d=>{
+                        const all=[...d];
+                        const cats=all.filter(s=>s.category===dbActiveCategory);
+                        const others=all.filter(s=>s.category!==dbActiveCategory);
+                        const [mv]=cats.splice(from,1); cats.splice(to,0,mv);
+                        return [...others,...cats];
+                      });
+                    }}
+                  />
               }
             </>
           )
