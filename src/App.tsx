@@ -163,8 +163,8 @@ const T = {
   sortAZ:         { es: "A-Z",                    en: "A-Z",                        th: "A-Z" },
   searchCol:      { es: "Buscar en mi colección...", en: "Search my collection...", th: "ค้นหาคอลเลกชัน..." },
   searchDb:       { es: "Buscar en el catálogo...", en: "Search the catalog...",    th: "ค้นหาแคตตาล็อก..." },
-  tabCollection:  { es: "📦 Colección",           en: "📦 Collection",              th: "📦 คอลเลกชัน" },
-  tabDatabase:    { es: "🗃️ Database",            en: "🗃️ Database",               th: "🗃️ ฐานข้อมูล" },
+  tabCollection:  { es: "Mis WCF",               en: "My WCF",                     th: "WCF ของฉัน" },
+  tabDatabase:    { es: "Catálogo",               en: "Catalog",                    th: "แคตตาล็อก" },
   filterAll:      { es: "Todas",                  en: "All",                        th: "ทั้งหมด" },
   moveToWishlist: { es: "💛 Wishlist",            en: "💛 Wishlist",                th: "💛 รายการ" },
   moveToOwned:    { es: "✓ Obtenida",             en: "✓ Owned",                   th: "✓ มีแล้ว" },
@@ -1700,7 +1700,7 @@ export default function App() {
 
       {/* BOTTOM TABS */}
       <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0}}>
-        {([["collection","📦",t("tabCollection").replace("📦 ","")],["database","🗃️",t("tabDatabase").replace("🗃️ ","")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
+        {([["collection","📦",t("tabCollection")],["database","🗃️",t("tabDatabase")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
             style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fff":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:20}}>{icon}</span>
