@@ -159,6 +159,19 @@ const T = {
     en: (cat: string) => `New series — ${cat}`,
     th: (cat: string) => `ซีรีส์ใหม่ — ${cat}`,
   },
+  sortDate:       { es: "📅 Fecha",               en: "📅 Date",                    th: "📅 วันที่" },
+  sortAZ:         { es: "A-Z",                    en: "A-Z",                        th: "A-Z" },
+  searchCol:      { es: "Buscar en mi colección...", en: "Search my collection...", th: "ค้นหาคอลเลกชัน..." },
+  searchDb:       { es: "Buscar en el catálogo...", en: "Search the catalog...",    th: "ค้นหาแคตตาล็อก..." },
+  tabCollection:  { es: "📦 Colección",           en: "📦 Collection",              th: "📦 คอลเลกชัน" },
+  tabDatabase:    { es: "🗃️ Database",            en: "🗃️ Database",               th: "🗃️ ฐานข้อมูล" },
+  filterAll:      { es: "Todas",                  en: "All",                        th: "ทั้งหมด" },
+  moveToWishlist: { es: "💛 Wishlist",            en: "💛 Wishlist",                th: "💛 รายการ" },
+  moveToOwned:    { es: "✓ Obtenida",             en: "✓ Owned",                   th: "✓ มีแล้ว" },
+  removeItem:     { es: "✕ Quitar",               en: "✕ Remove",                  th: "✕ ลบ" },
+  cancelBtn:      { es: "Cancelar",               en: "Cancel",                     th: "ยกเลิก" },
+  noFiguresOwned: { es: "Aún no has marcado ninguna figura.", en: "You haven't marked any figures yet.", th: "ยังไม่ได้ทำเครื่องหมายตัวเลขใดๆ" },
+  back:           { es: "← Volver",               en: "← Back",                     th: "← กลับ" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -1510,7 +1523,7 @@ export default function App() {
           <span style={{color:"rgba(255,255,255,0.6)",fontSize:13}}>🔍</span>
           <input value={activeTab==="collection"?colSearch:dbSearch}
             onChange={e=>activeTab==="collection"?setColSearch(e.target.value):setDbSearch(e.target.value)}
-            placeholder={activeTab==="collection"?"Buscar en mi colección...":"Buscar en el catálogo..."}
+            placeholder={activeTab==="collection"?t("searchCol"):t("searchDb")}
             style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"#fff"}} />
           {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"rgba(255,255,255,0.6)",fontSize:14}}>×</span>}
         </div>
@@ -1525,8 +1538,8 @@ export default function App() {
             {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
           </select>
           <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={selectStyle}>
-            <option value="alpha">A-Z</option>
-            <option value="date">📅 Fecha</option>
+            <option value="alpha">{t("sortAZ")}</option>
+            <option value="date">{t("sortDate")}</option>
           </select>
           <div style={{display:"flex",gap:2}}>
             {(["s","m","l"] as const).map(sz=>(
@@ -1545,11 +1558,11 @@ export default function App() {
             {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
           </select>
           <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={selectStyle}>
-            <option value="alpha">A-Z</option>
-            <option value="date">📅 Fecha</option>
+            <option value="alpha">{t("sortAZ")}</option>
+            <option value="date">{t("sortDate")}</option>
           </select>
           <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
-            <option value="all">Todas</option>
+            <option value="all">{t("filterAll")}</option>
             <option value="owned">{t("owned")}</option>
             <option value="wishlist">{t("wishlist")}</option>
             <option value="missing">{t("missing")}</option>
@@ -1571,7 +1584,7 @@ export default function App() {
                 <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg2)",padding:"2px 8px",borderRadius:10}}>{colOwned.length}</span>
               </div>
               {colOwned.length===0 ? (
-                <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Aún no has marcado ninguna figura.</div>
+                <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>{t("noFiguresOwned")}</div>
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
                   {colOwned.map(({figure,set,series,groupName})=>{
@@ -1584,9 +1597,9 @@ export default function App() {
                         onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})} />
                       {isConfirm && (
                         <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
-                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fef3c7",color:"#92400e",cursor:"pointer",fontSize:9,fontWeight:700}}>💛 Wishlist</button>
-                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>✕ Quitar</button>
-                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>Cancelar</button>
+                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fef3c7",color:"#92400e",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToWishlist")}</button>
+                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
+                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
                         </div>
                       )}
                     </div>
@@ -1604,7 +1617,7 @@ export default function App() {
                 <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg2)",padding:"2px 8px",borderRadius:10}}>{colWishlist.length}</span>
               </div>
               {colWishlist.length===0 ? (
-                <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Tu wishlist está vacía.</div>
+                <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>{t("wishlistEmpty")}</div>
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
                   {colWishlist.map(({figure,set,series,groupName})=>{
@@ -1617,9 +1630,9 @@ export default function App() {
                         onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})} />
                       {isConfirm && (
                         <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
-                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#E1F5EE",color:"#0F6E56",cursor:"pointer",fontSize:9,fontWeight:700}}>✓ Obtenida</button>
-                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>✕ Quitar</button>
-                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>Cancelar</button>
+                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#E1F5EE",color:"#0F6E56",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToOwned")}</button>
+                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
+                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
                         </div>
                       )}
                     </div>
@@ -1653,7 +1666,7 @@ export default function App() {
             // Series detail
             <>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-                <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>← Volver</button>
+                <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
                 {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
                 {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
                   <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
@@ -1731,7 +1744,7 @@ export default function App() {
 
       {/* BOTTOM TABS */}
       <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0}}>
-        {([["collection","📦","Colección"],["database","🗃️","Database"]] as [TabType,string,string][]).map(([tab,icon,label])=>(
+        {([["collection","📦",t("tabCollection").replace("📦 ","")],["database","🗃️",t("tabDatabase").replace("🗃️ ","")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
             style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fff":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:20}}>{icon}</span>
