@@ -1405,6 +1405,9 @@ export default function App() {
   const [dbFilter,   setDbFilter]   = useState<"all"|"owned"|"wishlist"|"missing">("all");
   const [dbSort,     setDbSort]     = useState<"alpha"|"date">("date");
   const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("s");
+
+  type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"|"wishlist" };
+  const [confirmFigure, setConfirmFigure] = useState<ConfirmFigure|null>(null);
   const [dbSeries,   setDbSeries]   = useState<number|"all">("all");
   const [dbCategory, setDbCategory] = useState<"all"|CategoryType>("all");
   const [dbSelectedSeries, setDbSelectedSeries] = useState<number|null>(null);
@@ -1549,11 +1552,6 @@ export default function App() {
             <option value="alpha">A-Z</option>
             <option value="date">📅 Fecha</option>
           </select>
-          <div style={{display:"flex",gap:2}}>
-            {(["s","m","l"] as const).map(sz=>(
-              <button key={sz} onClick={()=>setDbSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:dbSize===sz?"#fff":"rgba(255,255,255,0.12)",color:dbSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
-            ))}
-          </div>
         </>}
       </div>
 
@@ -1578,7 +1576,8 @@ export default function App() {
                     <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
                         isOwned={true} isWished={false} compact
-                        onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                        onToggle={()=>setConfirmFigure({figure,series,set,mode:"owned"})}
+                        onToggleWish={()=>setConfirmFigure({figure,series,set,mode:"owned"})} />
                     </div>
                   ))}
                 </div>
@@ -1600,7 +1599,8 @@ export default function App() {
                     <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
                         isOwned={false} isWished={true} compact
-                        onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                        onToggle={()=>setConfirmFigure({figure,series,set,mode:"wishlist"})}
+                        onToggleWish={()=>setConfirmFigure({figure,series,set,mode:"wishlist"})} />
                     </div>
                   ))}
                 </div>
@@ -1719,6 +1719,39 @@ export default function App() {
       </div>
 
       {/* MODALS */}
+      {confirmFigure && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:"var(--bg)",borderRadius:14,padding:20,width:"100%",maxWidth:300,boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>{confirmFigure.figure.name}</div>
+            <div style={{fontSize:11,color:"var(--text3)",marginBottom:16}}>{confirmFigure.series.name} · {confirmFigure.set.name}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {confirmFigure.mode==="owned" ? <>
+                <button onClick={()=>{toggleWish(confirmFigure.figure.id);toggle(confirmFigure.figure.id);setConfirmFigure(null);}}
+                  style={{padding:"10px",borderRadius:10,border:"1px solid #f59e0b",background:"#fffbeb",color:"#92400e",cursor:"pointer",fontSize:13,fontWeight:600}}>
+                  💛 Mover a Wishlist
+                </button>
+                <button onClick={()=>{toggle(confirmFigure.figure.id);setConfirmFigure(null);}}
+                  style={{padding:"10px",borderRadius:10,border:"1px solid #fca5a5",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:13,fontWeight:600}}>
+                  ✕ Quitar de Obtenidas
+                </button>
+              </> : <>
+                <button onClick={()=>{toggle(confirmFigure.figure.id);setConfirmFigure(null);}}
+                  style={{padding:"10px",borderRadius:10,border:"1px solid #0F6E56",background:"#E1F5EE",color:"#0F6E56",cursor:"pointer",fontSize:13,fontWeight:600}}>
+                  ✓ Marcar como Obtenida
+                </button>
+                <button onClick={()=>{toggleWish(confirmFigure.figure.id);setConfirmFigure(null);}}
+                  style={{padding:"10px",borderRadius:10,border:"1px solid #fca5a5",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:13,fontWeight:600}}>
+                  ✕ Quitar de Wishlist
+                </button>
+              </>}
+              <button onClick={()=>setConfirmFigure(null)}
+                style={{padding:"8px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text3)",cursor:"pointer",fontSize:12}}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
