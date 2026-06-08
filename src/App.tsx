@@ -1408,68 +1408,16 @@ export default function App() {
   const { dark, toggleDark } = useDarkMode();
   const ready = ownedReady && dataReady;
 
-  const [activeCategory, setActiveCategory] = useState<CategoryType>("oficial");
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("wcf_admin") === "true");
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
-  const [selectedSeries, setSelectedSeries] = useState<number|null>(null);
-  const [showWishlist, setShowWishlist] = useState(false);
   const [showAddSeries, setShowAddSeries] = useState(false);
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [showMobileNav, setShowMobileNav] = useState(false);
   const apiKey = imgbbKey; const saveApiKey = saveImgbbKey;
 
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
-
-  useEffect(() => {
-    if (isMobile && showMobileNav) {
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-    } else {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-    };
-  }, [isMobile, showMobileNav]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchActive, setSearchActive] = useState(false);
-  const [filterCat, setFilterCat] = useState<"all"|CategoryType>("all");
-  const [filterSeriesId, setFilterSeriesId] = useState<number|"all">("all");
-
-  const filteredSeries = data.filter(s => s.category === activeCategory);
-  const effectiveSelected = selectedSeries && filteredSeries.find(s=>s.id===selectedSeries) ? selectedSeries : filteredSeries[0]?.id ?? null;
-  const series = effectiveSelected ? data.find(s=>s.id===effectiveSelected) ?? null : null;
-  const isSearchMode = searchActive && (searchQuery.trim() !== "" || filterCat !== "all" || filterSeriesId !== "all");
-
-  const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
-  const seriesOwned = (s: Series) => allFigures(s).filter(f=>owned.has(f.id)).length;
-  const seriesTotal = (s: Series) => allFigures(s).length;
-  const catOwned = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).filter(f=>owned.has(f.id)).length;
-  const catTotal = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).length;
-  const totalAll = data.flatMap(allFigures).length;
-  const ownedAll = data.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
-  const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
-
-  const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:activeCategory,sets:[],groups:[]}; setData(d=>[...d,s]); setSelectedSeries(s.id); };
-  const [dragLocked, setDragLocked] = useState(false);
-  const [reorderKey, setReorderKey] = useState(0);
-  const reorderSeries = (fromIdx:number, toIdx:number) => {
-    setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===activeCategory); const others=all.filter(s=>s.category!==activeCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
-    setDragLocked(true);
-    setReorderKey(k=>k+1);
-    setTimeout(()=>setDragLocked(false), 1500);
-  };
+  const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:"oficial",sets:[],groups:[]}; setData(d=>[...d,s]); };
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
-  const deleteSeries = (sid:number) => { setData(d=>d.filter(s=>s.id!==sid)); setSelectedSeries(filteredSeries.filter(s=>s.id!==sid)[0]?.id??null); };
+  const deleteSeries = (sid:number) => setData(d=>d.filter(s=>s.id!==sid));
   const addSet = (sid:number, gid?:number) => {
     const newSet:FigureSet = {id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]};
     setData(d=>d.map(s=>{ if(s.id!==sid) return s;
@@ -1524,12 +1472,323 @@ export default function App() {
 
   const langValue = { t, lang };
 
+  // ── Tab state ──────────────────────────────────────────────
+  type TabType = "collection" | "database";
+  const [activeTab, setActiveTab] = useState<TabType>("collection");
+
+  // ── Filter/sort/size state (independent per tab) ───────────
+  const [colSearch,  setColSearch]  = useState("");
+  const [colFilter,  setColFilter]  = useState<"all"|"owned"|"wishlist">("all");
+  const [colSort,    setColSort]    = useState<"alpha"|"date">("alpha");
+  const [colSize,    setColSize]    = useState<"s"|"m"|"l">("m");
+  const [colSeries,  setColSeries]  = useState<number|"all">("all");
+
+  const [dbSearch,   setDbSearch]   = useState("");
+  const [dbFilter,   setDbFilter]   = useState<"all"|"owned"|"wishlist"|"missing">("all");
+  const [dbSort,     setDbSort]     = useState<"alpha"|"date">("alpha");
+  const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("m");
+  const [dbSeries,   setDbSeries]   = useState<number|"all">("all");
+  const [dbCategory, setDbCategory] = useState<"all"|CategoryType>("all");
+  const [dbSelectedSeries, setDbSelectedSeries] = useState<number|null>(null);
+  const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
+
+  const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
+  const totalAll = data.flatMap(allFigures).length;
+  const ownedAll = data.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
+  const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
+  const seriesOwned = (s: Series) => allFigures(s).filter(f=>owned.has(f.id)).length;
+  const seriesTotal = (s: Series) => allFigures(s).length;
+  const catOwned = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).filter(f=>owned.has(f.id)).length;
+  const catTotal = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).length;
+  const dbFilteredSeries = data.filter(s=>s.category===dbActiveCategory);
+  const dbSeriesObj = dbSelectedSeries ? data.find(s=>s.id===dbSelectedSeries)??null : null;
+
+  type FlatFigure = { figure:Figure; set:FigureSet; series:Series };
+  const allFlat: FlatFigure[] = data.flatMap(series =>
+    [...series.sets, ...(series.groups??[]).flatMap(g=>g.sets)].flatMap(set =>
+      set.figures.map(figure => ({ figure, set, series }))
+    )
+  );
+
+  const applyFilters = (items: FlatFigure[], search: string, seriesF: number|"all", catF: "all"|CategoryType, statusF: string) =>
+    items.filter(({figure,set,series}) => {
+      if (catF !== "all" && series.category !== catF) return false;
+      if (seriesF !== "all" && series.id !== seriesF && data.find(s=>s.id===seriesF)?.name !== series.name) return false;
+      if (statusF === "owned") return owned.has(figure.id);
+      if (statusF === "wishlist") return wishlist.has(figure.id) && !owned.has(figure.id);
+      if (statusF === "missing") return !owned.has(figure.id) && !wishlist.has(figure.id);
+      return true; // "all"
+    }).filter(({figure,set,series}) => {
+      if (!search.trim()) return true;
+      const words = search.toLowerCase().trim().split(/\s+/);
+      const combined = `${figure.name} ${series.name} ${set.name}`.toLowerCase();
+      return words.every(w=>combined.includes(w));
+    });
+
+  const applySort = (items: FlatFigure[], sort: "alpha"|"date") =>
+    [...items].sort((a,b) => sort==="date" ? (a.set.releaseDate??"").localeCompare(b.set.releaseDate??"") : a.figure.name.localeCompare(b.figure.name));
+
+  const colFigures = applySort(
+    applyFilters(allFlat, colSearch, colSeries, "all", colFilter).filter(({figure}) =>
+      colFilter==="all" ? (owned.has(figure.id)||(wishlist.has(figure.id)&&!owned.has(figure.id))) : true
+    ), colSort
+  );
+  const dbFigures = applySort(applyFilters(allFlat, dbSearch, dbSeries, dbCategory, dbFilter), dbSort);
+  const dbIsSearchMode = dbSearch.trim()!=="" || dbFilter!=="all" || dbSeries!=="all" || dbCategory!=="all";
+
+  const sizeToColumns: Record<string,string> = { s:"repeat(auto-fill,minmax(90px,1fr))", m:"repeat(auto-fill,minmax(130px,1fr))", l:"repeat(auto-fill,minmax(180px,1fr))" };
+  const selectStyle: React.CSSProperties = {height:32,padding:"0 8px",fontSize:12,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg)",cursor:"pointer",color:"var(--text)"};
+  const uniqSeries = data.filter((s,i,arr)=>arr.findIndex(x=>x.name===s.name)===i);
+
   const appContent = !ready ? (
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"var(--text3)",fontFamily:"system-ui,sans-serif"}}>
-        <div style={{fontSize:32}}>📦</div>
-        <div style={{fontSize:14}}>{t("loading")}</div>
-      </div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"var(--text3)",fontFamily:"system-ui,sans-serif"}}>
+      <div style={{fontSize:32}}>📦</div>
+      <div style={{fontSize:14}}>{t("loading")}</div>
+    </div>
   ) : (
+    <div style={{fontFamily:"system-ui,sans-serif",display:"flex",flexDirection:"column",height:"100vh",color:"var(--text)",background:"var(--bg)"}}>
+
+      {/* BANNER */}
+      {appLogo && <div style={{width:"100%",height:100,overflow:"hidden",background:"var(--bg3)",flexShrink:0}}>
+        <img src={appLogo} alt="banner" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}} />
+      </div>}
+
+      {/* TOP BAR */}
+      <div style={{borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",alignItems:"center",gap:8,background:"var(--bg)",flexShrink:0}}>
+        {!appLogo && <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap"}}>{t("appTitle")}</span>}
+        <div style={{flex:1}} />
+        <span style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{ownedAll}/{totalAll}</span>
+        <div style={{width:60,height:4,background:"var(--border)",borderRadius:4,overflow:"hidden"}}>
+          <div style={{height:"100%",width:(totalAll?Math.round(ownedAll/totalAll*100):0)+"%",background:"#0F6E56",borderRadius:4}} />
+        </div>
+        <div style={{display:"flex",gap:2}}>
+          {LANGUAGES.map(l=>(
+            <button key={l.code} onClick={()=>setLang(l.code)}
+              style={{padding:"3px 5px",fontSize:10,border:"1px solid "+(lang===l.code?"var(--text)":"var(--border)"),borderRadius:5,background:lang===l.code?"var(--text)":"transparent",color:lang===l.code?"var(--bg)":"var(--text3)",cursor:"pointer",display:"flex",alignItems:"center",gap:3}}>
+              <img src={l.flag} alt={l.label} style={{width:14,height:10,objectFit:"cover",borderRadius:1}} />{l.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={toggleDark} style={{background:"none",border:"1px solid var(--border)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
+        <button onClick={()=>{if(isAdmin){setIsAdmin(false);localStorage.removeItem("wcf_admin");}else setShowAdminPrompt(true);}}
+          style={{background:isAdmin?"var(--text)":"none",border:"1px solid "+(isAdmin?"var(--text)":"var(--border)"),borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12,color:isAdmin?"var(--bg)":"var(--text3)"}}>
+          {isAdmin?"🔓":"🔒"}
+        </button>
+        {isAdmin && <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>⚙️</button>}
+      </div>
+
+      {!apiKey && isAdmin && <div style={{background:"#fffbeb",borderBottom:"1px solid #fde68a",padding:"6px 12px",fontSize:11,color:"#92400e",flexShrink:0}}>
+        ⚠️ {t("apiKeyWarning")} <strong style={{cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowSettings(true)}>{t("settings")}</strong>
+      </div>}
+
+      {/* TABS */}
+      <div style={{display:"flex",borderBottom:"1px solid var(--border)",background:"var(--bg)",flexShrink:0}}>
+        {([["collection","📦 Colección"],["database","🗃️ Database"]] as [TabType,string][]).map(([tab,label])=>(
+          <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
+            style={{flex:1,padding:"10px",fontSize:13,fontWeight:activeTab===tab?700:400,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"var(--text)":"var(--text3)",borderBottom:activeTab===tab?"2px solid #0F6E56":"2px solid transparent"}}>
+            {label}
+            {tab==="collection" && wishlistCount>0 && <span style={{marginLeft:6,background:"#f59e0b",color:"#fff",borderRadius:10,fontSize:10,padding:"1px 6px",fontWeight:700}}>{wishlistCount}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* FILTER BAR */}
+      <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"var(--bg)",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
+        <div style={{flex:1,minWidth:120,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"var(--bg3)"}}>
+          <span style={{color:"var(--text4)",fontSize:13}}>🔍</span>
+          <input value={activeTab==="collection"?colSearch:dbSearch}
+            onChange={e=>activeTab==="collection"?setColSearch(e.target.value):setDbSearch(e.target.value)}
+            placeholder={activeTab==="collection"?"Buscar en mi colección...":"Buscar en el catálogo..."}
+            style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"var(--text)"}} />
+          {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"var(--text4)",fontSize:14}}>×</span>}
+        </div>
+        {activeTab==="collection" && <>
+          <select value={colFilter} onChange={e=>setColFilter(e.target.value as typeof colFilter)} style={selectStyle}>
+            <option value="all">Todas</option>
+            <option value="owned">{t("owned")}</option>
+            <option value="wishlist">{t("wishlist")}</option>
+          </select>
+          <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
+            <option value="all">{t("allSeries")}</option>
+            {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+          </select>
+          <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={selectStyle}>
+            <option value="alpha">A-Z</option>
+            <option value="date">📅 Fecha</option>
+          </select>
+          <div style={{display:"flex",gap:2}}>
+            {(["s","m","l"] as const).map(sz=>(
+              <button key={sz} onClick={()=>setColSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:colSize===sz?"var(--text)":"var(--bg)",color:colSize===sz?"var(--bg)":"var(--text4)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
+            ))}
+          </div>
+        </>}
+        {activeTab==="database" && <>
+          <select value={dbCategory} onChange={e=>setDbCategory(e.target.value as typeof dbCategory)} style={selectStyle}>
+            <option value="all">{t("allCategories")}</option>
+            <option value="oficial">{t("officialBadge")}</option>
+            <option value="resina">{t("resinBadge")}</option>
+          </select>
+          <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
+            <option value="all">Todas</option>
+            <option value="owned">{t("owned")}</option>
+            <option value="wishlist">{t("wishlist")}</option>
+            <option value="missing">{t("missing")}</option>
+          </select>
+          <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
+            <option value="all">{t("allSeries")}</option>
+            {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+          </select>
+          <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={selectStyle}>
+            <option value="alpha">A-Z</option>
+            <option value="date">📅 Fecha</option>
+          </select>
+          <div style={{display:"flex",gap:2}}>
+            {(["s","m","l"] as const).map(sz=>(
+              <button key={sz} onClick={()=>setDbSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:dbSize===sz?"var(--text)":"var(--bg)",color:dbSize===sz?"var(--bg)":"var(--text4)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
+            ))}
+          </div>
+        </>}
+      </div>
+
+      {/* MAIN CONTENT */}
+      <div style={{flex:1,overflowY:"auto",padding:"12px 16px"}}>
+
+        {/* ── COLLECTION TAB ── */}
+        {activeTab==="collection" && (
+          colFigures.length===0 ? (
+            <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>
+              {colFilter==="wishlist" ? "Tu wishlist está vacía." : colFilter==="owned" ? "Aún no has marcado ninguna figura." : "No hay figuras en tu colección todavía."}
+            </div>
+          ) : (
+            <div>
+              <div style={{fontSize:12,color:"var(--text3)",marginBottom:8}}>{colFigures.length} figura{colFigures.length!==1?"s":""}</div>
+              <div style={{display:"grid",gridTemplateColumns:sizeToColumns[colSize],gap:8}}>
+                {colFigures.map(({figure,set,series})=>(
+                  <SearchResultCard key={figure.id} figure={figure} series={series} set={set}
+                    isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
+                    onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                ))}
+              </div>
+            </div>
+          )
+        )}
+
+        {/* ── DATABASE TAB ── */}
+        {activeTab==="database" && (
+          dbIsSearchMode ? (
+            // Search results grid
+            dbFigures.length===0 ? (
+              <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noResults")}</div>
+            ) : (
+              <div>
+                <div style={{fontSize:12,color:"var(--text3)",marginBottom:8}}>{dbFigures.length} figura{dbFigures.length!==1?"s":""}</div>
+                <div style={{display:"grid",gridTemplateColumns:sizeToColumns[dbSize],gap:8}}>
+                  {dbFigures.map(({figure,set,series})=>(
+                    <SearchResultCard key={figure.id} figure={figure} series={series} set={set}
+                      isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
+                      onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                  ))}
+                </div>
+              </div>
+            )
+          ) : dbSeriesObj ? (
+            // Series detail
+            <>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+                <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>← Volver</button>
+                {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
+                {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+                  <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
+                  <Btn small onClick={()=>addSet(dbSeriesObj.id)} variant="primary">{t("newSet")}</Btn>
+                  <Btn small onClick={()=>setEditSeriesData(dbSeriesObj)}>✏️</Btn>
+                  <Btn small onClick={()=>{deleteSeries(dbSeriesObj.id);setDbSelectedSeries(null);}} variant="danger">🗑</Btn>
+                </div>}
+              </div>
+              <ProgressBar value={seriesOwned(dbSeriesObj)} total={seriesTotal(dbSeriesObj)} color={dbSeriesObj.color} />
+              <div style={{marginBottom:16}} />
+              {dbSeriesObj.groups && dbSeriesObj.groups.length>0 && (
+                <DraggableGroupList
+                  groups={dbSeriesObj.groups} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+                  onToggle={toggle} onToggleWish={toggleWish}
+                  onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                  onUpdateGroup={(gid,n,l)=>updateGroup(dbSeriesObj.id,gid,n,l)}
+                  onDeleteGroup={gid=>deleteGroup(dbSeriesObj.id,gid)}
+                  onAddSet={gid=>addSet(dbSeriesObj.id,gid)}
+                  onUpdateSet={(gid,stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl,gid)}
+                  onDeleteSet={(gid,stid)=>deleteSet(dbSeriesObj.id,stid,gid)}
+                  onDuplicateSet={(gid,stid)=>duplicateSet(dbSeriesObj.id,stid,gid)}
+                  onAddFigure={(gid,stid,f)=>addFigure(dbSeriesObj.id,stid,f,gid)}
+                  onUpdateFigure={(gid,stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,gid)}
+                  onDeleteFigure={(gid,stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,gid)}
+                  onReorderSets={(gid,from,to)=>reorderSets(dbSeriesObj.id,from,to,gid)}
+                  onReorderGroups={(from,to)=>reorderGroups(dbSeriesObj.id,from,to)}
+                />
+              )}
+              {dbSeriesObj.sets.length>0 && (
+                <DraggableSetList
+                  sets={dbSeriesObj.sets} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+                  onToggle={toggle} onToggleWish={toggleWish}
+                  onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                  onUpdateSet={(stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl)}
+                  onDeleteSet={stid=>deleteSet(dbSeriesObj.id,stid)}
+                  onDuplicate={stid=>duplicateSet(dbSeriesObj.id,stid)}
+                  onMoveToGroup={(stid,gid)=>moveSetToGroup(dbSeriesObj.id,stid,gid)}
+                  groups={dbSeriesObj.groups}
+                  onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f)}
+                  onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f)}
+                  onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid)}
+                  onReorder={(from,to)=>reorderSets(dbSeriesObj.id,from,to)}
+                />
+              )}
+              {dbSeriesObj.sets.length===0 && (!dbSeriesObj.groups||dbSeriesObj.groups.length===0) && (
+                <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>
+              )}
+            </>
+          ) : (
+            // Series list
+            <>
+              <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+                {(["oficial","resina"] as CategoryType[]).map(cat=>(
+                  <button key={cat} onClick={()=>{setDbActiveCategory(cat);setDbSelectedSeries(null);}}
+                    style={{padding:"6px 14px",fontSize:12,fontWeight:dbActiveCategory===cat?700:400,border:"1px solid var(--border)",borderRadius:20,background:dbActiveCategory===cat?"var(--text)":"var(--bg)",color:dbActiveCategory===cat?"var(--bg)":"var(--text3)",cursor:"pointer"}}>
+                    {cat==="oficial"?t("official"):t("resin")} <span style={{opacity:0.6,fontSize:10}}>{catOwned(cat)}/{catTotal(cat)}</span>
+                  </button>
+                ))}
+                {isAdmin && <Btn small onClick={()=>setShowAddSeries(true)} variant="primary">{t("newSeries")}</Btn>}
+              </div>
+              <DraggableSeriesList
+                key={reorderKey}
+                series={dbFilteredSeries}
+                effectiveSelected={dbSelectedSeries}
+                showWishlist={false}
+                seriesOwned={seriesOwned}
+                seriesTotal={seriesTotal}
+                dragLocked={dragLocked}
+                onSelect={setDbSelectedSeries}
+                onReorder={reorderSeries}
+              />
+              {dbFilteredSeries.length===0 && <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}</div>}
+            </>
+          )
+        )}
+      </div>
+
+      {/* MODALS */}
+      {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
+      {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
+      {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
+    </div>
+  );
+
+  return (
+    <LangProvider value={langValue}>
+      <AdminCtx.Provider value={isAdmin}>
+        {appContent}
+        {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
+      </AdminCtx.Provider>
+    </LangProvider>
+  );
+}
     <div style={{fontFamily:"system-ui, sans-serif",display:"flex",flexDirection:"column",minHeight:"100vh",color:"var(--text)",background:"var(--bg)"}}>
 
       {/* BANNER — se desplaza con la página */}
