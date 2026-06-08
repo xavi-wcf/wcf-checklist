@@ -1439,7 +1439,7 @@ export default function App() {
   const dbIsSearchMode = dbSearch.trim()!=="" || dbFilter!=="all" || dbSeries!=="all" || dbCategory!=="all";
 
   const sizeToColumns: Record<string,string> = { s:"repeat(auto-fill,minmax(90px,1fr))", m:"repeat(auto-fill,minmax(130px,1fr))", l:"repeat(auto-fill,minmax(180px,1fr))" };
-  const selectStyle: React.CSSProperties = {height:32,padding:"0 8px",fontSize:12,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg)",cursor:"pointer",color:"var(--text)"};
+  const selectStyle: React.CSSProperties = {height:32,padding:"0 8px",fontSize:12,border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,background:"rgba(255,255,255,0.12)",cursor:"pointer",color:"#fff"};
   const uniqSeries = data.filter((s,i,arr)=>arr.findIndex(x=>x.name===s.name)===i);
 
   const appContent = !ready ? (
@@ -1451,27 +1451,27 @@ export default function App() {
     <div style={{fontFamily:"system-ui,sans-serif",display:"flex",flexDirection:"column",height:"100vh",color:"var(--text)",background:"var(--bg)"}}>
 
       {/* TOP BAR */}
-      <div style={{borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",alignItems:"center",gap:8,background:"var(--bg2)",flexShrink:0}}>
-        <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"var(--text)"}}>{t("appTitle")}</span>
+      <div style={{borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",alignItems:"center",gap:8,background:"#0a5244",flexShrink:0}}>
+        <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"#fff"}}>{t("appTitle")}</span>
         <div style={{flex:1}} />
-        <span style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{ownedAll}/{totalAll}</span>
-        <div style={{width:60,height:4,background:"var(--border)",borderRadius:4,overflow:"hidden"}}>
+        <span style={{fontSize:11,color:"rgba(255,255,255,0.7)",whiteSpace:"nowrap"}}>{ownedAll}/{totalAll}</span>
+        <div style={{width:60,height:4,background:"rgba(255,255,255,0.2)",borderRadius:4,overflow:"hidden"}}>
           <div style={{height:"100%",width:(totalAll?Math.round(ownedAll/totalAll*100):0)+"%",background:"#0F6E56",borderRadius:4}} />
         </div>
         <div style={{display:"flex",gap:2}}>
           {LANGUAGES.map(l=>(
             <button key={l.code} onClick={()=>setLang(l.code)}
-              style={{padding:"3px 5px",fontSize:10,border:"1px solid "+(lang===l.code?"var(--text)":"var(--border)"),borderRadius:5,background:lang===l.code?"var(--text)":"transparent",color:lang===l.code?"var(--bg)":"var(--text3)",cursor:"pointer",display:"flex",alignItems:"center",gap:3}}>
+              style={{padding:"3px 5px",fontSize:10,border:"1px solid "+(lang===l.code?"#fff":"rgba(255,255,255,0.3)"),borderRadius:5,background:lang===l.code?"#fff":"transparent",color:lang===l.code?"#0a5244":"rgba(255,255,255,0.8)",cursor:"pointer",display:"flex",alignItems:"center",gap:3}}>
               <img src={l.flag} alt={l.label} style={{width:14,height:10,objectFit:"cover",borderRadius:1}} />{l.label}
             </button>
           ))}
         </div>
-        <button onClick={toggleDark} style={{background:"none",border:"1px solid var(--border)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
+        <button onClick={toggleDark} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
         <button onClick={()=>{if(isAdmin){setIsAdmin(false);localStorage.removeItem("wcf_admin");}else setShowAdminPrompt(true);}}
-          style={{background:isAdmin?"var(--text)":"none",border:"1px solid "+(isAdmin?"var(--text)":"var(--border)"),borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12,color:isAdmin?"var(--bg)":"var(--text3)"}}>
+          style={{background:isAdmin?"#fff":"rgba(255,255,255,0.1)",border:"1px solid "+(isAdmin?"#fff":"rgba(255,255,255,0.3)"),borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12,color:isAdmin?"#0a5244":"rgba(255,255,255,0.8)"}}>
           {isAdmin?"🔓":"🔒"}
         </button>
-        {isAdmin && <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>⚙️</button>}
+        {isAdmin && <button onClick={()=>setShowSettings(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>⚙️</button>}
       </div>
 
       {!apiKey && isAdmin && <div style={{background:"#fffbeb",borderBottom:"1px solid #fde68a",padding:"6px 12px",fontSize:11,color:"#92400e",flexShrink:0}}>
@@ -1479,14 +1479,14 @@ export default function App() {
       </div>}
 
       {/* FILTER BAR */}
-      <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"var(--bg2)",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
-        <div style={{flex:1,minWidth:120,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"var(--bg3)"}}>
-          <span style={{color:"var(--text4)",fontSize:13}}>🔍</span>
+      <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0a5244",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
+        <div style={{flex:1,minWidth:120,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"rgba(255,255,255,0.12)"}}>
+          <span style={{color:"rgba(255,255,255,0.6)",fontSize:13}}>🔍</span>
           <input value={activeTab==="collection"?colSearch:dbSearch}
             onChange={e=>activeTab==="collection"?setColSearch(e.target.value):setDbSearch(e.target.value)}
             placeholder={activeTab==="collection"?"Buscar en mi colección...":"Buscar en el catálogo..."}
-            style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"var(--text)"}} />
-          {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"var(--text4)",fontSize:14}}>×</span>}
+            style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"#fff"}} />
+          {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"rgba(255,255,255,0.6)",fontSize:14}}>×</span>}
         </div>
         {activeTab==="collection" && <>
           <select value={colFilter} onChange={e=>setColFilter(e.target.value as typeof colFilter)} style={selectStyle}>
@@ -1504,7 +1504,7 @@ export default function App() {
           </select>
           <div style={{display:"flex",gap:2}}>
             {(["s","m","l"] as const).map(sz=>(
-              <button key={sz} onClick={()=>setColSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:colSize===sz?"var(--text)":"var(--bg)",color:colSize===sz?"var(--bg)":"var(--text4)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
+              <button key={sz} onClick={()=>setColSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:colSize===sz?"#fff":"rgba(255,255,255,0.12)",color:colSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
             ))}
           </div>
         </>}
@@ -1530,7 +1530,7 @@ export default function App() {
           </select>
           <div style={{display:"flex",gap:2}}>
             {(["s","m","l"] as const).map(sz=>(
-              <button key={sz} onClick={()=>setDbSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:dbSize===sz?"var(--text)":"var(--bg)",color:dbSize===sz?"var(--bg)":"var(--text4)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
+              <button key={sz} onClick={()=>setDbSize(sz)} style={{width:28,height:32,border:"1px solid var(--border)",borderRadius:6,background:dbSize===sz?"#fff":"rgba(255,255,255,0.12)",color:dbSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
             ))}
           </div>
         </>}
@@ -1660,10 +1660,10 @@ export default function App() {
       </div>
 
       {/* BOTTOM TABS */}
-      <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"var(--bg2)",flexShrink:0,position:"sticky",bottom:0}}>
+      <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0}}>
         {([["collection","📦","Colección"],["database","🗃️","Database"]] as [TabType,string,string][]).map(([tab,icon,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
-            style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#0F6E56":"var(--text3)",borderTop:activeTab===tab?"2px solid #0F6E56":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+            style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fff":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:20}}>{icon}</span>
             {label}
             {tab==="collection" && wishlistCount>0 && <span style={{position:"absolute",top:6,background:"#f59e0b",color:"#fff",borderRadius:10,fontSize:9,padding:"1px 5px",fontWeight:700}}>{wishlistCount}</span>}
