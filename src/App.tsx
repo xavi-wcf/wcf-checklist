@@ -920,7 +920,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
 // ============================================================
 //  SEARCH RESULT CARD
 // ============================================================
-function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, compact=false }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; compact?:boolean }) {
+function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, compact=false, hideIcons=false }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; compact?:boolean; hideIcons?:boolean }) {
   const { t, lang } = useTr();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
   const formatDate = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
@@ -933,15 +933,15 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
   return (
     <div style={{border:"1px solid "+(isOwned?series.color:isWished?"#f59e0b":"var(--border)"),borderRadius:8,background:isOwned?series.color+"18":isWished?"#fffbeb":"var(--card-bg)",overflow:"hidden",transition:"transform 0.15s",position:"relative"}}
       onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-      {!isOwned && (
+      {!hideIcons && !isOwned && (
         <button onClick={e=>{e.stopPropagation();onToggleWish();}}
           style={{position:"absolute",top:4,left:4,zIndex:3,background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:5,padding:"1px 4px",fontSize:11,cursor:"pointer",lineHeight:1}}>
           {isWished?"💛":"🤍"}
         </button>
       )}
       <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"var(--missing-bg)",overflow:"hidden",position:"relative",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",cursor:"pointer"}}>
-        {isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
-        {isWished && !isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,fontSize:12}}>💛</div>}
+        {!hideIcons && isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
+        {!hideIcons && isWished && !isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,fontSize:12}}>💛</div>}
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:compact?24:34}}>{figure.emoji}</div></div>}
       </div>
@@ -1572,14 +1572,24 @@ export default function App() {
                 <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Aún no has marcado ninguna figura.</div>
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
-                  {colOwned.map(({figure,set,series,groupName})=>(
-                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start"}}>
+                  {colOwned.map(({figure,set,series,groupName})=>{
+                    const isConfirm = confirmFigure?.figure.id===figure.id;
+                    return (
+                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start",position:"relative"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
-                        isOwned={true} isWished={false} compact
-                        onToggle={()=>setConfirmFigure({figure,series,set,mode:"owned"})}
-                        onToggleWish={()=>setConfirmFigure({figure,series,set,mode:"owned"})} />
+                        isOwned={true} isWished={false} compact hideIcons
+                        onToggle={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})}
+                        onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})} />
+                      {isConfirm && (
+                        <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
+                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fef3c7",color:"#92400e",cursor:"pointer",fontSize:9,fontWeight:700}}>💛 Wishlist</button>
+                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>✕ Quitar</button>
+                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>Cancelar</button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1595,14 +1605,24 @@ export default function App() {
                 <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Tu wishlist está vacía.</div>
               ) : (
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
-                  {colWishlist.map(({figure,set,series,groupName})=>(
-                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start"}}>
+                  {colWishlist.map(({figure,set,series,groupName})=>{
+                    const isConfirm = confirmFigure?.figure.id===figure.id;
+                    return (
+                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start",position:"relative"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
-                        isOwned={false} isWished={true} compact
-                        onToggle={()=>setConfirmFigure({figure,series,set,mode:"wishlist"})}
-                        onToggleWish={()=>setConfirmFigure({figure,series,set,mode:"wishlist"})} />
+                        isOwned={false} isWished={true} compact hideIcons
+                        onToggle={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})}
+                        onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})} />
+                      {isConfirm && (
+                        <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
+                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#E1F5EE",color:"#0F6E56",cursor:"pointer",fontSize:9,fontWeight:700}}>✓ Obtenida</button>
+                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>✕ Quitar</button>
+                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>Cancelar</button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1719,39 +1739,6 @@ export default function App() {
       </div>
 
       {/* MODALS */}
-      {confirmFigure && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-          <div style={{background:"var(--bg)",borderRadius:14,padding:20,width:"100%",maxWidth:300,boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
-            <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>{confirmFigure.figure.name}</div>
-            <div style={{fontSize:11,color:"var(--text3)",marginBottom:16}}>{confirmFigure.series.name} · {confirmFigure.set.name}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {confirmFigure.mode==="owned" ? <>
-                <button onClick={()=>{toggleWish(confirmFigure.figure.id);toggle(confirmFigure.figure.id);setConfirmFigure(null);}}
-                  style={{padding:"10px",borderRadius:10,border:"1px solid #f59e0b",background:"#fffbeb",color:"#92400e",cursor:"pointer",fontSize:13,fontWeight:600}}>
-                  💛 Mover a Wishlist
-                </button>
-                <button onClick={()=>{toggle(confirmFigure.figure.id);setConfirmFigure(null);}}
-                  style={{padding:"10px",borderRadius:10,border:"1px solid #fca5a5",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:13,fontWeight:600}}>
-                  ✕ Quitar de Obtenidas
-                </button>
-              </> : <>
-                <button onClick={()=>{toggle(confirmFigure.figure.id);setConfirmFigure(null);}}
-                  style={{padding:"10px",borderRadius:10,border:"1px solid #0F6E56",background:"#E1F5EE",color:"#0F6E56",cursor:"pointer",fontSize:13,fontWeight:600}}>
-                  ✓ Marcar como Obtenida
-                </button>
-                <button onClick={()=>{toggleWish(confirmFigure.figure.id);setConfirmFigure(null);}}
-                  style={{padding:"10px",borderRadius:10,border:"1px solid #fca5a5",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:13,fontWeight:600}}>
-                  ✕ Quitar de Wishlist
-                </button>
-              </>}
-              <button onClick={()=>setConfirmFigure(null)}
-                style={{padding:"8px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text3)",cursor:"pointer",fontSize:12}}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
