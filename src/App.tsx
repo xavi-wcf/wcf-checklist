@@ -1147,7 +1147,7 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
     const card=el?.closest("[data-seriesidx]");
     if(card){ const to=parseInt(card.getAttribute("data-seriesidx")!); if(!isNaN(to)) setDragOver(to); }
   };
-  const handleTouchEnd = (e:React.TouchEvent) => {
+  const handleTouchEnd = (_e:React.TouchEvent) => {
     if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;}
     if(dragIdx.current!==null){
       if(dragOver!==null&&dragOver!==dragIdx.current){ onReorder(dragIdx.current,dragOver); lastReorder.current=Date.now(); }
