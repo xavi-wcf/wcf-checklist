@@ -1235,68 +1235,6 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
 // ============================================================
 //  DRAGGABLE SERIES LIST
 // ============================================================
-function DraggableSeriesList({ series, seriesOwned, seriesTotal, dragLocked, onSelect, onReorder }: {
-  series: Series[];
-  seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
-  dragLocked?: boolean;
-  onSelect:(sid:number)=>void; onReorder:(from:number,to:number)=>void;
-}) {
-  const dragIdx = useRef<number|null>(null);
-  const [dragOver, setDragOver] = useState<number|null>(null);
-  const touchDragIdx = useRef<number|null>(null);
-
-  const handleDragStart = (idx:number) => { dragIdx.current=idx; };
-  const handleDragOver = (e:React.DragEvent, idx:number) => { e.preventDefault(); setDragOver(idx); };
-  const handleDrop = (idx:number) => { if(dragIdx.current!==null && dragIdx.current!==idx) onReorder(dragIdx.current,idx); dragIdx.current=null; setDragOver(null); };
-  const handleDragEnd = () => { dragIdx.current=null; setDragOver(null); };
-  const longPressTimer2 = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const handleTouchStart = (_e:React.TouchEvent, idx:number) => {
-    if (dragLocked) return;
-    longPressTimer2.current = setTimeout(() => { touchDragIdx.current=idx; setDragOver(idx); }, 500);
-  };
-  const handleTouchMove2 = () => { if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;} };
-  const handleTouchEnd = (e:React.TouchEvent) => {
-    if(longPressTimer2.current){clearTimeout(longPressTimer2.current);longPressTimer2.current=null;}
-    if(touchDragIdx.current===null) return;
-    const touch2=e.changedTouches[0];
-    const els=document.elementsFromPoint(touch2.clientX,touch2.clientY);
-    const target=els.find(el=>el.hasAttribute("data-seriesidx"));
-    if(target){const toIdx=parseInt(target.getAttribute("data-seriesidx")!);if(toIdx!==touchDragIdx.current){onReorder(touchDragIdx.current,toIdx);}}
-    touchDragIdx.current=null;setDragOver(null);
-  };
-
-  return (
-    <div>
-      {series.map((s, idx) => {
-        return (
-          <div key={s.id}
-            data-seriesidx={idx}
-            draggable={!dragLocked}
-            onDragStart={()=>handleDragStart(idx)}
-            onDragOver={e=>handleDragOver(e,idx)}
-            onDrop={()=>handleDrop(idx)}
-            onDragEnd={handleDragEnd}
-            onTouchStart={e=>handleTouchStart(e,idx)}
-            onTouchMove={handleTouchMove2}
-            onTouchEnd={handleTouchEnd}
-            onClick={()=>onSelect(s.id)}
-            style={{cursor:"grab",position:"relative",overflow:"hidden",opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?"2px solid "+s.color:"none",transition:"opacity 0.15s,outline 0.1s",borderBottom:"1px solid var(--border)"}}>
-            {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",pointerEvents:"none"}} />}
-            <div style={{position:"relative",padding:"8px 12px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:22,height:22,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:15}}>{s.emoji}</span>)}
-                <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.name}</span>
-              </div>
-              <div style={{width:"50%"}}>
-                <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // ============================================================
 //  APP
@@ -1394,13 +1332,6 @@ export default function App() {
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
     return {...s,sets:upd(s.sets)};
   }));
-
-  const [dragLocked, setDragLocked] = useState(false);
-  const [reorderKey, setReorderKey] = useState(0);
-  const reorderSeries = (fromIdx:number, toIdx:number) => {
-    setData(d=>{ const all=[...d]; const cats=all.filter(s=>s.category===dbActiveCategory); const others=all.filter(s=>s.category!==dbActiveCategory); const [moved]=cats.splice(fromIdx,1); cats.splice(toIdx,0,moved); return [...others,...cats]; });
-    setDragLocked(true); setReorderKey(k=>k+1); setTimeout(()=>setDragLocked(false), 1500);
-  };
 
   const langValue = { t, lang };
 
@@ -1727,16 +1658,41 @@ export default function App() {
                 ))}
                 {isAdmin && <Btn small onClick={()=>setShowAddSeries(true)} variant="primary">{t("newSeries")}</Btn>}
               </div>
-              <DraggableSeriesList
-                key={reorderKey}
-                series={dbFilteredSeries}
-                seriesOwned={seriesOwned}
-                seriesTotal={seriesTotal}
-                dragLocked={dragLocked}
-                onSelect={setDbSelectedSeries}
-                onReorder={reorderSeries}
-              />
-              {dbFilteredSeries.length===0 && <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}</div>}
+              {dbFilteredSeries.length===0
+                ? <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}</div>
+                : <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+                    {dbFilteredSeries.map(s => {
+                      const ownedC = seriesOwned(s), totalC = seriesTotal(s);
+                      const pct = totalC ? Math.round(ownedC/totalC*100) : 0;
+                      return (
+                        <div key={s.id} onClick={()=>setDbSelectedSeries(s.id)}
+                          style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:"pointer",aspectRatio:"1",background:"var(--bg2)",border:"1px solid var(--border)",transition:"transform 0.15s,box-shadow 0.15s"}}
+                          onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
+                          onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
+                          {/* Background image or emoji */}
+                          {s.bgImage
+                            ? <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />
+                            : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.3}}>{s.emoji}</div>
+                          }
+                          {/* Gradient overlay */}
+                          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0) 100%)"}} />
+                          {/* Content */}
+                          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px"}}>
+                            {s.logo
+                              ? <img src={s.logo} alt={s.name} style={{height:20,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:4,display:"block"}} />
+                              : <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:4,lineHeight:1.2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>{s.name}</div>
+                            }
+                            {/* Progress bar */}
+                            <div style={{height:3,background:"rgba(255,255,255,0.25)",borderRadius:2,overflow:"hidden",marginBottom:2}}>
+                              <div style={{height:"100%",width:pct+"%",background:pct===100?"#4ade80":s.color,borderRadius:2,transition:"width 0.3s"}} />
+                            </div>
+                            <div style={{fontSize:9,color:"rgba(255,255,255,0.7)"}}>{ownedC}/{totalC}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+              }
             </>
           )
         )}
