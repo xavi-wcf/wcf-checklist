@@ -1450,14 +1450,9 @@ export default function App() {
   ) : (
     <div style={{fontFamily:"system-ui,sans-serif",display:"flex",flexDirection:"column",height:"100vh",color:"var(--text)",background:"var(--bg)"}}>
 
-      {/* BANNER */}
-      {appLogo && <div style={{width:"100%",height:100,overflow:"hidden",background:"var(--bg3)",flexShrink:0}}>
-        <img src={appLogo} alt="banner" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}} />
-      </div>}
-
       {/* TOP BAR */}
-      <div style={{borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",alignItems:"center",gap:8,background:"var(--bg)",flexShrink:0}}>
-        {!appLogo && <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap"}}>{t("appTitle")}</span>}
+      <div style={{borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",alignItems:"center",gap:8,background:"var(--bg2)",flexShrink:0}}>
+        <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"var(--text)"}}>{t("appTitle")}</span>
         <div style={{flex:1}} />
         <span style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{ownedAll}/{totalAll}</span>
         <div style={{width:60,height:4,background:"var(--border)",borderRadius:4,overflow:"hidden"}}>
@@ -1483,19 +1478,8 @@ export default function App() {
         ⚠️ {t("apiKeyWarning")} <strong style={{cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowSettings(true)}>{t("settings")}</strong>
       </div>}
 
-      {/* TABS */}
-      <div style={{display:"flex",borderBottom:"1px solid var(--border)",background:"var(--bg)",flexShrink:0}}>
-        {([["collection","📦 Colección"],["database","🗃️ Database"]] as [TabType,string][]).map(([tab,label])=>(
-          <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
-            style={{flex:1,padding:"10px",fontSize:13,fontWeight:activeTab===tab?700:400,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"var(--text)":"var(--text3)",borderBottom:activeTab===tab?"2px solid #0F6E56":"2px solid transparent"}}>
-            {label}
-            {tab==="collection" && wishlistCount>0 && <span style={{marginLeft:6,background:"#f59e0b",color:"#fff",borderRadius:10,fontSize:10,padding:"1px 6px",fontWeight:700}}>{wishlistCount}</span>}
-          </button>
-        ))}
-      </div>
-
       {/* FILTER BAR */}
-      <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"var(--bg)",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
+      <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"var(--bg2)",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
         <div style={{flex:1,minWidth:120,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"var(--bg3)"}}>
           <span style={{color:"var(--text4)",fontSize:13}}>🔍</span>
           <input value={activeTab==="collection"?colSearch:dbSearch}
@@ -1553,7 +1537,7 @@ export default function App() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div style={{flex:1,overflowY:"auto",padding:"12px 16px"}}>
+      <div style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
 
         {/* ── COLLECTION TAB ── */}
         {activeTab==="collection" && (
@@ -1673,6 +1657,18 @@ export default function App() {
             </>
           )
         )}
+      </div>
+
+      {/* BOTTOM TABS */}
+      <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"var(--bg2)",flexShrink:0,position:"sticky",bottom:0}}>
+        {([["collection","📦","Colección"],["database","🗃️","Database"]] as [TabType,string,string][]).map(([tab,icon,label])=>(
+          <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
+            style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#0F6E56":"var(--text3)",borderTop:activeTab===tab?"2px solid #0F6E56":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+            <span style={{fontSize:20}}>{icon}</span>
+            {label}
+            {tab==="collection" && wishlistCount>0 && <span style={{position:"absolute",top:6,background:"#f59e0b",color:"#fff",borderRadius:10,fontSize:9,padding:"1px 5px",fontWeight:700}}>{wishlistCount}</span>}
+          </button>
+        ))}
       </div>
 
       {/* MODALS */}
