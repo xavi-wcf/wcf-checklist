@@ -1127,15 +1127,21 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   const handleDrop = (idx:number) => { if(dragIdx.current!==null&&dragIdx.current!==idx){onReorder(dragIdx.current,idx);} dragIdx.current=null; setDragging(null); setDragOver(null); };
   const handleDragEnd = () => { dragIdx.current=null; setDragging(null); setDragOver(null); };
 
+  const touchMoved = useRef(false);
+
   const handleTouchStart = (e:React.TouchEvent, idx:number) => {
     if(Date.now()-lastReorder.current<1000) return;
+    touchMoved.current = false;
     touchStartPos.current={x:e.touches[0].clientX,y:e.touches[0].clientY};
     longPressTimer.current = setTimeout(()=>{ setDragging(idx); dragIdx.current=idx; }, 500);
   };
   const handleTouchMove = (e:React.TouchEvent, _idx:number) => {
     const dx=Math.abs(e.touches[0].clientX-touchStartPos.current.x);
     const dy=Math.abs(e.touches[0].clientY-touchStartPos.current.y);
-    if(dx>5||dy>5){ if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;} }
+    if(dx>5||dy>5){
+      touchMoved.current = true;
+      if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;}
+    }
     if(dragIdx.current===null) return;
     const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
     const card=el?.closest("[data-seriesidx]");
@@ -1143,13 +1149,8 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   };
   const handleTouchEnd = (e:React.TouchEvent) => {
     if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;}
-    if(dragIdx.current===null){
-      // was a tap — select
-      const el=document.elementFromPoint(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
-      const card=el?.closest("[data-seriesid]");
-      if(card){const id=parseInt(card.getAttribute("data-seriesid")!);if(!isNaN(id))onSelect(id);}
-    } else if(dragOver!==null&&dragOver!==dragIdx.current){
-      onReorder(dragIdx.current,dragOver); lastReorder.current=Date.now();
+    if(dragIdx.current!==null){
+      if(dragOver!==null&&dragOver!==dragIdx.current){ onReorder(dragIdx.current,dragOver); lastReorder.current=Date.now(); }
     }
     dragIdx.current=null; setDragging(null); setDragOver(null);
   };
@@ -1172,7 +1173,7 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
             onTouchStart={isAdmin?e=>handleTouchStart(e,idx):undefined}
             onTouchMove={isAdmin?e=>handleTouchMove(e,idx):undefined}
             onTouchEnd={isAdmin?e=>handleTouchEnd(e):undefined}
-            onClick={()=>{ if(dragIdx.current===null) onSelect(s.id); }}
+            onClick={()=>{ if(!touchMoved.current && dragIdx.current===null) onSelect(s.id); }}
             style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:isAdmin?"grab":"pointer",aspectRatio:"1",background:"var(--bg2)",border:isOver?"2px solid #0F6E56":"1px solid var(--border)",opacity:isDragging?0.4:1,transition:"transform 0.15s,box-shadow 0.15s,opacity 0.15s",touchAction:dragging!==null?"none":"auto"}}
             onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
             onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
