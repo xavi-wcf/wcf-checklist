@@ -1121,7 +1121,7 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
     touchStartPos.current={x:e.touches[0].clientX,y:e.touches[0].clientY};
     longPressTimer.current = setTimeout(()=>{ setDragging(idx); dragIdx.current=idx; }, 500);
   };
-  const handleTouchMove = (e:React.TouchEvent, idx:number) => {
+  const handleTouchMove = (e:React.TouchEvent, _idx:number) => {
     const dx=Math.abs(e.touches[0].clientX-touchStartPos.current.x);
     const dy=Math.abs(e.touches[0].clientY-touchStartPos.current.y);
     if(dx>8||dy>8){ if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;} }
