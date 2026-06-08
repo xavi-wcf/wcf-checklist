@@ -1360,7 +1360,6 @@ export default function App() {
 
   const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
   const totalAll = data.flatMap(allFigures).length;
-  const ownedAll = data.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
   const seriesOwned = (s: Series) => allFigures(s).filter(f=>owned.has(f.id)).length;
   const seriesTotal = (s: Series) => allFigures(s).length;
   const catOwned = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).filter(f=>owned.has(f.id)).length;
@@ -1413,10 +1412,7 @@ export default function App() {
       <div style={{borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",alignItems:"center",gap:8,background:"#0a5244",flexShrink:0}}>
         <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"#fff"}}>{t("appTitle")}</span>
         <div style={{flex:1}} />
-        <span style={{fontSize:11,color:"rgba(255,255,255,0.7)",whiteSpace:"nowrap"}}>{ownedAll}/{totalAll}</span>
-        <div style={{width:60,height:4,background:"rgba(255,255,255,0.2)",borderRadius:4,overflow:"hidden"}}>
-          <div style={{height:"100%",width:(totalAll?Math.round(ownedAll/totalAll*100):0)+"%",background:"#0F6E56",borderRadius:4}} />
-        </div>
+        <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",whiteSpace:"nowrap"}}>{totalAll} WCF</span>
         {/* Language dropdown */}
         <div style={{position:"relative"}}>
           <button onClick={()=>setShowLangMenu(m=>!m)}
@@ -1613,40 +1609,49 @@ export default function App() {
               </div>
               <ProgressBar value={seriesOwned(dbSeriesObj)} total={seriesTotal(dbSeriesObj)} color={dbSeriesObj.color} />
               <div style={{marginBottom:16}} />
-              {dbSeriesObj.groups && dbSeriesObj.groups.length>0 && (
-                <DraggableGroupList
-                  groups={dbSeriesObj.groups} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
-                  onToggle={toggle} onToggleWish={toggleWish}
-                  onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
-                  onUpdateGroup={(gid,n,l)=>updateGroup(dbSeriesObj.id,gid,n,l)}
-                  onDeleteGroup={gid=>deleteGroup(dbSeriesObj.id,gid)}
-                  onAddSet={gid=>addSet(dbSeriesObj.id,gid)}
-                  onUpdateSet={(gid,stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl,gid)}
-                  onDeleteSet={(gid,stid)=>deleteSet(dbSeriesObj.id,stid,gid)}
-                  onDuplicateSet={(gid,stid)=>duplicateSet(dbSeriesObj.id,stid,gid)}
-                  onAddFigure={(gid,stid,f)=>addFigure(dbSeriesObj.id,stid,f,gid)}
-                  onUpdateFigure={(gid,stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,gid)}
-                  onDeleteFigure={(gid,stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,gid)}
-                  onReorderSets={(gid,from,to)=>reorderSets(dbSeriesObj.id,from,to,gid)}
-                  onReorderGroups={(from,to)=>reorderGroups(dbSeriesObj.id,from,to)}
-                />
-              )}
-              {dbSeriesObj.sets.length>0 && (
-                <DraggableSetList
-                  sets={dbSeriesObj.sets} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
-                  onToggle={toggle} onToggleWish={toggleWish}
-                  onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
-                  onUpdateSet={(stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl)}
-                  onDeleteSet={stid=>deleteSet(dbSeriesObj.id,stid)}
-                  onDuplicate={stid=>duplicateSet(dbSeriesObj.id,stid)}
-                  onMoveToGroup={(stid,gid)=>moveSetToGroup(dbSeriesObj.id,stid,gid)}
-                  groups={dbSeriesObj.groups}
-                  onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f)}
-                  onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f)}
-                  onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid)}
-                  onReorder={(from,to)=>reorderSets(dbSeriesObj.id,from,to)}
-                />
-              )}
+              {(() => {
+                // Build interleaved list of groups and loose sets, sorted by date
+                type Item = { type:"group"; group:FigureGroup; date:string } | { type:"set"; set:FigureSet; date:string };
+                const items: Item[] = [
+                  ...(dbSeriesObj.groups??[]).map(g => ({ type:"group" as const, group:g, date: g.sets[0]?.releaseDate ?? "" })),
+                  ...dbSeriesObj.sets.map(s => ({ type:"set" as const, set:s, date: s.releaseDate ?? "" })),
+                ];
+                const sorted = [...items].sort((a,b) => a.date.localeCompare(b.date));
+                const display = sorted.some(i=>i.date) ? sorted : items;
+                return display.map((item) => item.type==="group" ? (
+                  <DraggableGroupList key={"g"+item.group.id}
+                    groups={[item.group]} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+                    onToggle={toggle} onToggleWish={toggleWish}
+                    onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                    onUpdateGroup={(gid,n,l)=>updateGroup(dbSeriesObj.id,gid,n,l)}
+                    onDeleteGroup={gid=>deleteGroup(dbSeriesObj.id,gid)}
+                    onAddSet={gid=>addSet(dbSeriesObj.id,gid)}
+                    onUpdateSet={(gid,stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl,gid)}
+                    onDeleteSet={(gid,stid)=>deleteSet(dbSeriesObj.id,stid,gid)}
+                    onDuplicateSet={(gid,stid)=>duplicateSet(dbSeriesObj.id,stid,gid)}
+                    onAddFigure={(gid,stid,f)=>addFigure(dbSeriesObj.id,stid,f,gid)}
+                    onUpdateFigure={(gid,stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,gid)}
+                    onDeleteFigure={(gid,stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,gid)}
+                    onReorderSets={(gid,from,to)=>reorderSets(dbSeriesObj.id,from,to,gid)}
+                    onReorderGroups={(from,to)=>reorderGroups(dbSeriesObj.id,from,to)}
+                  />
+                ) : (
+                  <DraggableSetList key={"s"+item.set.id}
+                    sets={[item.set]} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+                    onToggle={toggle} onToggleWish={toggleWish}
+                    onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                    onUpdateSet={(stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl)}
+                    onDeleteSet={stid=>deleteSet(dbSeriesObj.id,stid)}
+                    onDuplicate={stid=>duplicateSet(dbSeriesObj.id,stid)}
+                    onMoveToGroup={(stid,gid)=>moveSetToGroup(dbSeriesObj.id,stid,gid)}
+                    groups={dbSeriesObj.groups}
+                    onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f)}
+                    onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f)}
+                    onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid)}
+                    onReorder={(from,to)=>reorderSets(dbSeriesObj.id,from,to)}
+                  />
+                ));
+              })()}
               {dbSeriesObj.sets.length===0 && (!dbSeriesObj.groups||dbSeriesObj.groups.length===0) && (
                 <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>
               )}
