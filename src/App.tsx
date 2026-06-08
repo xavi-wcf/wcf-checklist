@@ -1381,7 +1381,6 @@ export default function App() {
 
   // ── Filter/sort/size state (independent per tab) ───────────
   const [colSearch,  setColSearch]  = useState("");
-  const [colFilter,  setColFilter]  = useState<"all"|"owned"|"wishlist">("all");
   const [colSort,    setColSort]    = useState<"alpha"|"date">("alpha");
   const [colSize,    setColSize]    = useState<"s"|"m"|"l">("m");
   const [colSeries,  setColSeries]  = useState<number|"all">("all");
