@@ -1104,12 +1104,23 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   onSelect:(id:number)=>void; onReorder:(from:number,to:number)=>void;
 }) {
   const isAdmin = useAdmin();
+  const gridRef = useRef<HTMLDivElement>(null);
   const dragIdx = useRef<number|null>(null);
   const [dragOver, setDragOver] = useState<number|null>(null);
   const [dragging, setDragging] = useState<number|null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
   const touchStartPos = useRef({x:0,y:0});
   const lastReorder = useRef(0);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const onTouchMove = (e: TouchEvent) => {
+      if (dragIdx.current !== null) e.preventDefault();
+    };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onTouchMove);
+  }, []);
 
   const handleDragStart = (idx:number) => { dragIdx.current=idx; setDragging(idx); };
   const handleDragOver = (e:React.DragEvent, idx:number) => { e.preventDefault(); setDragOver(idx); };
@@ -1124,9 +1135,8 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   const handleTouchMove = (e:React.TouchEvent, _idx:number) => {
     const dx=Math.abs(e.touches[0].clientX-touchStartPos.current.x);
     const dy=Math.abs(e.touches[0].clientY-touchStartPos.current.y);
-    if(dx>8||dy>8){ if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;} }
+    if(dx>5||dy>5){ if(longPressTimer.current){clearTimeout(longPressTimer.current);longPressTimer.current=null;} }
     if(dragIdx.current===null) return;
-    e.preventDefault();
     const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
     const card=el?.closest("[data-seriesidx]");
     if(card){ const to=parseInt(card.getAttribute("data-seriesidx")!); if(!isNaN(to)) setDragOver(to); }
@@ -1145,7 +1155,7 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   };
 
   return (
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+    <div ref={gridRef} style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
       {series.map((s,idx)=>{
         const ownedC=seriesOwned(s), totalC=seriesTotal(s);
         const pct=totalC?Math.round(ownedC/totalC*100):0;
@@ -1163,7 +1173,7 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
             onTouchMove={isAdmin?e=>handleTouchMove(e,idx):undefined}
             onTouchEnd={isAdmin?e=>handleTouchEnd(e):undefined}
             onClick={()=>{ if(dragIdx.current===null) onSelect(s.id); }}
-            style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:isAdmin?"grab":"pointer",aspectRatio:"1",background:"var(--bg2)",border:isOver?"2px solid #0F6E56":"1px solid var(--border)",opacity:isDragging?0.4:1,transition:"transform 0.15s,box-shadow 0.15s,opacity 0.15s",touchAction:"none"}}
+            style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:isAdmin?"grab":"pointer",aspectRatio:"1",background:"var(--bg2)",border:isOver?"2px solid #0F6E56":"1px solid var(--border)",opacity:isDragging?0.4:1,transition:"transform 0.15s,box-shadow 0.15s,opacity 0.15s",touchAction:dragging!==null?"none":"auto"}}
             onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
             onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
             {s.bgImage
