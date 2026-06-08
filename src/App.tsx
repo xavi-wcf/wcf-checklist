@@ -1381,14 +1381,14 @@ export default function App() {
 
   // ── Filter/sort/size state (independent per tab) ───────────
   const [colSearch,  setColSearch]  = useState("");
-  const [colSort,    setColSort]    = useState<"alpha"|"date">("alpha");
-  const [colSize,    setColSize]    = useState<"s"|"m"|"l">("m");
+  const [colSort,    setColSort]    = useState<"alpha"|"date">("date");
+  const [colSize,    setColSize]    = useState<"s"|"m"|"l">("s");
   const [colSeries,  setColSeries]  = useState<number|"all">("all");
 
   const [dbSearch,   setDbSearch]   = useState("");
   const [dbFilter,   setDbFilter]   = useState<"all"|"owned"|"wishlist"|"missing">("all");
-  const [dbSort,     setDbSort]     = useState<"alpha"|"date">("alpha");
-  const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("m");
+  const [dbSort,     setDbSort]     = useState<"alpha"|"date">("date");
+  const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("s");
   const [dbSeries,   setDbSeries]   = useState<number|"all">("all");
   const [dbCategory, setDbCategory] = useState<"all"|CategoryType>("all");
   const [dbSelectedSeries, setDbSelectedSeries] = useState<number|null>(null);
@@ -1559,11 +1559,13 @@ export default function App() {
               {colOwned.length===0 ? (
                 <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Aún no has marcado ninguna figura.</div>
               ) : (
-                <div style={{display:"grid",gridTemplateColumns:sizeToColumns[colSize],gap:8}}>
+                <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
                   {colOwned.map(({figure,set,series})=>(
-                    <SearchResultCard key={figure.id} figure={figure} series={series} set={set}
-                      isOwned={true} isWished={false}
-                      onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?90:colSize==="m"?130:170,scrollSnapAlign:"start"}}>
+                      <SearchResultCard figure={figure} series={series} set={set}
+                        isOwned={true} isWished={false}
+                        onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                    </div>
                   ))}
                 </div>
               )}
@@ -1579,11 +1581,13 @@ export default function App() {
               {colWishlist.length===0 ? (
                 <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>Tu wishlist está vacía.</div>
               ) : (
-                <div style={{display:"grid",gridTemplateColumns:sizeToColumns[colSize],gap:8}}>
+                <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
                   {colWishlist.map(({figure,set,series})=>(
-                    <SearchResultCard key={figure.id} figure={figure} series={series} set={set}
-                      isOwned={false} isWished={true}
-                      onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?90:colSize==="m"?130:170,scrollSnapAlign:"start"}}>
+                      <SearchResultCard figure={figure} series={series} set={set}
+                        isOwned={false} isWished={true}
+                        onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                    </div>
                   ))}
                 </div>
               )}
