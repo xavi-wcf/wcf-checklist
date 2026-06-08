@@ -1394,7 +1394,6 @@ export default function App() {
   const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
   const totalAll = data.flatMap(allFigures).length;
   const ownedAll = data.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
-  const wishlistCount = data.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
   const seriesOwned = (s: Series) => allFigures(s).filter(f=>owned.has(f.id)).length;
   const seriesTotal = (s: Series) => allFigures(s).length;
   const catOwned = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).filter(f=>owned.has(f.id)).length;
