@@ -947,7 +947,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
             {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
           </span>
         </div>
-        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3}}>{figure.name}</div>
+        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
         {groupName && <div style={{fontSize:11,color:"var(--text4)",marginBottom:1}}>📁 {groupName}</div>}
         <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{set.name}</div>
         {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
@@ -1204,8 +1204,8 @@ function DraggableSetList({ sets, color, owned, wishlist, apiKey, onToggle, onTo
 // ============================================================
 //  DRAGGABLE SERIES LIST
 // ============================================================
-function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOwned, seriesTotal, dragLocked, onSelect, onReorder }: {
-  series: Series[]; effectiveSelected: number|null; showWishlist: boolean;
+function DraggableSeriesList({ series, seriesOwned, seriesTotal, dragLocked, onSelect, onReorder }: {
+  series: Series[];
   seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
   dragLocked?: boolean;
   onSelect:(sid:number)=>void; onReorder:(from:number,to:number)=>void;
@@ -1237,7 +1237,6 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
   return (
     <div>
       {series.map((s, idx) => {
-        const active = s.id===effectiveSelected && !showWishlist;
         return (
           <div key={s.id}
             data-seriesidx={idx}
@@ -1250,13 +1249,12 @@ function DraggableSeriesList({ series, effectiveSelected, showWishlist, seriesOw
             onTouchMove={handleTouchMove2}
             onTouchEnd={handleTouchEnd}
             onClick={()=>onSelect(s.id)}
-            style={{cursor:"grab",borderRight:active?"2px solid "+s.color:"2px solid transparent",position:"relative",overflow:"hidden",opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?"2px solid "+s.color:"none",transition:"opacity 0.15s,outline 0.1s"}}>
-            {/* Background image — higher opacity when active */}
-            {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",opacity:active?0.5:0.2,transition:"opacity 0.3s",pointerEvents:"none"}} />}
-            <div style={{position:"relative",padding:"8px 12px",background:active?"rgba(0,0,0,0.08)":"transparent"}}>
+            style={{cursor:"grab",position:"relative",overflow:"hidden",opacity:dragIdx.current===idx?0.4:1,outline:dragOver===idx?"2px solid "+s.color:"none",transition:"opacity 0.15s,outline 0.1s",borderBottom:"1px solid var(--border)"}}>
+            {s.bgImage && <img src={s.bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"right center",opacity:0.35,pointerEvents:"none"}} />}
+            <div style={{position:"relative",padding:"8px 12px"}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                 {!s.bgImage && (s.logo ? <img src={s.logo} alt={s.name} style={{width:22,height:22,borderRadius:4,objectFit:"contain",flexShrink:0}} /> : <span style={{fontSize:15}}>{s.emoji}</span>)}
-                <span style={{fontSize:13,fontWeight:active?600:400,color:active?"var(--text)":"var(--text2)"}}>{s.name}</span>
+                <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.name}</span>
               </div>
               <div style={{width:"50%"}}>
                 <ProgressBar value={seriesOwned(s)} total={seriesTotal(s)} color={s.color} />
@@ -1681,8 +1679,6 @@ export default function App() {
               <DraggableSeriesList
                 key={reorderKey}
                 series={dbFilteredSeries}
-                effectiveSelected={dbSelectedSeries}
-                showWishlist={false}
                 seriesOwned={seriesOwned}
                 seriesTotal={seriesTotal}
                 dragLocked={dragLocked}
