@@ -1404,7 +1404,7 @@ export default function App() {
   const [dbSearch,   setDbSearch]   = useState("");
   const [dbFilter,   setDbFilter]   = useState<"all"|"owned"|"wishlist"|"missing">("all");
   const [dbSort,     setDbSort]     = useState<"alpha"|"date">("date");
-  const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("s");
+  const [dbSize] = useState<"s"|"m"|"l">("s");
 
   type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"|"wishlist" };
   const [confirmFigure, setConfirmFigure] = useState<ConfirmFigure|null>(null);
