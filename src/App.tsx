@@ -1853,6 +1853,35 @@ export default function App() {
               {dbSeriesObj.sets.length===0 && (!dbSeriesObj.groups||dbSeriesObj.groups.length===0) && (
                 <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>
               )}
+              {/* Crossover figures — from other series tagged with this one */}
+              {(() => {
+                const crossover = allFlat.filter(({figure, series}) =>
+                  series.id !== dbSeriesObj.id &&
+                  figure.tags?.split(",").map(tg=>tg.trim()).some(tg=>tg.toLowerCase()===dbSeriesObj.name.toLowerCase())
+                );
+                if (crossover.length === 0) return null;
+                return (
+                  <div style={{marginTop:24}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingTop:16,borderTop:"2px dashed var(--border)"}}>
+                      <span style={{fontSize:14}}>🔀</span>
+                      <span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>Figuras de otras series</span>
+                      <span style={{fontSize:11,color:"var(--text4)"}}>(crossover)</span>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:10}}>
+                      {crossover.map(({figure, set, series}) => (
+                        <div key={figure.id} style={{position:"relative"}}>
+                          <SearchResultCard figure={figure} series={series} set={set}
+                            isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
+                            onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                          <div style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:9,padding:"2px 5px",borderRadius:4,pointerEvents:"none"}}>
+                            {series.name}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           ) : (
             // Series list
