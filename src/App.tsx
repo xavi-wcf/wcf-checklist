@@ -227,7 +227,7 @@ function useLang() {
 //  TYPES
 // ============================================================
 type CategoryType = "oficial" | "resina";
-interface Figure { id: number; name: string; emoji: string; image?: string; }
+interface Figure { id: number; name: string; emoji: string; image?: string; tags?: string; }
 interface FigureSet { id: number; name: string; releaseDate?: string; seriesLogo?: string; figures: Figure[]; }
 interface FigureGroup { id: number; name: string; logo?: string; sets: FigureSet[]; }
 interface Series { id: number; name: string; emoji: string; logo?: string; logoHeader?: string; bgImage?: string; color: string; category: CategoryType; sets: FigureSet[]; groups: FigureGroup[]; }
@@ -717,14 +717,19 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
   const [name, setName] = useState(initial?.name??"");
   const [emoji, setEmoji] = useState(initial?.emoji??"⭐");
   const [image, setImage] = useState(initial?.image??"");
+  const [tags, setTags] = useState(initial?.tags??"");
   return (
     <Modal title={title} onClose={onClose}>
       <Field label={t("nameLabel")}><Input value={name} onChange={setName} placeholder="Ej: Goku SSJ" /></Field>
       <Field label={t("emojiLabel")}><EmojiPicker value={emoji} onChange={setEmoji} /></Field>
       <ImageUploader apiKey={apiKey} currentUrl={image} onUploaded={setImage} label={t("figureImage")} aspectRatio={1} />
+      <Field label="Tags de búsqueda (opcional)">
+        <Input value={tags} onChange={setTags} placeholder="Ej: Dragon Ball, Dragon Ball Z" />
+        <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Separa con comas. Útil para figuras crossover.</div>
+      </Field>
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image});onClose();}}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:tags.trim()});onClose();}}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -989,6 +994,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
           <span style={{flexShrink:0,padding:"1px 4px",borderRadius:5,fontSize:9,fontWeight:600,background:series.category==="oficial"?"#E1F5EE":"#ede9fe",color:series.category==="oficial"?"#0F6E56":"#7c3aed",whiteSpace:"nowrap"}}>
             {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
           </span>
+          {figure.tags && <span style={{flexShrink:0,fontSize:9,color:"var(--text4)"}} title={figure.tags}>🏷️</span>}
         </div>
         {compact ? <>
           {/* Line 2 — figure name, 1 line, shrinking font */}
@@ -1518,7 +1524,7 @@ export default function App() {
     }).filter(({figure,set:fset,series}) => {
       if (!search.trim()) return true;
       const words = search.toLowerCase().trim().split(/\s+/);
-      const combined = `${figure.name} ${series.name} ${fset.name}`.toLowerCase();
+      const combined = `${figure.name} ${series.name} ${fset.name} ${figure.tags??""}`.toLowerCase();
       return words.every(w=>combined.includes(w));
     });
 
