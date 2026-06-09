@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
 const CHANGELOG = [
-
   {
     id: 1,
     date: "2025-06-01",
@@ -1362,6 +1361,10 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
   );
 }
 
+type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"|"wishlist" };
+
+type TabType = "collection" | "database" | "stats";
+
 const ADMIN_PASSWORD = "wcf2024admin";
 
 function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>void }) {
@@ -1458,7 +1461,6 @@ export default function App() {
   const langValue = { t, lang };
 
   // ── Tab state ──────────────────────────────────────────────
-  type TabType = "collection" | "database" | "stats";
   const [activeTab, setActiveTab] = useState<TabType>("collection");
 
   // ── Filter/sort/size state (independent per tab) ───────────
@@ -1473,7 +1475,6 @@ export default function App() {
   const [dbSort,     setDbSort]     = useState<"alpha"|"date">("date");
   const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("s");
 
-  type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"|"wishlist" };
   const [confirmFigure, setConfirmFigure] = useState<ConfirmFigure|null>(null);
   const [dbSeries,   setDbSeries]   = useState<number|"all">("all");
   const [dbCategory, setDbCategory] = useState<"all"|CategoryType>("all");
@@ -1822,6 +1823,15 @@ export default function App() {
         )}
       </div>
 
+      {/* ── STATS TAB ── */}
+      {activeTab==="stats" && <div style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
+        <StatsTab
+          data={data} owned={owned} wishlist={wishlist} favourites={favourites}
+          allFigures={allFigures} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
+          onOpenPicker={()=>setShowFavPicker(true)}
+        />
+      </div>}
+
       {/* BOTTOM TABS */}
       <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0}}>
         {([["collection","📦",t("tabCollection")],["database","🗃️",t("tabDatabase")],["stats","⭐",t("tabStats")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
@@ -1833,16 +1843,6 @@ export default function App() {
         ))}
       </div>
 
-        {/* ── STATS TAB ── */}
-        {activeTab==="stats" && <StatsTab
-          data={data} owned={owned} wishlist={wishlist} favourites={favourites}
-          allFigures={allFigures} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
-          onOpenPicker={()=>setShowFavPicker(true)}
-        />}
-
-      </div>
-
-      
       {showFavPicker && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:150,display:"flex",alignItems:"flex-end"}}
           onClick={()=>setShowFavPicker(false)}>
