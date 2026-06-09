@@ -8,7 +8,7 @@ const CHANGELOG = [
     id: 2,
     date: "2025-06-05",
     entries: [
-      "🎉 644 WCF added to Dragon Ball (OfFicial)",
+      "🎉 644 WCF added to Dragon Ball (Official)",
       "🎉 70 WCF added to Others (Official)"
     ]
   },
@@ -16,7 +16,7 @@ const CHANGELOG = [
     id: 1,
     date: "2025-06-01",
     entries: [
-      "🎉 App launched — Welcome to WCF Checklist",
+      "🎉 App launched — welcome to WCF Checklist",
     ]
   },
 ];
@@ -1230,8 +1230,8 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
 function ChangelogModal({ onClose }: { onClose:()=>void }) {
   const { t, lang } = useTr();
   const [showAll, setShowAll] = useState(false);
-  const latest = CHANGELOG[CHANGELOG.length-1];
   const sorted = [...CHANGELOG].sort((a,b)=>b.id-a.id);
+  const latest = sorted[0];
   const MONTHS_FULL: Record<string,string[]> = {
     es:["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
     en:["January","February","March","April","May","June","July","August","September","October","November","December"],
@@ -1316,7 +1316,7 @@ export default function App() {
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const latestId = CHANGELOG[CHANGELOG.length-1].id;
+  const latestId = Math.max(...CHANGELOG.map(c=>c.id));
   const [showChangelog, setShowChangelog] = useState(() => {
     const seen = parseInt(localStorage.getItem("wcf_changelog_seen") ?? "0");
     return seen < latestId;
