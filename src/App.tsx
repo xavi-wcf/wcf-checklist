@@ -1281,12 +1281,12 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
             onTouchMove={isAdmin?e=>handleTouchMove(e,idx):undefined}
             onTouchEnd={isAdmin?e=>handleTouchEnd(e):undefined}
             onClick={()=>{ if(!touchMoved.current && dragIdx.current===null) onSelect(s.id); }}
-            style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:isAdmin?"grab":"pointer",aspectRatio:"1",background:"var(--bg2)",border:isOver?"2px solid #0F6E56":"1px solid var(--border)",opacity:isDragging?0.4:1,transition:"transform 0.15s,box-shadow 0.15s,opacity 0.15s",touchAction:dragging!==null?"none":"auto"}}
+            style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:isAdmin?"grab":"pointer",aspectRatio:"1",background:s.color+"33",border:isOver?`2px solid ${s.color}`:`1px solid ${s.color}44`,opacity:isDragging?0.4:1,transition:"transform 0.15s,box-shadow 0.15s,opacity 0.15s",touchAction:dragging!==null?"none":"auto"}}
             onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
             onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
             {s.bgImage
               ? <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
-              : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.3,pointerEvents:"none"}}>{s.emoji}</div>
+              : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.6,pointerEvents:"none"}}>{s.emoji}</div>
             }
             <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 50%,rgba(0,0,0,0) 100%)",pointerEvents:"none"}} />
             <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px",pointerEvents:"none"}}>
@@ -1864,7 +1864,7 @@ export default function App() {
                   const isFav = favourites.has(s.id);
                   return (
                     <div key={s.id} onClick={()=>toggleFavourite(s.id)}
-                      style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:"pointer",aspectRatio:"1",background:"var(--bg2)",border:isFav?"2px solid #f59e0b":"1px solid var(--border)",transition:"border 0.15s"}}>
+                      style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:"pointer",aspectRatio:"1",background:s.color+"33",border:isFav?`2px solid #f59e0b`:`1px solid ${s.color}44`,transition:"border 0.15s"}}>
                       {s.bgImage ? <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} /> :
                         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,opacity:0.3}}>{s.emoji}</div>}
                       <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.8) 0%,rgba(0,0,0,0.1) 60%,rgba(0,0,0,0) 100%)"}} />
