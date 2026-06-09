@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 
 // ============================================================
+//  CHANGELOG — añade aquí las novedades antes de hacer push
+// ============================================================
+const CHANGELOG = [
+  {
+    id: 1,
+    date: "2025-06-01",
+    entries: [
+      "🎉 App lanzada — bienvenido a WCF Checklist",
+    ]
+  },
+];
+// ── Fin del changelog ────────────────────────────────────────
+
+// ============================================================
 //  DARK MODE CSS VARIABLES
 // ============================================================
 const LIGHT_THEME = `
@@ -172,6 +186,9 @@ const T = {
   cancelBtn:      { es: "Cancelar",               en: "Cancel",                     th: "ยกเลิก" },
   noFiguresOwned: { es: "Aún no has marcado ninguna figura.", en: "You haven't marked any figures yet.", th: "ยังไม่ได้ทำเครื่องหมายตัวเลขใดๆ" },
   back:           { es: "← Volver",               en: "← Back",                     th: "← กลับ" },
+  changelogTitle: { es: "Novedades",              en: "What's new",                  th: "อัปเดต" },
+  changelogHistory:{ es: "Ver historial completo", en: "Full history",               th: "ประวัติทั้งหมด" },
+  changelogClose: { es: "Entendido",              en: "Got it",                      th: "เข้าใจแล้ว" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -1199,6 +1216,61 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   );
 }
 
+// ============================================================
+//  CHANGELOG MODAL
+// ============================================================
+function ChangelogModal({ onClose }: { onClose:()=>void }) {
+  const { t, lang } = useTr();
+  const [showAll, setShowAll] = useState(false);
+  const latest = CHANGELOG[CHANGELOG.length-1];
+  const sorted = [...CHANGELOG].sort((a,b)=>b.id-a.id);
+  const MONTHS_FULL: Record<string,string[]> = {
+    es:["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+    en:["January","February","March","April","May","June","July","August","September","October","November","December"],
+    th:["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],
+  };
+  const formatDate = (d:string) => { const [y,m,day]=d.split("-"); return `${parseInt(day)} ${MONTHS_FULL[lang][parseInt(m)-1]} ${y}`; };
+  const items = showAll ? sorted : [latest];
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:20}}>🎉</span>
+            <span style={{fontWeight:700,fontSize:16}}>{t("changelogTitle")}</span>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
+        </div>
+        <div style={{overflowY:"auto",flex:1}}>
+          {items.map(entry=>(
+            <div key={entry.id} style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,fontWeight:600}}>{formatDate(entry.date)}</div>
+              {entry.entries.map((e,i)=>(
+                <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"5px 0",borderBottom:"1px solid var(--border)"}}>
+                  <span style={{color:"#0F6E56",flexShrink:0,marginTop:1}}>•</span>
+                  <span style={{fontSize:13,color:"var(--text)",lineHeight:1.4}}>{e}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:16,flexShrink:0}}>
+          {!showAll && CHANGELOG.length>1 && (
+            <button onClick={()=>setShowAll(true)}
+              style={{flex:1,padding:"9px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text3)",cursor:"pointer",fontSize:12}}>
+              {t("changelogHistory")}
+            </button>
+          )}
+          <button onClick={onClose}
+            style={{flex:1,padding:"9px",borderRadius:10,border:"none",background:"#0a5244",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>
+            {t("changelogClose")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const ADMIN_PASSWORD = "wcf2024admin";
 
 function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>void }) {
@@ -1236,6 +1308,11 @@ export default function App() {
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const latestId = CHANGELOG[CHANGELOG.length-1].id;
+  const [showChangelog, setShowChangelog] = useState(() => {
+    const seen = parseInt(localStorage.getItem("wcf_changelog_seen") ?? "0");
+    return seen < latestId;
+  });
   const apiKey = imgbbKey; const saveApiKey = saveImgbbKey;
 
   const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:"oficial",sets:[],groups:[]}; setData(d=>[...d,s]); };
@@ -1392,6 +1469,7 @@ export default function App() {
           {isAdmin?"🔓":"🔒"}
         </button>
         {isAdmin && <button onClick={()=>setShowSettings(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>⚙️</button>}
+        <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
       </div>
 
       {!apiKey && isAdmin && <div style={{background:"#fffbeb",borderBottom:"1px solid #fde68a",padding:"6px 12px",fontSize:11,color:"#92400e",flexShrink:0}}>
@@ -1665,6 +1743,7 @@ export default function App() {
       <AdminCtx.Provider value={isAdmin}>
         {appContent}
         {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
+        {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
       </AdminCtx.Provider>
     </LangProvider>
   );
