@@ -1833,8 +1833,10 @@ export default function App() {
 
       {/* FAVOURITE SERIES PICKER */}
       {showFavPicker && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:150,display:"flex",alignItems:"flex-end"}}>
-          <div style={{background:"var(--bg)",borderRadius:"20px 20px 0 0",width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",padding:"20px 16px 0"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:150,display:"flex",alignItems:"flex-end"}}
+          onClick={()=>setShowFavPicker(false)}>
+          <div style={{background:"var(--bg)",borderRadius:"20px 20px 0 0",width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",padding:"20px 16px 0"}}
+            onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexShrink:0}}>
               <span style={{fontWeight:700,fontSize:16}}>{t("selectFavTitle")}</span>
               <button onClick={()=>setShowFavPicker(false)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--text3)"}}>×</button>
