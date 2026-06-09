@@ -1821,16 +1821,14 @@ export default function App() {
             </>
           )
         )}
-      </div>
-
-      {/* ── STATS TAB ── */}
-      {activeTab==="stats" && <div style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
-        <StatsTab
+        {/* ── STATS TAB ── */}
+        {activeTab==="stats" && <StatsTab
           data={data} owned={owned} wishlist={wishlist} favourites={favourites}
           allFigures={allFigures} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
           onOpenPicker={()=>setShowFavPicker(true)}
-        />
-      </div>}
+        />}
+
+      </div>
 
       {/* BOTTOM TABS */}
       <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0}}>
