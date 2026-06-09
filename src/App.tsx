@@ -4,14 +4,7 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
 const CHANGELOG = [
- {
-    id: 2,
-    date: "2025-06-05",
-    entries: [
-      "🎉 644 WCF added to Dragon Ball (Official)",
-      "🎉 70 WCF added to Others (Official)"
-    ]
-  },
+
   {
     id: 1,
     date: "2025-06-01",
