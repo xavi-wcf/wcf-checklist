@@ -1584,9 +1584,16 @@ export default function App() {
   const applySort = (items: FlatFigure[], sort: "alpha"|"date") =>
     [...items].sort((a,b) => sort==="date" ? (a.set.releaseDate??"").localeCompare(b.set.releaseDate??"") : a.figure.name.localeCompare(b.figure.name));
 
-  const colOwned = applySort(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "owned"), colSort);
-  const colWishlist = applySort(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "wishlist"), colSort);
-  const dbFigures = applySort(applyFilters(allFlatWithTags, dbSearch, dbSeries, dbCategory, dbFilter), dbSort);
+  // For search/display: deduplicate by figure.id (show each figure once)
+  // For series progress: keep allFlatWithTags (figure can count in multiple series)
+  const dedupeByFigureId = (items: FlatFigure[]) => {
+    const seen = new Set<number>();
+    return items.filter(({figure}) => { if (seen.has(figure.id)) return false; seen.add(figure.id); return true; });
+  };
+
+  const colOwned = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "owned")), colSort);
+  const colWishlist = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "wishlist")), colSort);
+  const dbFigures = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, dbSearch, dbSeries, dbCategory, dbFilter)), dbSort);
   const dbIsSearchMode = dbSearch.trim()!=="" || dbFilter!=="all" || dbSeries!=="all" || dbCategory!=="all";
 
   const sizeToColumns: Record<string,string> = { s:"repeat(auto-fill,minmax(90px,1fr))", m:"repeat(auto-fill,minmax(130px,1fr))", l:"repeat(auto-fill,minmax(180px,1fr))" };
