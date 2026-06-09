@@ -4,6 +4,14 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
 const CHANGELOG = [
+ {
+    id: 2,
+    date: "2025-06-05",
+    entries: [
+      "🎉 644 WCF added to Dragon Ball (Official)",
+      "🎉 70 WCF added to Others (Official)"
+    ]
+  },
   {
     id: 1,
     date: "2025-06-01",
@@ -1121,6 +1129,89 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
 //  APP
 // ============================================================
 // ============================================================
+//  STATS TAB
+// ============================================================
+function StatsTab({ data, owned, wishlist, favourites, allFigures, seriesOwned, seriesTotal, onOpenPicker }: {
+  data:Series[]; owned:Set<number>; wishlist:Set<number>; favourites:Set<number>;
+  allFigures:(s:Series)=>Figure[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
+  onOpenPicker:()=>void;
+}) {
+  const { t } = useTr();
+  const favSeries = data.filter(s=>favourites.has(s.id));
+  const favOficial = favSeries.filter(s=>s.category==="oficial");
+  const favResina = favSeries.filter(s=>s.category==="resina");
+  const totalFavFigs = favSeries.flatMap(allFigures).length;
+  const ownedFavFigs = favSeries.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
+  const wishFavFigs = favSeries.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
+  const pct = totalFavFigs ? Math.round(ownedFavFigs/totalFavFigs*100) : 0;
+  return (
+    <div>
+      <button onClick={onOpenPicker}
+        style={{width:"100%",padding:"12px",borderRadius:12,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        ⭐ {t("favSeries")} <span style={{fontSize:12,color:"var(--text3)",fontWeight:400}}>({favSeries.length})</span>
+      </button>
+      {favSeries.length===0 ? (
+        <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noFavSeries")}</div>
+      ) : (
+        <div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:24}}>
+            {[
+              {label:t("statsTotalOwned"), value:`${ownedFavFigs}/${totalFavFigs}`, sub:`${pct}%`, color:"#0F6E56"},
+              {label:t("statsTotalWish"), value:String(wishFavFigs), sub:"💛", color:"#f59e0b"},
+              {label:t("statsCompletion"), value:`${pct}%`, sub:`${favSeries.length} series`, color:"#6366f1"},
+            ].map(card=>(
+              <div key={card.label} style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
+                <div style={{fontSize:20,fontWeight:700,color:card.color}}>{card.value}</div>
+                <div style={{fontSize:9,color:"var(--text3)",marginTop:2}}>{card.sub}</div>
+                <div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{card.label}</div>
+              </div>
+            ))}
+          </div>
+          {(["oficial","resina"] as CategoryType[]).map(cat=>{
+            const catFav = cat==="oficial"?favOficial:favResina;
+            if(catFav.length===0) return null;
+            const sorted2 = [...catFav].sort((a,b)=>{
+              const pa=seriesTotal(a)?seriesOwned(a)/seriesTotal(a):0;
+              const pb=seriesTotal(b)?seriesOwned(b)/seriesTotal(b):0;
+              return pb-pa;
+            });
+            return (
+              <div key={cat} style={{marginBottom:20}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10}}>
+                  {cat==="oficial"?t("officialBadge"):t("resinBadge")}
+                </div>
+                {sorted2.map(s=>{
+                  const ow=seriesOwned(s), tot=seriesTotal(s), wi=allFigures(s).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
+                  const p=tot?Math.round(ow/tot*100):0;
+                  return (
+                    <div key={s.id} style={{marginBottom:12,padding:"12px 14px",borderRadius:12,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          {s.logo ? <img src={s.logo} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
+                          <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.name}</span>
+                        </div>
+                        <span style={{fontSize:13,fontWeight:700,color:p===100?"#4ade80":s.color}}>{p}%</span>
+                      </div>
+                      <div style={{height:6,background:"var(--border)",borderRadius:4,overflow:"hidden",marginBottom:6}}>
+                        <div style={{height:"100%",width:p+"%",background:p===100?"#4ade80":s.color,borderRadius:4,transition:"width 0.4s"}} />
+                      </div>
+                      <div style={{display:"flex",gap:12,fontSize:11,color:"var(--text3)"}}>
+                        <span>✅ {ow}/{tot}</span>
+                        {wi>0 && <span>💛 {wi}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 //  SERIES GRID — draggable card grid
 // ============================================================
 function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
@@ -1750,88 +1841,15 @@ export default function App() {
       </div>
 
         {/* ── STATS TAB ── */}
-        {activeTab==="stats" && (() => {
-          const favSeries = data.filter(s=>favourites.has(s.id));
-          const favOficial = favSeries.filter(s=>s.category==="oficial");
-          const favResina = favSeries.filter(s=>s.category==="resina");
-          const totalFavFigs = favSeries.flatMap(allFigures).length;
-          const ownedFavFigs = favSeries.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
-          const wishFavFigs = favSeries.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
-          const pct = totalFavFigs ? Math.round(ownedFavFigs/totalFavFigs*100) : 0;
-          return (
-            <div>
-              {/* Fav picker button */}
-              <button onClick={()=>setShowFavPicker(true)}
-                style={{width:"100%",padding:"12px",borderRadius:12,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                ⭐ {t("favSeries")} <span style={{fontSize:12,color:"var(--text3)",fontWeight:400}}>({favSeries.length})</span>
-              </button>
-
-              {favSeries.length===0 ? (
-                <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noFavSeries")}</div>
-              ) : (
-                <div>
-                  {/* Global stats */}
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:24}}>
-                    {[
-                      {label:t("statsTotalOwned"), value:`${ownedFavFigs}/${totalFavFigs}`, sub:`${pct}%`, color:"#0F6E56"},
-                      {label:t("statsTotalWish"), value:String(wishFavFigs), sub:"💛", color:"#f59e0b"},
-                      {label:t("statsCompletion"), value:`${pct}%`, sub:`${favSeries.length} series`, color:"#6366f1"},
-                    ].map(card=>(
-                      <div key={card.label} style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
-                        <div style={{fontSize:20,fontWeight:700,color:card.color}}>{card.value}</div>
-                        <div style={{fontSize:9,color:"var(--text3)",marginTop:2}}>{card.sub}</div>
-                        <div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{card.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Per-series stats */}
-                  {(favOficial.length>0||favResina.length>0) && (["oficial","resina"] as CategoryType[]).map(cat=>{
-                    const catFav = cat==="oficial"?favOficial:favResina;
-                    if(catFav.length===0) return null;
-                    const sorted2 = [...catFav].sort((a,b)=>{
-                      const pa=seriesTotal(a)?seriesOwned(a)/seriesTotal(a):0;
-                      const pb=seriesTotal(b)?seriesOwned(b)/seriesTotal(b):0;
-                      return pb-pa;
-                    });
-                    return (
-                      <div key={cat} style={{marginBottom:20}}>
-                        <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10}}>
-                          {cat==="oficial"?t("officialBadge"):t("resinBadge")}
-                        </div>
-                        {sorted2.map(s=>{
-                          const ow=seriesOwned(s), tot=seriesTotal(s), wi=allFigures(s).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
-                          const p=tot?Math.round(ow/tot*100):0;
-                          return (
-                            <div key={s.id} style={{marginBottom:12,padding:"12px 14px",borderRadius:12,background:"var(--bg2)",border:"1px solid var(--border)"}}>
-                              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                                  {s.logo ? <img src={s.logo} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
-                                  <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.name}</span>
-                                </div>
-                                <span style={{fontSize:13,fontWeight:700,color:p===100?"#4ade80":s.color}}>{p}%</span>
-                              </div>
-                              <div style={{height:6,background:"var(--border)",borderRadius:4,overflow:"hidden",marginBottom:6}}>
-                                <div style={{height:"100%",width:p+"%",background:p===100?"#4ade80":s.color,borderRadius:4,transition:"width 0.4s"}} />
-                              </div>
-                              <div style={{display:"flex",gap:12,fontSize:11,color:"var(--text3)"}}>
-                                <span>✅ {ow}/{tot}</span>
-                                {wi>0 && <span>💛 {wi}</span>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {activeTab==="stats" && <StatsTab
+          data={data} owned={owned} wishlist={wishlist} favourites={favourites}
+          allFigures={allFigures} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
+          onOpenPicker={()=>setShowFavPicker(true)}
+        />}
 
       </div>
 
-      {/* FAVOURITE SERIES PICKER */}
+      
       {showFavPicker && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:150,display:"flex",alignItems:"flex-end"}}
           onClick={()=>setShowFavPicker(false)}>
