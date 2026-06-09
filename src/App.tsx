@@ -210,6 +210,9 @@ const useTr = () => useContext(LangCtx);
 const AdminCtx = createContext(false);
 const useAdmin = () => useContext(AdminCtx);
 
+const SeriesDataCtx = createContext<Series[]>([]);
+const useSeriesData = () => useContext(SeriesDataCtx);
+
 function useLang() {
   const [lang, setLang] = useState<LangCode>(() => (localStorage.getItem("wcf_lang") as LangCode) ?? "es");
   const saveLang = (l: LangCode) => { setLang(l); localStorage.setItem("wcf_lang", l); };
@@ -714,22 +717,62 @@ function EmojiPicker({ value, onChange }: { value:string; onChange:(e:string)=>v
 // ============================================================
 function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string; initial?:Partial<Figure>; apiKey:string; onSave:(f:Omit<Figure,"id">)=>void; onClose:()=>void }) {
   const { t } = useTr();
+  const seriesList = useSeriesData();
   const [name, setName] = useState(initial?.name??"");
   const [emoji, setEmoji] = useState(initial?.emoji??"⭐");
   const [image, setImage] = useState(initial?.image??"");
-  const [tags, setTags] = useState(initial?.tags??"");
+  // Parse existing tags into selected series ids and free text
+  const parseTags = (tags?: string) => {
+    if (!tags) return { seriesIds: [] as number[], freeText: "" };
+    const parts = tags.split(",").map(s=>s.trim()).filter(Boolean);
+    const ids: number[] = [];
+    const free: string[] = [];
+    parts.forEach(p => {
+      const match = seriesList.find(s=>s.name.toLowerCase()===p.toLowerCase());
+      if (match) ids.push(match.id); else free.push(p);
+    });
+    return { seriesIds: ids, freeText: free.join(", ") };
+  };
+  const parsed = parseTags(initial?.tags);
+  const [selectedSeriesIds, setSelectedSeriesIds] = useState<number[]>(parsed.seriesIds);
+  const [freeText, setFreeText] = useState(parsed.freeText);
+
+  const toggleSeries = (id: number) => setSelectedSeriesIds(prev =>
+    prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]
+  );
+
+  const buildTags = () => {
+    const seriesNames = selectedSeriesIds.map(id=>seriesList.find(s=>s.id===id)?.name??"").filter(Boolean);
+    const all = [...seriesNames, ...freeText.split(",").map(s=>s.trim()).filter(Boolean)];
+    return all.join(", ");
+  };
+
+  // Unique series names for selector
+  const uniqSeries = seriesList.filter((s,i,arr)=>arr.findIndex(x=>x.name===s.name)===i);
+
   return (
     <Modal title={title} onClose={onClose}>
       <Field label={t("nameLabel")}><Input value={name} onChange={setName} placeholder="Ej: Goku SSJ" /></Field>
       <Field label={t("emojiLabel")}><EmojiPicker value={emoji} onChange={setEmoji} /></Field>
       <ImageUploader apiKey={apiKey} currentUrl={image} onUploaded={setImage} label={t("figureImage")} aspectRatio={1} />
-      <Field label="Tags de búsqueda (opcional)">
-        <Input value={tags} onChange={setTags} placeholder="Ej: Dragon Ball, Dragon Ball Z" />
-        <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Separa con comas. Útil para figuras crossover.</div>
+      <Field label="También pertenece a... (opcional)">
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+          {uniqSeries.map(s=>{
+            const sel = selectedSeriesIds.includes(s.id);
+            return (
+              <button key={s.id} onClick={()=>toggleSeries(s.id)}
+                style={{padding:"4px 10px",borderRadius:16,fontSize:12,border:`1px solid ${sel?s.color:"var(--border)"}`,background:sel?s.color+"22":"var(--bg2)",color:sel?s.color:"var(--text3)",cursor:"pointer",fontWeight:sel?600:400}}>
+                {s.emoji} {s.name}
+              </button>
+            );
+          })}
+        </div>
+        <Input value={freeText} onChange={setFreeText} placeholder="Otras series (separadas por comas)" />
+        <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Para series que no están en el catálogo.</div>
       </Field>
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:tags.trim()});onClose();}}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:buildTags()});onClose();}}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1500,8 +1543,8 @@ export default function App() {
 
   const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
   const totalAll = data.flatMap(allFigures).length;
-  const seriesOwned = (s: Series) => allFigures(s).filter(f=>owned.has(f.id)).length;
-  const seriesTotal = (s: Series) => allFigures(s).length;
+  const seriesOwned = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&owned.has(x.figure.id)).length;
+  const seriesTotal = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id).length;
   const catOwned = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).filter(f=>owned.has(f.id)).length;
   const catTotal = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).length;
   const dbFilteredSeries = data.filter(s=>s.category===dbActiveCategory);
@@ -1512,6 +1555,16 @@ export default function App() {
     ...series.sets.flatMap(set => set.figures.map(figure => ({ figure, set, series }))),
     ...(series.groups??[]).flatMap(g => g.sets.flatMap(set => set.figures.map(figure => ({ figure, set, series, groupName: g.name }))))
   ]);
+
+  // Add virtual entries for figures with series tags
+  const taggedExtras: FlatFigure[] = allFlat.flatMap(item => {
+    if (!item.figure.tags) return [];
+    return item.figure.tags.split(",").map(tg=>tg.trim()).filter(Boolean).flatMap(tag => {
+      const taggedSeries = data.filter(s=>s.name.toLowerCase()===tag.toLowerCase() && s.id!==item.series.id);
+      return taggedSeries.map(s => ({ ...item, series: s }));
+    });
+  });
+  const allFlatWithTags = [...allFlat, ...taggedExtras];
 
   const applyFilters = (items: FlatFigure[], search: string, seriesF: number|"all", catF: "all"|CategoryType, statusF: string) =>
     items.filter(({figure,series}) => {
@@ -1531,9 +1584,9 @@ export default function App() {
   const applySort = (items: FlatFigure[], sort: "alpha"|"date") =>
     [...items].sort((a,b) => sort==="date" ? (a.set.releaseDate??"").localeCompare(b.set.releaseDate??"") : a.figure.name.localeCompare(b.figure.name));
 
-  const colOwned = applySort(applyFilters(allFlat, colSearch, colSeries, colCategory, "owned"), colSort);
-  const colWishlist = applySort(applyFilters(allFlat, colSearch, colSeries, colCategory, "wishlist"), colSort);
-  const dbFigures = applySort(applyFilters(allFlat, dbSearch, dbSeries, dbCategory, dbFilter), dbSort);
+  const colOwned = applySort(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "owned"), colSort);
+  const colWishlist = applySort(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "wishlist"), colSort);
+  const dbFigures = applySort(applyFilters(allFlatWithTags, dbSearch, dbSeries, dbCategory, dbFilter), dbSort);
   const dbIsSearchMode = dbSearch.trim()!=="" || dbFilter!=="all" || dbSeries!=="all" || dbCategory!=="all";
 
   const sizeToColumns: Record<string,string> = { s:"repeat(auto-fill,minmax(90px,1fr))", m:"repeat(auto-fill,minmax(130px,1fr))", l:"repeat(auto-fill,minmax(180px,1fr))" };
@@ -1896,9 +1949,11 @@ export default function App() {
   return (
     <LangProvider value={langValue}>
       <AdminCtx.Provider value={isAdmin}>
-        {appContent}
-        {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
-        {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
+        <SeriesDataCtx.Provider value={data}>
+          {appContent}
+          {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
+          {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
+        </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
     </LangProvider>
   );
