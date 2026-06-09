@@ -5,10 +5,18 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 // ============================================================
 const CHANGELOG = [
   {
+    id: 2,
+    date: "2025-06-05",
+    entries: [
+      "🎉 644 WCF added to Dragon Ball (OfFicial)",
+      "🎉 70 WCF added to Others (Official)"
+    ]
+  },
+  {
     id: 1,
     date: "2025-06-01",
     entries: [
-      "🎉 App lanzada — bienvenido a WCF Checklist",
+      "🎉 App launched — Welcome to WCF Checklist",
     ]
   },
 ];
