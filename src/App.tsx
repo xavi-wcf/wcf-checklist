@@ -20,7 +20,7 @@ const CHANGELOG = [
     date: "2025-06-05",
     entries: [
       "🎉 644 WCF added to Dragon Ball (Official)",
-      "🎉 104 WCF added to Shonen Jump (Official)"
+      "🎉 104 WCF added to Shonen Jump (Official)",
     ]
   },
   {
@@ -331,13 +331,15 @@ async function uploadToImgBB(blob: Blob | File, apiKey: string): Promise<string>
   return (await res.json()).data.url as string;
 }
 
+// ImgBB key from environment variable (set in Vercel dashboard)
+const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
+
 // ============================================================
 //  HOOKS
 // ============================================================
 function useOwned() {
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
-  const [imgbbKey, setImgbbKeyState] = useState("");
   const [appLogo, setAppLogoState] = useState("");
   const [ready, setReady] = useState(false);
 
@@ -348,9 +350,9 @@ function useOwned() {
       const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
       setOwned(new Set(o)); setWishlist(new Set(w));
     } catch {}
-    // Load app settings (imgbb key, logo) from Supabase — shared/admin only
+    // Load app logo from Supabase
     sbGet("wcf_owned").then(row => {
-      if (row) { setImgbbKeyState(row.imgbb_key ?? ""); setAppLogoState(row.app_logo ?? ""); }
+      if (row) { setAppLogoState(row.app_logo ?? ""); }
       setReady(true);
     });
   }, []);
@@ -359,14 +361,13 @@ function useOwned() {
     localStorage.setItem("wcf_owned", JSON.stringify([...o]));
     localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
   };
-  const saveSettings = (key?: string, logo?: string) =>
-    sbUpsert("wcf_owned", { imgbb_key: key ?? imgbbKey, app_logo: logo ?? appLogo });
+  const saveAppSettings = (logo?: string) =>
+    sbUpsert("wcf_owned", { app_logo: logo ?? appLogo });
 
   const toggle = (id: number) => setOwned(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(n, wishlist); return n; });
   const toggleWish = (id: number) => setWishlist(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(owned, n); return n; });
-  const saveImgbbKey = (key: string) => { setImgbbKeyState(key); saveSettings(key); };
-  const saveAppLogo = (logo: string) => { setAppLogoState(logo); saveSettings(undefined, logo); };
-  return { owned, toggle, wishlist, toggleWish, imgbbKey, saveImgbbKey, appLogo, saveAppLogo, ready };
+  const saveAppLogo = (logo: string) => { setAppLogoState(logo); saveAppSettings(logo); };
+  return { owned, toggle, wishlist, toggleWish, imgbbKey: IMGBB_KEY, appLogo, saveAppLogo, ready };
 }
 
 function useData() {
@@ -844,18 +845,16 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
   );
 }
 
-function SettingsModal({ apiKey, currentBanner, onSave, onClose }: { apiKey:string; currentBanner:string; onSave:(k:string, b:string)=>void; onClose:()=>void }) {
+function SettingsModal({ currentBanner, onSave, onClose }: { currentBanner:string; onSave:(b:string)=>void; onClose:()=>void }) {
   const { t } = useTr();
-  const [key,setKey]=useState(apiKey);
+  const apiKey = IMGBB_KEY;
   const [banner,setBanner]=useState(currentBanner);
   return (
     <Modal title={`⚙️ ${t("settings")}`} onClose={onClose}>
-      <Field label={t("imgbbKey")}><Input value={key} onChange={setKey} placeholder="Pega aquí tu API key" /></Field>
-      <p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>{t("imgbbHint")}</p>
-      <ImageUploader apiKey={key||apiKey} currentUrl={banner} onUploaded={setBanner} label="Banner de la app (parte superior)" aspectRatio={null} format="png" skipCrop />
+      <ImageUploader apiKey={apiKey} currentUrl={banner} onUploaded={setBanner} label="Banner de la app (parte superior)" aspectRatio={null} format="png" skipCrop />
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{onSave(key.trim(), banner);onClose();}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{onSave(banner);onClose();}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1460,7 +1459,7 @@ function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>v
 }
 
 export default function App() {
-  const { owned, toggle, wishlist, toggleWish, imgbbKey, saveImgbbKey, appLogo, saveAppLogo, ready: ownedReady } = useOwned();
+  const { owned, toggle, wishlist, toggleWish, imgbbKey, appLogo, saveAppLogo, ready: ownedReady } = useOwned();
   const { data, setData, ready: dataReady } = useData();
   const { lang, setLang, t } = useLang();
   const { dark, toggleDark } = useDarkMode();
@@ -1477,7 +1476,7 @@ export default function App() {
     const seen = parseInt(localStorage.getItem("wcf_changelog_seen") ?? "0");
     return seen < latestId;
   });
-  const apiKey = imgbbKey; const saveApiKey = saveImgbbKey;
+  const apiKey = imgbbKey;
 
   const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:"oficial",sets:[],groups:[]}; setData(d=>[...d,s]); };
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
@@ -1661,10 +1660,6 @@ export default function App() {
         {isAdmin && <button onClick={()=>setShowSettings(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>⚙️</button>}
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
       </div>
-
-      {!apiKey && isAdmin && <div style={{background:"#fffbeb",borderBottom:"1px solid #fde68a",padding:"6px 12px",fontSize:11,color:"#92400e",flexShrink:0}}>
-        ⚠️ {t("apiKeyWarning")} <strong style={{cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowSettings(true)}>{t("settings")}</strong>
-      </div>}
 
       {/* FILTER BAR — hidden on stats tab */}
       {activeTab!=="stats" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0a5244",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
@@ -1999,7 +1994,7 @@ export default function App() {
       )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showSettings && <SettingsModal apiKey={apiKey} currentBanner={appLogo} onSave={(p1,p2)=>{ saveApiKey(p1); saveAppLogo(p2); }} onClose={()=>setShowSettings(false)} />}
+      {showSettings && <SettingsModal currentBanner={appLogo} onSave={(b)=>{ saveAppLogo(b); }} onClose={()=>setShowSettings(false)} />}
     </div>
   );
 
