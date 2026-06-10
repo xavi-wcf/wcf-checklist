@@ -5,6 +5,13 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 // ============================================================
 const CHANGELOG = [
 {
+    id: 4,
+    date: "2025-06-10",
+    entries: [
+      "🎉 111 WCF added to Shonen Jump (Official)",
+    ]
+  },
+{
     id: 3,
     date: "2025-06-09",
     entries: [
@@ -1192,18 +1199,20 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
 // ============================================================
 //  STATS TAB
 // ============================================================
-function StatsTab({ data, owned, wishlist, favourites, allFigures, seriesOwned, seriesTotal, onOpenPicker }: {
+function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, seriesTotal, onOpenPicker }: {
   data:Series[]; owned:Set<number>; wishlist:Set<number>; favourites:Set<number>;
-  allFigures:(s:Series)=>Figure[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
+  allFlat:{figure:Figure;series:Series}[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
   onOpenPicker:()=>void;
 }) {
   const { t } = useTr();
   const favSeries = data.filter(s=>favourites.has(s.id));
   const favOficial = favSeries.filter(s=>s.category==="oficial");
   const favResina = favSeries.filter(s=>s.category==="resina");
-  const totalFavFigs = favSeries.flatMap(allFigures).length;
-  const ownedFavFigs = favSeries.flatMap(allFigures).filter(f=>owned.has(f.id)).length;
-  const wishFavFigs = favSeries.flatMap(allFigures).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
+  // Use allFlat (with tags) to count figures per fav series
+  const favFlat = allFlat.filter(({series})=>favourites.has(series.id));
+  const totalFavFigs = favFlat.length;
+  const ownedFavFigs = favFlat.filter(({figure})=>owned.has(figure.id)).length;
+  const wishFavFigs = favFlat.filter(({figure})=>wishlist.has(figure.id)&&!owned.has(figure.id)).length;
   const pct = totalFavFigs ? Math.round(ownedFavFigs/totalFavFigs*100) : 0;
   return (
     <div>
@@ -1242,7 +1251,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFigures, seriesOwned, 
                   {cat==="oficial"?t("officialBadge"):t("resinBadge")}
                 </div>
                 {sorted2.map(s=>{
-                  const ow=seriesOwned(s), tot=seriesTotal(s), wi=allFigures(s).filter(f=>wishlist.has(f.id)&&!owned.has(f.id)).length;
+                  const ow=seriesOwned(s), tot=seriesTotal(s), wi=allFlat.filter(x=>x.series.id===s.id&&wishlist.has(x.figure.id)&&!owned.has(x.figure.id)).length;
                   const p=tot?Math.round(ow/tot*100):0;
                   return (
                     <div key={s.id} style={{marginBottom:12,padding:"12px 14px",borderRadius:12,background:"var(--bg2)",border:"1px solid var(--border)"}}>
@@ -1935,7 +1944,7 @@ export default function App() {
         {/* ── STATS TAB ── */}
         {activeTab==="stats" && <StatsTab
           data={data} owned={owned} wishlist={wishlist} favourites={favourites}
-          allFigures={allFigures} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
+          allFlat={allFlatWithTags} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
           onOpenPicker={()=>setShowFavPicker(true)}
         />}
 
