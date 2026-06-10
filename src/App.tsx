@@ -4,6 +4,25 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
 const CHANGELOG = [
+{
+    id: 3,
+    date: "2025-06-09",
+    entries: [
+      "🎉 58 WCF added to My Hero Academia (Official)",
+      "🎉 45 WCF added to Naruto (Official)",
+      "🎉 15 WCF added to Hunter x Hunter (Official)"
+      "🎉 10 WCF added to Chainsaw Man (Official)"
+      "🎉 22 WCF added to Others (Official)"
+    ]
+  },
+ {
+    id: 2,
+    date: "2025-06-05",
+    entries: [
+      "🎉 644 WCF added to Dragon Ball (Official)",
+      "🎉 104 WCF added to Shonen Jump (Official)"
+    ]
+  },
   {
     id: 1,
     date: "2025-06-01",
@@ -196,6 +215,8 @@ const T = {
   statsTotalWish: { es: "En wishlist",            en: "In wishlist",                 th: "ในรายการ" },
   statsCompletion:{ es: "Completado",             en: "Completion",                  th: "ความสมบูรณ์" },
   selectFavTitle: { es: "Seleccionar series favoritas", en: "Select favourite series", th: "เลือกซีรีส์โปรด" },
+  crossoverTitle: { es: "Figuras de otras series", en: "Figures from other series", th: "ตัวเลขจากซีรีส์อื่น" },
+  crossoverSub:   { es: "crossover",               en: "crossover",                 th: "ครอสโอเวอร์" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -1864,8 +1885,8 @@ export default function App() {
                   <div style={{marginTop:24}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingTop:16,borderTop:"2px dashed var(--border)"}}>
                       <span style={{fontSize:14}}>🔀</span>
-                      <span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>Figuras de otras series</span>
-                      <span style={{fontSize:11,color:"var(--text4)"}}>(crossover)</span>
+                      <span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{t("crossoverTitle")}</span>
+                      <span style={{fontSize:11,color:"var(--text4)"}}>({t("crossoverSub")})</span>
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:10}}>
                       {crossover.map(({figure, set, series}) => (
