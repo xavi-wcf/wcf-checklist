@@ -10,9 +10,9 @@ const CHANGELOG = [
     entries: [
       "🎉 58 WCF added to My Hero Academia (Official)",
       "🎉 45 WCF added to Naruto (Official)",
-      "🎉 15 WCF added to Hunter x Hunter (Official)"
-      "🎉 10 WCF added to Chainsaw Man (Official)"
-      "🎉 22 WCF added to Others (Official)"
+      "🎉 15 WCF added to Hunter x Hunter (Official)",
+      "🎉 10 WCF added to Chainsaw Man (Official)",
+      "🎉 22 WCF added to Others (Official)",
     ]
   },
  {
