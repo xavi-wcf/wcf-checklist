@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 const CHANGELOG = [
   {
     id: 4,
-    date: "2025-06-11",
+    date: "2025-06-10",
     entries: [
       "🎉 111 WCF added to Shonen Jump (Official)",
       "🎉 60 WCF added to Tokyo Revengers (Official)",
@@ -358,34 +358,24 @@ const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 function useOwned() {
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
-  const [appLogo, setAppLogoState] = useState("");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Load owned/wishlist from localStorage (per device)
     try {
       const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
       const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
       setOwned(new Set(o)); setWishlist(new Set(w));
     } catch {}
-    // Load app logo from Supabase
-    sbGet("wcf_owned").then(row => {
-      if (row) { setAppLogoState(row.app_logo ?? ""); }
-      setReady(true);
-    });
+    sbGet("wcf_owned").then(() => { setReady(true); });
   }, []);
 
   const saveLocal = (o: Set<number>, w: Set<number>) => {
     localStorage.setItem("wcf_owned", JSON.stringify([...o]));
     localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
   };
-  const saveAppSettings = (logo?: string) =>
-    sbUpsert("wcf_owned", { app_logo: logo ?? appLogo });
-
   const toggle = (id: number) => setOwned(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(n, wishlist); return n; });
   const toggleWish = (id: number) => setWishlist(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(owned, n); return n; });
-  const saveAppLogo = (logo: string) => { setAppLogoState(logo); saveAppSettings(logo); };
-  return { owned, toggle, wishlist, toggleWish, imgbbKey: IMGBB_KEY, appLogo, saveAppLogo, ready };
+  return { owned, toggle, wishlist, toggleWish, imgbbKey: IMGBB_KEY, ready };
 }
 
 function useData() {
@@ -858,21 +848,6 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
         <Btn onClick={()=>{if(name.trim()){onSave(name.trim(),emoji,color,logoHeader,bgImage);onClose();}}} variant="primary">{t("save")}</Btn>
-      </div>
-    </Modal>
-  );
-}
-
-function SettingsModal({ currentBanner, onSave, onClose }: { currentBanner:string; onSave:(b:string)=>void; onClose:()=>void }) {
-  const { t } = useTr();
-  const apiKey = IMGBB_KEY;
-  const [banner,setBanner]=useState(currentBanner);
-  return (
-    <Modal title={`⚙️ ${t("settings")}`} onClose={onClose}>
-      <ImageUploader apiKey={apiKey} currentUrl={banner} onUploaded={setBanner} label="Banner de la app (parte superior)" aspectRatio={null} format="png" skipCrop />
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}>
-        <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{onSave(banner);onClose();}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1568,7 +1543,7 @@ function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>v
 }
 
 export default function App() {
-  const { owned, toggle, wishlist, toggleWish, imgbbKey, appLogo, saveAppLogo, ready: ownedReady } = useOwned();
+  const { owned, toggle, wishlist, toggleWish, imgbbKey, ready: ownedReady } = useOwned();
   const { data, setData, ready: dataReady } = useData();
   const { lang, setLang, t } = useLang();
   const { dark, toggleDark } = useDarkMode();
