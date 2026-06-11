@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 const CHANGELOG = [
   {
     id: 4,
-    date: "2025-06-10",
+    date: "2025-06-11",
     entries: [
       "🎉 111 WCF added to Shonen Jump (Official)",
       "🎉 60 WCF added to Tokyo Revengers (Official)",
