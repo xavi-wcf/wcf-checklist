@@ -1252,28 +1252,54 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                 <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10}}>
                   {cat==="oficial"?t("officialBadge"):t("resinBadge")}
                 </div>
-                {sorted2.map(s=>{
-                  const ow=seriesOwned(s), tot=seriesTotal(s), wi=allFlat.filter(x=>x.series.id===s.id&&wishlist.has(x.figure.id)&&!owned.has(x.figure.id)).length;
-                  const p=tot?Math.round(ow/tot*100):0;
-                  return (
-                    <div key={s.id} style={{marginBottom:12,padding:"12px 14px",borderRadius:12,background:"var(--bg2)",border:"1px solid var(--border)"}}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          {s.logo ? <img src={s.logo} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
-                          <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.name}</span>
+                {cat==="oficial" ? (
+                  // Oficial — progress bar list
+                  sorted2.map(s=>{
+                    const ow=seriesOwned(s), tot=seriesTotal(s), wi=allFlat.filter(x=>x.series.id===s.id&&wishlist.has(x.figure.id)&&!owned.has(x.figure.id)).length;
+                    const p=tot?Math.round(ow/tot*100):0;
+                    return (
+                      <div key={s.id} style={{marginBottom:12,padding:"12px 14px",borderRadius:12,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            {s.logo ? <img src={s.logo} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
+                            <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.name}</span>
+                          </div>
+                          <span style={{fontSize:13,fontWeight:700,color:p===100?"#4ade80":s.color}}>{p}%</span>
                         </div>
-                        <span style={{fontSize:13,fontWeight:700,color:p===100?"#4ade80":s.color}}>{p}%</span>
+                        <div style={{height:6,background:"var(--border)",borderRadius:4,overflow:"hidden",marginBottom:6}}>
+                          <div style={{height:"100%",width:p+"%",background:p===100?"#4ade80":s.color,borderRadius:4,transition:"width 0.4s"}} />
+                        </div>
+                        <div style={{display:"flex",gap:12,fontSize:11,color:"var(--text3)"}}>
+                          <span>✅ {ow}/{tot}</span>
+                          {wi>0 && <span>💛 {wi}</span>}
+                        </div>
                       </div>
-                      <div style={{height:6,background:"var(--border)",borderRadius:4,overflow:"hidden",marginBottom:6}}>
-                        <div style={{height:"100%",width:p+"%",background:p===100?"#4ade80":s.color,borderRadius:4,transition:"width 0.4s"}} />
-                      </div>
-                      <div style={{display:"flex",gap:12,fontSize:11,color:"var(--text3)"}}>
-                        <span>✅ {ow}/{tot}</span>
-                        {wi>0 && <span>💛 {wi}</span>}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  // Resina — card grid without progress bar
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+                    {sorted2.map(s=>{
+                      const ow=seriesOwned(s), wi=allFlat.filter(x=>x.series.id===s.id&&wishlist.has(x.figure.id)&&!owned.has(x.figure.id)).length;
+                      return (
+                        <div key={s.id} style={{position:"relative",borderRadius:12,overflow:"hidden",aspectRatio:"1",background:s.color+"33",border:`1px solid ${s.color}44`}}>
+                          {s.bgImage && <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />}
+                          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 55%,rgba(0,0,0,0) 100%)"}} />
+                          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px"}}>
+                            {s.logo
+                              ? <img src={s.logo} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:6,display:"block"}} />
+                              : <div style={{fontSize:11,fontWeight:700,color:"#fff",marginBottom:6,lineHeight:1.2}}>{s.name}</div>
+                            }
+                            <div style={{display:"flex",gap:10,fontSize:12}}>
+                              <span style={{color:"#fff",fontWeight:600}}>✅ {ow}</span>
+                              {wi>0 && <span style={{color:"#fcd34d",fontWeight:600}}>💛 {wi}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
