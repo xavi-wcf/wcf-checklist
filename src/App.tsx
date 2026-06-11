@@ -226,6 +226,15 @@ const T = {
   selectFavTitle: { es: "Seleccionar series favoritas", en: "Select favourite series", th: "เลือกซีรีส์โปรด" },
   crossoverTitle: { es: "Figuras de otras series", en: "Figures from other series", th: "ตัวเลขจากซีรีส์อื่น" },
   crossoverSub:   { es: "crossover",               en: "crossover",                 th: "ครอสโอเวอร์" },
+  feedbackTitle:  { es: "💬 Sugerencias y errores", en: "💬 Feedback",              th: "💬 ข้อเสนอแนะ" },
+  feedbackType:   { es: "Tipo",                     en: "Type",                      th: "ประเภท" },
+  feedbackTypeBug:{ es: "🐛 Error / Fallo",         en: "🐛 Bug / Issue",            th: "🐛 ข้อผิดพลาด" },
+  feedbackTypeSug:{ es: "💡 Sugerencia",            en: "💡 Suggestion",             th: "💡 ข้อเสนอแนะ" },
+  feedbackTypeOth:{ es: "💬 Otro",                  en: "💬 Other",                  th: "💬 อื่นๆ" },
+  feedbackMsg:    { es: "Mensaje",                  en: "Message",                   th: "ข้อความ" },
+  feedbackPH:     { es: "Describe el error o sugerencia...", en: "Describe the issue or suggestion...", th: "อธิบายปัญหาหรือข้อเสนอแนะ..." },
+  feedbackSend:   { es: "Enviar",                   en: "Send",                      th: "ส่ง" },
+  feedbackOk:     { es: "¡Gracias! Tu mensaje ha sido enviado.", en: "Thanks! Your message has been sent.", th: "ขอบคุณ! ส่งข้อความแล้ว" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -1471,6 +1480,69 @@ type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"
 
 type TabType = "collection" | "database" | "stats";
 
+// ============================================================
+//  FEEDBACK MODAL
+// ============================================================
+function FeedbackModal({ onClose }: { onClose:()=>void }) {
+  const { t } = useTr();
+  const [type, setType] = useState("bug");
+  const [msg, setMsg] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const send = async () => {
+    if (!msg.trim()) return;
+    setSending(true);
+    await sbUpsert("wcf_feedback", {
+      id: Date.now().toString(),
+      type,
+      message: msg.trim(),
+      created_at: new Date().toISOString(),
+    }).catch(()=>{});
+    setSending(false);
+    setSent(true);
+    setTimeout(onClose, 2000);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <span style={{fontWeight:700,fontSize:16}}>{t("feedbackTitle")}</span>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
+        </div>
+        {sent ? (
+          <div style={{textAlign:"center",padding:"2rem",fontSize:14,color:"#0F6E56",fontWeight:600}}>{t("feedbackOk")}</div>
+        ) : <>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:6,fontWeight:500}}>{t("feedbackType")}</div>
+            <div style={{display:"flex",gap:6}}>
+              {[["bug",t("feedbackTypeBug")],["suggestion",t("feedbackTypeSug")],["other",t("feedbackTypeOth")]].map(([val,label])=>(
+                <button key={val} onClick={()=>setType(val)}
+                  style={{flex:1,padding:"6px 4px",borderRadius:8,border:`1px solid ${type===val?"#0F6E56":"var(--border)"}`,background:type===val?"#E1F5EE":"var(--bg2)",color:type===val?"#0F6E56":"var(--text3)",cursor:"pointer",fontSize:11,fontWeight:type===val?600:400}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:6,fontWeight:500}}>{t("feedbackMsg")}</div>
+            <textarea value={msg} onChange={e=>setMsg(e.target.value)} placeholder={t("feedbackPH")} rows={4}
+              style={{width:"100%",padding:"10px",fontSize:13,border:"1px solid var(--border)",borderRadius:8,outline:"none",resize:"none",fontFamily:"system-ui,sans-serif",boxSizing:"border-box" as const,background:"var(--bg2)",color:"var(--text)"}} />
+          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <button onClick={onClose} style={{padding:"8px 14px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>{t("cancelBtn")}</button>
+            <button onClick={send} disabled={!msg.trim()||sending}
+              style={{padding:"8px 14px",borderRadius:8,border:"none",background:msg.trim()?"#0a5244":"#ccc",color:"#fff",cursor:msg.trim()?"pointer":"not-allowed",fontSize:13,fontWeight:600}}>
+              {sending?"...":t("feedbackSend")}
+            </button>
+          </div>
+        </>}
+      </div>
+    </div>
+  );
+}
+
 const ADMIN_PASSWORD = "wcf2024admin";
 
 function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>void }) {
@@ -1506,7 +1578,7 @@ export default function App() {
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [showAddSeries, setShowAddSeries] = useState(false);
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const latestId = Math.max(...CHANGELOG.map(c=>c.id));
   const [showChangelog, setShowChangelog] = useState(() => {
@@ -1694,7 +1766,7 @@ export default function App() {
           style={{background:isAdmin?"#fff":"rgba(255,255,255,0.1)",border:"1px solid "+(isAdmin?"#fff":"rgba(255,255,255,0.3)"),borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12,color:isAdmin?"#0a5244":"rgba(255,255,255,0.8)"}}>
           {isAdmin?"🔓":"🔒"}
         </button>
-        {isAdmin && <button onClick={()=>setShowSettings(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>⚙️</button>}
+        <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
       </div>
 
@@ -2031,7 +2103,7 @@ export default function App() {
       )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showSettings && <SettingsModal currentBanner={appLogo} onSave={(b)=>{ saveAppLogo(b); }} onClose={()=>setShowSettings(false)} />}
+      {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} />}
     </div>
   );
 
