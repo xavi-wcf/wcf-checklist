@@ -1468,12 +1468,23 @@ function FeedbackModal({ onClose }: { onClose:()=>void }) {
   const send = async () => {
     if (!msg.trim()) return;
     setSending(true);
-    await sbUpsert("wcf_feedback", {
-      id: Date.now().toString(),
-      type,
-      message: msg.trim(),
-      created_at: new Date().toISOString(),
-    }).catch(()=>{});
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/wcf_feedback`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal"
+        },
+        body: JSON.stringify({
+          id: Date.now().toString(),
+          type,
+          message: msg.trim(),
+          created_at: new Date().toISOString(),
+        })
+      });
+    } catch(e) { console.error(e); }
     setSending(false);
     setSent(true);
     setTimeout(onClose, 2000);
