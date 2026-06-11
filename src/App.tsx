@@ -4,14 +4,16 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
 const CHANGELOG = [
-{
+  {
     id: 4,
     date: "2025-06-10",
     entries: [
       "🎉 111 WCF added to Shonen Jump (Official)",
+      "🎉 60 WCF added to Tokyo Revengers (Official)",
+      "🎉 24 WCF added to Kaiju nº8 (Official)",
     ]
   },
-{
+  {
     id: 3,
     date: "2025-06-09",
     entries: [
@@ -22,7 +24,7 @@ const CHANGELOG = [
       "🎉 22 WCF added to Others (Official)",
     ]
   },
- {
+  {
     id: 2,
     date: "2025-06-05",
     entries: [
@@ -1951,7 +1953,7 @@ export default function App() {
       </div>
 
       {/* BOTTOM TABS */}
-      <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0}}>
+      <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0,zIndex:50}}>
         {([["collection","📦",t("tabCollection")],["database","🗃️",t("tabDatabase")],["stats","⭐",t("tabStats")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
             style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fff":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
