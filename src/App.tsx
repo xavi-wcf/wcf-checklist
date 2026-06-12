@@ -252,6 +252,14 @@ const useAdmin = () => useContext(AdminCtx);
 const SeriesDataCtx = createContext<Series[]>([]);
 const useSeriesData = () => useContext(SeriesDataCtx);
 
+// Global drag context for cross-set image swapping
+type DragFigure = { figureId: number; image: string };
+const DragCtx = createContext<{
+  dragging: DragFigure|null;
+  setDragging: (f:DragFigure|null)=>void;
+}>({ dragging: null, setDragging: ()=>{} });
+const useDragCtx = () => useContext(DragCtx);
+
 function useLang() {
   const [lang, setLang] = useState<LangCode>(() => (localStorage.getItem("wcf_lang") as LangCode) ?? "es");
   const saveLang = (l: LangCode) => { setLang(l); localStorage.setItem("wcf_lang", l); };
@@ -872,14 +880,18 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   const statusColor = isOwned ? color : isWished ? "#d97706" : "#aaa";
   const dotColor = isOwned ? color : isWished ? "#f59e0b" : "#ccc";
 
+  const { dragging, setDragging } = useDragCtx();
+
   const handleDragStart = (e:React.DragEvent) => {
     if(!isAdmin || !figure.image) return;
     e.dataTransfer.setData("wcf_figure_id", String(figure.id));
     e.dataTransfer.effectAllowed = "move";
+    setDragging({ figureId: figure.id, image: figure.image ?? "" });
   };
 
   const handleDragOver = (e:React.DragEvent) => {
     if(!isAdmin) return;
+    if(!dragging && !e.dataTransfer.types.includes("Files")) return;
     e.preventDefault();
     setDragOver(true);
   };
@@ -887,23 +899,24 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   const handleDrop = (e:React.DragEvent) => {
     e.preventDefault(); setDragOver(false);
     if(!isAdmin) return;
-    // Check if it's a figure swap
-    const fromId = e.dataTransfer.getData("wcf_figure_id");
-    if(fromId && onSwapImage) {
-      const id = parseInt(fromId);
-      if(id !== figure.id) onSwapImage(id);
+    // Figure swap from global drag context
+    if(dragging && dragging.figureId !== figure.id && onSwapImage) {
+      onSwapImage(dragging.figureId);
+      setDragging(null);
       return;
     }
-    // Otherwise it's a file upload
+    // File upload from disk
     if(!onQuickUpload) return;
     const file = e.dataTransfer.files?.[0];
     if(file && file.type.startsWith("image/")) onQuickUpload(file);
   };
+  const handleDragEnd = () => setDragging(null);
 
   return (
     <div
       draggable={isAdmin && !!figure.image}
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default"}}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
@@ -974,6 +987,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
   onMoveToGroup?:(gid:number)=>void; groups?:FigureGroup[];
   onAddFigure:(f:Omit<Figure,"id">)=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
+  onSwapCross?:(fromId:number,toId:number)=>void;
 }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
@@ -1045,11 +1059,16 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
               onToggle={()=>onToggle(f.id)} onToggleWish={()=>onToggleWish(f.id)} onEdit={()=>setEditFigure(f)} onDelete={()=>onDeleteFigure(f.id)}
               onQuickUpload={isAdmin ? (file)=>setQuickCrop({file,figureId:f.id}) : undefined}
               onSwapImage={isAdmin ? (fromId)=>{
+                // Find fromFig in this set
                 const fromFig = set.figures.find(x=>x.id===fromId);
-                const toFig = f;
-                if(!fromFig||!toFig||fromFig.id===toFig.id) return;
-                onUpdateFigure(fromFig.id, {...fromFig, image: toFig.image??""});
-                onUpdateFigure(toFig.id, {...toFig, image: fromFig.image??""});
+                if(fromFig) {
+                  // Both figures in same set — swap directly
+                  onUpdateFigure(fromFig.id, {...fromFig, image: f.image??""});
+                  onUpdateFigure(f.id, {...f, image: fromFig.image??""});
+                } else if(onSwapCross) {
+                  // Cross-set swap — delegate to parent
+                  onSwapCross(fromId, f.id);
+                }
               } : undefined}
             />
           ))}
@@ -1177,6 +1196,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
   onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
   onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
+  onSwapCross?:(fromId:number,toId:number)=>void;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1220,6 +1240,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
               onAddFigure={(f)=>onAddFigure(st.id,f)}
               onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
               onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
+              onSwapCross={onSwapCross}
             />
           ))}
         </div>
@@ -1722,6 +1743,29 @@ export default function App() {
   const [favPickerCat, setFavPickerCat] = useState<CategoryType>("oficial");
 
   const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
+
+  // Swap images between any two figures anywhere in data
+  const swapFigureImages = (fromId:number, toId:number) => {
+    setData(d => {
+      let fromImg = "", toImg = "";
+      for(const s of d) {
+        for(const st of [...s.sets, ...s.groups.flatMap(g=>g.sets)]) {
+          for(const f of st.figures) {
+            if(f.id===fromId) fromImg = f.image??"";
+            if(f.id===toId) toImg = f.image??"";
+          }
+        }
+      }
+      return d.map(s=>({...s,
+        sets: s.sets.map(st=>({...st, figures: st.figures.map(f=>
+          f.id===fromId ? {...f,image:toImg} : f.id===toId ? {...f,image:fromImg} : f
+        )})),
+        groups: s.groups.map(g=>({...g, sets: g.sets.map(st=>({...st, figures: st.figures.map(f=>
+          f.id===fromId ? {...f,image:toImg} : f.id===toId ? {...f,image:fromImg} : f
+        )}))}))
+      }));
+    });
+  };
   const totalAll = data.flatMap(allFigures).length;
   const seriesOwned = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&owned.has(x.figure.id)).length;
   const seriesTotal = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id).length;
@@ -2017,6 +2061,7 @@ export default function App() {
                     onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f,item.group.id)}
                     onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,item.group.id)}
                     onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,item.group.id)}
+                    onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
                   />
                 ) : (
                   <SetCard key={"s"+item.set.id}
@@ -2031,6 +2076,7 @@ export default function App() {
                     onAddFigure={(f)=>addFigure(dbSeriesObj.id,item.set.id,f)}
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
+                    onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
                   />
                 ));
               })()}
@@ -2166,14 +2212,18 @@ export default function App() {
     </div>
   );
 
+  const [dragState, setDragState] = useState<{figureId:number;image:string}|null>(null);
+
   return (
     <LangProvider value={langValue}>
       <AdminCtx.Provider value={isAdmin}>
         <SeriesDataCtx.Provider value={data}>
+          <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
           {appContent}
           {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
           {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
         </SeriesDataCtx.Provider>
+          </DragCtx.Provider>
       </AdminCtx.Provider>
     </LangProvider>
   );
