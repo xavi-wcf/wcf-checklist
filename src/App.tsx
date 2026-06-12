@@ -2219,11 +2219,11 @@ export default function App() {
       <AdminCtx.Provider value={isAdmin}>
         <SeriesDataCtx.Provider value={data}>
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
-          {appContent}
-          {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
-          {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
-        </SeriesDataCtx.Provider>
+            {appContent}
+            {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
+            {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
           </DragCtx.Provider>
+        </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
     </LangProvider>
   );
