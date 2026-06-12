@@ -856,21 +856,35 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
+  onQuickUpload?:(file:File)=>void;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const [hover,setHover]=useState(false);
+  const [dragOver,setDragOver]=useState(false);
   const isMobileDevice = window.innerWidth < 768;
   const hasImage = !!figure.image && !imgError;
   const statusText = isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing");
   const statusColor = isOwned ? color : isWished ? "#d97706" : "#aaa";
   const dotColor = isOwned ? color : isWished ? "#f59e0b" : "#ccc";
+
+  const handleDragOver = (e:React.DragEvent) => { if(!isAdmin||!onQuickUpload) return; e.preventDefault(); setDragOver(true); };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e:React.DragEvent) => {
+    e.preventDefault(); setDragOver(false);
+    if(!isAdmin||!onQuickUpload) return;
+    const file = e.dataTransfer.files?.[0];
+    if(file && file.type.startsWith("image/")) onQuickUpload(file);
+  };
+
   return (
-    <div style={{border:"1px solid "+(isOwned?color:isWished?"#f59e0b":"#e8e8e4"),borderRadius:10,background:isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s"}}
-      onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
+    <div style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s",outline:dragOver?"2px dashed #0F6E56":"none"}}
+      onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+      onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>📷</div>}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
         {isAdmin && hover && <>
           <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
@@ -944,6 +958,8 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   const [addFigure,setAddFigure]=useState(false); const [bulkAdd,setBulkAdd]=useState(false);
   const [editFigure,setEditFigure]=useState<Figure|null>(null);
   const [showMoveMenu,setShowMoveMenu]=useState(false);
+  const [quickCrop,setQuickCrop]=useState<{file:File;figureId:number}|null>(null);
+  const [uploading,setUploading]=useState(false);
   const ownedCount = set.figures.filter(f=>owned.has(f.id)).length;
   const total = set.figures.length; const complete = ownedCount===total && total>0;
 
@@ -1003,7 +1019,8 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
           {set.figures.map(f=>(
             <FigureCard key={f.id} figure={f} color={color} isOwned={owned.has(f.id)} isWished={wishlist.has(f.id)}
-              onToggle={()=>onToggle(f.id)} onToggleWish={()=>onToggleWish(f.id)} onEdit={()=>setEditFigure(f)} onDelete={()=>onDeleteFigure(f.id)} />
+              onToggle={()=>onToggle(f.id)} onToggleWish={()=>onToggleWish(f.id)} onEdit={()=>setEditFigure(f)} onDelete={()=>onDeleteFigure(f.id)}
+              onQuickUpload={isAdmin ? (file)=>setQuickCrop({file,figureId:f.id}) : undefined} />
           ))}
         </div>
       </div>}
@@ -1011,6 +1028,23 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
       {addFigure && <FigureModal title={t("newFigureTitle")} apiKey={apiKey} onSave={f=>{onAddFigure(f);setAddFigure(false);}} onClose={()=>setAddFigure(false)} />}
       {bulkAdd && <BulkAddModal onSave={names=>{names.forEach(name=>onAddFigure({name,emoji:"⭐",image:""}));}} onClose={()=>setBulkAdd(false)} />}
       {editFigure && <FigureModal title={t("editFigureTitle")} initial={editFigure} apiKey={apiKey} onSave={f=>{onUpdateFigure(editFigure.id,f);setEditFigure(null);}} onClose={()=>setEditFigure(null)} />}
+      {quickCrop && (
+        <CropModal
+          imageSrc={URL.createObjectURL(quickCrop.file)}
+          aspectRatio={1}
+          onConfirm={async(blob)=>{
+            setQuickCrop(null); setUploading(true);
+            try {
+              const url = await uploadToImgBB(blob, apiKey);
+              const fig = set.figures.find(f=>f.id===quickCrop.figureId);
+              if(fig) onUpdateFigure(quickCrop.figureId, {...fig, image:url});
+            } catch(e){ console.error(e); }
+            setUploading(false);
+          }}
+          onClose={()=>setQuickCrop(null)}
+        />
+      )}
+      {uploading && <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:16}}>⏳ {t("uploading")}</div>}
     </div>
   );
 }
