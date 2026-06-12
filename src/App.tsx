@@ -444,7 +444,7 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
       setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
       const scale = Math.min(CW / img.naturalWidth, CH / img.naturalHeight);
       setImgPos({ x: (CW - img.naturalWidth * scale) / 2, y: (CH - img.naturalHeight * scale) / 2 });
-      setZoom(1);
+      setZoom(3);
       setCropBox(initCrop());
       setLoaded(true);
     };
