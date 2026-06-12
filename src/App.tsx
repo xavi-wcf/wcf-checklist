@@ -1786,6 +1786,14 @@ export default function App() {
           style={{background:isAdmin?"#fff":"rgba(255,255,255,0.1)",border:"1px solid "+(isAdmin?"#fff":"rgba(255,255,255,0.3)"),borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12,color:isAdmin?"#0a5244":"rgba(255,255,255,0.8)"}}>
           {isAdmin?"🔓":"🔒"}
         </button>
+        {isAdmin && <button onClick={()=>{
+          const json = JSON.stringify(data, null, 2);
+          const blob = new Blob([json], {type:"application/json"});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = `wcf_backup_${new Date().toISOString().slice(0,10)}.json`;
+          a.click(); URL.revokeObjectURL(url);
+        }} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Backup datos">💾</button>}
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
       </div>
