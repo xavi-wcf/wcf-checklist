@@ -856,10 +856,11 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
   onQuickUpload?:(file:File)=>void;
+  onSwapImage?:(fromId:number)=>void;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -871,20 +872,42 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   const statusColor = isOwned ? color : isWished ? "#d97706" : "#aaa";
   const dotColor = isOwned ? color : isWished ? "#f59e0b" : "#ccc";
 
-  const handleDragOver = (e:React.DragEvent) => { if(!isAdmin||!onQuickUpload) return; e.preventDefault(); setDragOver(true); };
+  const handleDragStart = (e:React.DragEvent) => {
+    if(!isAdmin || !figure.image) return;
+    e.dataTransfer.setData("wcf_figure_id", String(figure.id));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e:React.DragEvent) => {
+    if(!isAdmin) return;
+    e.preventDefault();
+    setDragOver(true);
+  };
   const handleDragLeave = () => setDragOver(false);
   const handleDrop = (e:React.DragEvent) => {
     e.preventDefault(); setDragOver(false);
-    if(!isAdmin||!onQuickUpload) return;
+    if(!isAdmin) return;
+    // Check if it's a figure swap
+    const fromId = e.dataTransfer.getData("wcf_figure_id");
+    if(fromId && onSwapImage) {
+      const id = parseInt(fromId);
+      if(id !== figure.id) onSwapImage(id);
+      return;
+    }
+    // Otherwise it's a file upload
+    if(!onQuickUpload) return;
     const file = e.dataTransfer.files?.[0];
     if(file && file.type.startsWith("image/")) onQuickUpload(file);
   };
 
   return (
-    <div style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s",outline:dragOver?"2px dashed #0F6E56":"none"}}
+    <div
+      draggable={isAdmin && !!figure.image}
+      onDragStart={handleDragStart}
+      style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default"}}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-      {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>📷</div>}
+      {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>🔄</div>}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
         {isAdmin && hover && <>
           <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
@@ -895,7 +918,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
       {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
       <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
-        {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+        {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:36}}>{figure.emoji}</div><div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{t("noImage")}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
@@ -1020,7 +1043,15 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
           {set.figures.map(f=>(
             <FigureCard key={f.id} figure={f} color={color} isOwned={owned.has(f.id)} isWished={wishlist.has(f.id)}
               onToggle={()=>onToggle(f.id)} onToggleWish={()=>onToggleWish(f.id)} onEdit={()=>setEditFigure(f)} onDelete={()=>onDeleteFigure(f.id)}
-              onQuickUpload={isAdmin ? (file)=>setQuickCrop({file,figureId:f.id}) : undefined} />
+              onQuickUpload={isAdmin ? (file)=>setQuickCrop({file,figureId:f.id}) : undefined}
+              onSwapImage={isAdmin ? (fromId)=>{
+                const fromFig = set.figures.find(x=>x.id===fromId);
+                const toFig = f;
+                if(!fromFig||!toFig||fromFig.id===toFig.id) return;
+                onUpdateFigure(fromFig.id, {...fromFig, image: toFig.image??""});
+                onUpdateFigure(toFig.id, {...toFig, image: fromFig.image??""});
+              } : undefined}
+            />
           ))}
         </div>
       </div>}
