@@ -2037,7 +2037,12 @@ export default function App() {
                     <SearchResultCard key={figure.id} figure={figure} series={series} set={set} groupName={groupName}
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                       onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)}
-                      onEdit={(f)=>updateFigure(series.id, set.id, figure.id, f)} />
+                      onEdit={(f)=>{
+                        // Find groupId if figure is inside a group
+                        const seriesObj = data.find(s=>s.id===series.id);
+                        const grp = seriesObj?.groups.find(g=>g.sets.some(st=>st.id===set.id));
+                        updateFigure(series.id, set.id, figure.id, f, grp?.id);
+                      }} />
                   ))}
                 </div>
               </div>
