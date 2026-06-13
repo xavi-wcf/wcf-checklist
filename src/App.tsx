@@ -4,7 +4,14 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
 const CHANGELOG = [
-  {
+{
+    id: 5,
+    date: "2025-06-12",
+    entries: [
+      "🎉 829 WCF added to One Piece (Official)",
+    ]
+  },
+{
     id: 4,
     date: "2025-06-10",
     entries: [
@@ -13,7 +20,7 @@ const CHANGELOG = [
       "🎉 24 WCF added to Kaiju nº8 (Official)",
     ]
   },
-  {
+{
     id: 3,
     date: "2025-06-09",
     entries: [
@@ -24,7 +31,7 @@ const CHANGELOG = [
       "🎉 22 WCF added to Others (Official)",
     ]
   },
-  {
+ {
     id: 2,
     date: "2025-06-05",
     entries: [
@@ -1102,9 +1109,12 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
 // ============================================================
 //  SEARCH RESULT CARD
 // ============================================================
-function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, compact=false, hideIcons=false }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; compact?:boolean; hideIcons?:boolean }) {
+function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean }) {
   const { t, lang } = useTr();
+  const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
+  const [hover, setHover]=useState(false);
+  const [editing, setEditing]=useState(false);
   const formatDate = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
   const MONTHS_FULL: Record<LangCode, string[]> = {
     es: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
@@ -1113,8 +1123,14 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
   };
   const formatDateFull = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${MONTHS_FULL[lang][parseInt(m)-1]} ${y}`; };
   return (
+    <>
     <div style={{border:"1px solid "+(isOwned?series.color:isWished?"#f59e0b":"var(--border)"),borderRadius:8,background:isOwned?series.color+"18":isWished?"#fffbeb":"var(--card-bg)",overflow:"hidden",transition:"transform 0.15s",position:"relative"}}
-      onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
+      onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";setHover(true);}}
+      onMouseLeave={e=>{e.currentTarget.style.transform="none";setHover(false);}}>
+      {isAdmin && hover && !compact && (
+        <button onClick={e=>{e.stopPropagation();setEditing(true);}}
+          style={{position:"absolute",top:4,right:4,zIndex:5,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
+      )}
       {!hideIcons && !isOwned && (
         <button onClick={e=>{e.stopPropagation();onToggleWish();}}
           style={{position:"absolute",top:4,left:4,zIndex:3,background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:5,padding:"1px 4px",fontSize:11,cursor:"pointer",lineHeight:1}}>
@@ -1158,6 +1174,8 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
         </>}
       </div>
     </div>
+    {editing && onEdit && <FigureModal title={t("editFigureTitle")} initial={figure} apiKey={IMGBB_KEY} onSave={(f)=>{onEdit(f);setEditing(false);}} onClose={()=>setEditing(false)} />}
+    </> 
   );
 }
 
@@ -2018,7 +2036,8 @@ export default function App() {
                   {dbFigures.map(({figure,set,series,groupName})=>(
                     <SearchResultCard key={figure.id} figure={figure} series={series} set={set} groupName={groupName}
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
-                      onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                      onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)}
+                      onEdit={(f)=>updateFigure(series.id, set.id, figure.id, f)} />
                   ))}
                 </div>
               </div>
