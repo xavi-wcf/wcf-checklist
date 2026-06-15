@@ -1740,7 +1740,7 @@ function LoginModal({ onClose, onGoogle }: { onClose:()=>void; onGoogle:()=>void
 //  ADMIN EMAILS — añade aquí los emails con acceso admin
 // ============================================================
 const ADMIN_EMAILS = [
-  "xavoroolz@gmail.com", // cambia esto por tu email de Google
+  "xavoroolz@gmail.com",
 ];
 
 
@@ -1996,6 +1996,8 @@ export default function App() {
           a.href = url; a.download = `wcf_backup_${new Date().toISOString().slice(0,10)}.json`;
           a.click(); URL.revokeObjectURL(url);
         }} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Backup datos">💾</button>}
+        <button onClick={()=>window.open("https://ko-fi.com/wcf_checklist","_blank")}
+          style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Support WCF Checklist">☕</button>
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
         {user ? (
