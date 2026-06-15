@@ -251,6 +251,7 @@ const T = {
   onboardLogin:   { es: "Iniciar sesión con Google", en: "Sign in with Google",        th: "เข้าสู่ระบบด้วย Google" },
   onboardGuest:   { es: "Explorar sin cuenta",     en: "Explore without account",     th: "เรียกดูโดยไม่มีบัญชี" },
   onboardNote:    { es: "Con cuenta, tu colección se guarda y sincroniza entre dispositivos.", en: "With an account, your collection is saved and synced across devices.", th: "ด้วยบัญชี คอลเลกชันของคุณจะถูกบันทึกและซิงค์" },
+  onboardIos:     { es: "En iPhone: pulsa el botón compartir (⬆️) en Safari y selecciona 'Añadir a pantalla de inicio'.", en: "On iPhone: tap the share button (⬆️) in Safari and select 'Add to Home Screen'.", th: "บน iPhone: แตะปุ่มแชร์ (⬆️) ใน Safari แล้วเลือก 'เพิ่มไปที่หน้าจอหลัก'" },
   installBanner:  { es: "Instala WCF Checklist en tu dispositivo", en: "Install WCF Checklist on your device", th: "ติดตั้ง WCF Checklist บนอุปกรณ์ของคุณ" },
   installBtn:     { es: "Instalar",                en: "Install",                     th: "ติดตั้ง" },
   signIn:         { es: "Iniciar sesión",          en: "Sign in",                     th: "เข้าสู่ระบบ" },
@@ -1807,6 +1808,11 @@ function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>v
         <div style={{fontSize:11,color:"var(--text4)",marginBottom:24,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.5}}>
           💡 {t("onboardNote")}
         </div>
+        {/iphone|ipad|ipod/i.test(navigator.userAgent) && (
+          <div style={{fontSize:11,color:"var(--text4)",marginBottom:16,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.5,textAlign:"left"}}>
+            📱 {t("onboardIos")}
+          </div>
+        )}
         <button onClick={onLogin}
           style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0a5244",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:10}}>
           <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
@@ -1969,6 +1975,12 @@ export default function App() {
   const [dbSeries,   setDbSeries]   = useState<number|"all">("all");
   const [dbCategory, setDbCategory] = useState<"all"|CategoryType>("all");
   const [dbSelectedSeries, setDbSelectedSeries] = useState<number|null>(null);
+  const [renderKey, setRenderKey] = useState(0);
+
+  const goBack = () => {
+    setDbSelectedSeries(null);
+    setRenderKey(k => k + 1);
+  };
   const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
 
   // Favourites — stored in localStorage
@@ -2245,7 +2257,7 @@ export default function App() {
       {activeTab==="database" && dbSeriesObj && !dbIsSearchMode && (
         <div style={{background:"var(--bg)",padding:"10px 16px",borderBottom:"2px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
-            <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
+            <button onClick={goBack} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
             {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
             {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
               <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
@@ -2259,7 +2271,7 @@ export default function App() {
       )}
 
       {/* MAIN CONTENT */}
-      <div style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
+      <div key={renderKey} ref={(el)=>{ if(el && dbSelectedSeries) el.scrollTop=0; }} style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
 
         {/* ── COLLECTION TAB ── */}
         {activeTab==="collection" && (
@@ -2453,7 +2465,7 @@ export default function App() {
                     series={dbFilteredSeries}
                     seriesOwned={seriesOwned}
                     seriesTotal={seriesTotal}
-                    onSelect={setDbSelectedSeries}
+                    onSelect={(s)=>{ setDbSelectedSeries(s); window.scrollTo(0,0); }}
                     onReorder={(from,to)=>{
                       setData(d=>{
                         const all=[...d];
