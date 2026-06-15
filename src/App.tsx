@@ -246,6 +246,11 @@ const T = {
   communityTitle: { es: "Comunidad",              en: "Community",                   th: "ชุมชน" },
   communityUsers: { es: "Coleccionistas",          en: "Collectors",                  th: "นักสะสม" },
   communityFigs:  { es: "Figuras obtenidas",       en: "Figures owned",               th: "ตัวเลขที่มี" },
+  onboardTitle:   { es: "¡Bienvenido a WCF Checklist!", en: "Welcome to WCF Checklist!", th: "ยินดีต้อนรับสู่ WCF Checklist!" },
+  onboardDesc:    { es: "El lugar para gestionar tu colección de World Collectable Figures. Explora el catálogo, marca tus figuras y lleva el control de tu wishlist.", en: "The place to manage your World Collectable Figure collection. Browse the catalogue, mark your figures and track your wishlist.", th: "สถานที่จัดการคอลเลกชัน World Collectable Figure ของคุณ" },
+  onboardLogin:   { es: "Iniciar sesión con Google", en: "Sign in with Google",        th: "เข้าสู่ระบบด้วย Google" },
+  onboardGuest:   { es: "Explorar sin cuenta",     en: "Explore without account",     th: "เรียกดูโดยไม่มีบัญชี" },
+  onboardNote:    { es: "Con cuenta, tu colección se guarda y sincroniza entre dispositivos.", en: "With an account, your collection is saved and synced across devices.", th: "ด้วยบัญชี คอลเลกชันของคุณจะถูกบันทึกและซิงค์" },
   installBanner:  { es: "Instala WCF Checklist en tu dispositivo", en: "Install WCF Checklist on your device", th: "ติดตั้ง WCF Checklist บนอุปกรณ์ของคุณ" },
   installBtn:     { es: "Instalar",                en: "Install",                     th: "ติดตั้ง" },
   signIn:         { es: "Iniciar sesión",          en: "Sign in",                     th: "เข้าสู่ระบบ" },
@@ -279,7 +284,7 @@ const DragCtx = createContext<{
 const useDragCtx = () => useContext(DragCtx);
 
 function useLang() {
-  const [lang, setLang] = useState<LangCode>(() => (localStorage.getItem("wcf_lang") as LangCode) ?? "es");
+  const [lang, setLang] = useState<LangCode>(() => (localStorage.getItem("wcf_lang") as LangCode) ?? "en");
   const saveLang = (l: LangCode) => { setLang(l); localStorage.setItem("wcf_lang", l); };
   const t = (key: TKey, ...args: unknown[]): string => {
     const entry = T[key] as Record<LangCode, unknown>;
@@ -1789,6 +1794,34 @@ function FeedbackModal({ onClose, data }: { onClose:()=>void; data?:object }) {
 }
 
 // ============================================================
+//  ONBOARDING MODAL
+// ============================================================
+function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>void }) {
+  const { t } = useTr();
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"var(--bg)",borderRadius:20,padding:28,width:"100%",maxWidth:360,boxShadow:"0 12px 40px rgba(0,0,0,0.3)",textAlign:"center"}}>
+        <img src="/icons/icon-96x96.png" alt="WCF" style={{width:72,height:72,borderRadius:16,marginBottom:16}} />
+        <div style={{fontWeight:800,fontSize:20,marginBottom:10,color:"var(--text)"}}>{t("onboardTitle")}</div>
+        <div style={{fontSize:13,color:"var(--text3)",lineHeight:1.6,marginBottom:8}}>{t("onboardDesc")}</div>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:24,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.5}}>
+          💡 {t("onboardNote")}
+        </div>
+        <button onClick={onLogin}
+          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0a5244",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:10}}>
+          <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
+          {t("onboardLogin")}
+        </button>
+        <button onClick={onGuest}
+          style={{width:"100%",padding:"11px",borderRadius:12,border:"1px solid var(--border)",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
+          {t("onboardGuest")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 //  LOGIN MODAL
 // ============================================================
 function LoginModal({ onClose, onGoogle }: { onClose:()=>void; onGoogle:()=>void }) {
@@ -1835,6 +1868,14 @@ export default function App() {
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Show onboarding only once for new users
+  useEffect(() => {
+    if (authReady && !user && !localStorage.getItem("wcf_onboarded")) {
+      setShowOnboarding(true);
+    }
+  }, [authReady, user]);
   const [installPrompt, setInstallPrompt] = useState<Event|null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
@@ -2491,6 +2532,10 @@ export default function App() {
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
+      {showOnboarding && <OnboardingModal
+        onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
+        onGuest={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); }}
+      />}
     </div>
   );
 
