@@ -1772,6 +1772,14 @@ export default function App() {
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<Event|null>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); setShowInstallBanner(true); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const latestId = Math.max(...CHANGELOG.map(c=>c.id));
   const [showChangelog, setShowChangelog] = useState(() => {
@@ -2022,6 +2030,22 @@ export default function App() {
           </button>
         )}
       </div>
+
+      {/* INSTALL BANNER */}
+      {showInstallBanner && (
+        <div style={{background:"#0F6E56",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+          <img src="/icons/icon-72x72.png" alt="WCF" style={{width:28,height:28,borderRadius:6}} />
+          <span style={{flex:1,fontSize:12,color:"#fff",fontWeight:500}}>Instala WCF Checklist en tu dispositivo</span>
+          <button onClick={()=>{
+            if(installPrompt) (installPrompt as any).prompt();
+            setShowInstallBanner(false);
+          }} style={{background:"#fff",color:"#0F6E56",border:"none",borderRadius:6,padding:"5px 10px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+            Instalar
+          </button>
+          <button onClick={()=>setShowInstallBanner(false)}
+            style={{background:"none",border:"none",color:"rgba(255,255,255,0.7)",fontSize:18,cursor:"pointer",padding:0,lineHeight:1}}>×</button>
+        </div>
+      )}
 
       {/* FILTER BAR — hidden on stats tab */}
       {activeTab!=="stats" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0a5244",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
