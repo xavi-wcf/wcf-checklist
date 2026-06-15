@@ -1986,12 +1986,14 @@ export default function App() {
   const [dbSeries,   setDbSeries]   = useState<number|"all">("all");
   const [dbCategory, setDbCategory] = useState<"all"|CategoryType>("all");
   const [dbSelectedSeries, setDbSelectedSeries] = useState<number|null>(null);
-  const [renderKey, setRenderKey] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const goBack = () => {
-    setDbSelectedSeries(null);
-    setRenderKey(k => k + 1);
-  };
+  const goBack = () => setDbSelectedSeries(null);
+
+  // Scroll to top when entering/leaving a series
+  useEffect(() => {
+    if(scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [dbSelectedSeries]);
   const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
 
   // Favourites — stored in localStorage
@@ -2251,7 +2253,7 @@ export default function App() {
       )}
 
       {/* MAIN CONTENT */}
-      <div key={renderKey} style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
+      <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
 
         {/* ── COLLECTION TAB ── */}
         {activeTab==="collection" && (
@@ -2445,7 +2447,7 @@ export default function App() {
                     series={dbFilteredSeries}
                     seriesOwned={seriesOwned}
                     seriesTotal={seriesTotal}
-                    onSelect={(s)=>{ setDbSelectedSeries(s); window.scrollTo(0,0); }}
+                    onSelect={(s)=>setDbSelectedSeries(s)}
                     onReorder={(from,to)=>{
                       setData(d=>{
                         const all=[...d];
