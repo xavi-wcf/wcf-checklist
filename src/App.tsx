@@ -2041,7 +2041,7 @@ export default function App() {
     <div style={{fontFamily:"system-ui,sans-serif",display:"flex",flexDirection:"column",height:"100vh",color:"var(--text)",background:"var(--bg)"}}>
 
       {/* TOP BAR */}
-      <div style={{borderBottom:"1px solid var(--border)",padding:"6px 10px",display:"flex",alignItems:"center",gap:4,background:"#0a5244",flexShrink:0,overflow:"hidden"}}>
+      <div style={{borderBottom:"1px solid var(--border)",padding:"6px 10px",display:"flex",alignItems:"center",gap:4,background:"#0a5244",flexShrink:0,position:"relative",zIndex:100}}>
         <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"#fff"}}>{t("appTitle")}</span>
         <div style={{flex:1}} />
         <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",whiteSpace:"nowrap"}}>{totalAll} WCF</span>
@@ -2127,7 +2127,7 @@ export default function App() {
           })()}
         </div>
         {/* Collapsible filters row */}
-        {showFilters && <div style={{display:"flex",gap:4,marginTop:6,overflowX:"auto",paddingBottom:2}}>
+        {showFilters && <div style={{display:"flex",gap:4,marginTop:6}}>
           {activeTab==="collection" && <>
             <select value={colCategory} onChange={e=>setColCategory(e.target.value as typeof colCategory)} style={{...selectStyle,fontSize:11}}>
               <option value="all">Categoría</option>
