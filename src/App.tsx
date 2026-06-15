@@ -1414,9 +1414,15 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
 
   useEffect(() => {
     supabase.from("wcf_progress").select("owned")
-      .then(({ data: rows }) => {
+      .then(({ data: rows, error }) => {
+        if (error) { console.error("Community stats error:", error); return; }
         if (rows) {
-          const totalOwned = rows.reduce((acc, r) => acc + (r.owned?.length ?? 0), 0);
+          const totalOwned = rows.reduce((acc, r) => {
+            const o = r.owned;
+            if (Array.isArray(o)) return acc + o.length;
+            if (typeof o === 'string') { try { return acc + JSON.parse(o).length; } catch { return acc; } }
+            return acc;
+          }, 0);
           setCommunityStats({ users: rows.length, totalOwned });
         }
       });
