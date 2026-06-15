@@ -967,11 +967,17 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const [hover,setHover]=useState(false);
   const [dragOver,setDragOver]=useState(false);
+  const [popping, setPopping] = useState(false);
   const isMobileDevice = window.innerWidth < 768;
   const hasImage = !!figure.image && !imgError;
   const statusText = isOwned ? t("owned") : isWished ? t("inWishlist") : t("missing");
   const statusColor = isOwned ? color : isWished ? "#d97706" : "#aaa";
   const dotColor = isOwned ? color : isWished ? "#f59e0b" : "#ccc";
+
+  const handleToggle = () => {
+    if (!isOwned) { setPopping(true); setTimeout(()=>setPopping(false), 400); }
+    onToggle();
+  };
 
   const { dragging, setDragging } = useDragCtx();
 
@@ -1010,7 +1016,10 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       draggable={isAdmin && !!figure.image}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default"}}
+      style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default",
+        transform: popping ? "scale(1.08)" : "scale(1)",
+        transition: popping ? "transform 0.15s ease-out" : "transform 0.2s ease-in, border 0.2s"
+      }}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>🔄</div>}
@@ -1023,13 +1032,13 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       </div>}
       {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
       {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
-      <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
+      <div onClick={handleToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:36}}>{figure.emoji}</div><div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{t("noImage")}</div></div>}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5}}>{figure.name}</div>
-        <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:statusColor,fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
+        <div onClick={handleToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:statusColor,fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:dotColor,flexShrink:0}} />{statusText}
         </div>
       </div>
@@ -1381,6 +1390,17 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   onOpenPicker:()=>void;
 }) {
   const { t } = useTr();
+  const [communityStats, setCommunityStats] = useState<{users:number;totalOwned:number}|null>(null);
+
+  useEffect(() => {
+    supabase.from("wcf_progress").select("owned", { count: "exact" })
+      .then(({ data: rows, count }) => {
+        if (rows) {
+          const totalOwned = rows.reduce((acc, r) => acc + (r.owned?.length ?? 0), 0);
+          setCommunityStats({ users: count ?? 0, totalOwned });
+        }
+      });
+  }, []);
   const favSeries = data.filter(s=>favourites.has(s.id));
   const favOficial = favSeries.filter(s=>s.category==="oficial");
   const favResina = favSeries.filter(s=>s.category==="resina");
@@ -1477,6 +1497,23 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Community stats */}
+      {communityStats && (
+        <div style={{marginTop:28,paddingTop:20,borderTop:"1px solid var(--border)"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}}>🌍 Community</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
+              <div style={{fontSize:24,fontWeight:700,color:"#6366f1"}}>{communityStats.users}</div>
+              <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Collectors</div>
+            </div>
+            <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
+              <div style={{fontSize:24,fontWeight:700,color:"#0F6E56"}}>{communityStats.totalOwned.toLocaleString()}</div>
+              <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Figures owned</div>
+            </div>
+          </div>
         </div>
       )}
     </div>
