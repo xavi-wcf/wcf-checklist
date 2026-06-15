@@ -2052,7 +2052,7 @@ export default function App() {
             <img src={LANGUAGES.find(l=>l.code===lang)?.flag} alt={lang} style={{width:18,height:13,objectFit:"cover",borderRadius:2}} />
             ▾
           </button>
-          {showLangMenu && <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:200,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 4px 16px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:120}}>
+          {showLangMenu && <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 4px 16px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:120}}>
             {LANGUAGES.map(l=>(
               <div key={l.code} onClick={()=>{setLang(l.code);setShowLangMenu(false);}}
                 style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:lang===l.code?"var(--bg2)":"transparent",color:"var(--text)",fontSize:13,fontWeight:lang===l.code?600:400}}
@@ -2127,51 +2127,51 @@ export default function App() {
           })()}
         </div>
         {/* Collapsible filters row */}
-        {showFilters && <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+        {showFilters && <div style={{display:"flex",gap:4,marginTop:6,overflowX:"auto",paddingBottom:2}}>
           {activeTab==="collection" && <>
-            <select value={colCategory} onChange={e=>setColCategory(e.target.value as typeof colCategory)} style={selectStyle}>
-              <option value="all">{t("allCategories")}</option>
+            <select value={colCategory} onChange={e=>setColCategory(e.target.value as typeof colCategory)} style={{...selectStyle,fontSize:11}}>
+              <option value="all">Categoría</option>
               <option value="oficial">{t("officialBadge")}</option>
               <option value="resina">{t("resinBadge")}</option>
             </select>
-            <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
-              <option value="all">{t("allSeries")}</option>
-              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+            <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={{...selectStyle,fontSize:11}}>
+              <option value="all">Series</option>
+              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={selectStyle}>
-              <option value="alpha">{t("sortAZ")}</option>
-              <option value="date">{t("sortDate")}</option>
+            <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={{...selectStyle,fontSize:11}}>
+              <option value="date">📅</option>
+              <option value="alpha">A/Z</option>
             </select>
-            <select value={colSize} onChange={e=>setColSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
+            <select value={colSize} onChange={e=>setColSize(e.target.value as "s"|"m"|"l")} style={{...selectStyle,fontSize:11}}>
               <option value="s">S</option>
               <option value="m">M</option>
               <option value="l">L</option>
             </select>
           </>}
           {activeTab==="database" && <>
-            <select value={dbCategory} onChange={e=>setDbCategory(e.target.value as typeof dbCategory)} style={selectStyle}>
-              <option value="all">{t("allCategories")}</option>
+            <select value={dbCategory} onChange={e=>setDbCategory(e.target.value as typeof dbCategory)} style={{...selectStyle,fontSize:11}}>
+              <option value="all">Categoría</option>
               <option value="oficial">{t("officialBadge")}</option>
               <option value="resina">{t("resinBadge")}</option>
             </select>
-            <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
-              <option value="all">{t("allSeries")}</option>
-              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+            <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={{...selectStyle,fontSize:11}}>
+              <option value="all">Series</option>
+              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={selectStyle}>
-              <option value="alpha">{t("sortAZ")}</option>
-              <option value="date">{t("sortDate")}</option>
+            <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={{...selectStyle,fontSize:11}}>
+              <option value="date">📅</option>
+              <option value="alpha">A/Z</option>
             </select>
-            <select value={dbSize} onChange={e=>setDbSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
+            <select value={dbSize} onChange={e=>setDbSize(e.target.value as "s"|"m"|"l")} style={{...selectStyle,fontSize:11}}>
               <option value="s">S</option>
               <option value="m">M</option>
               <option value="l">L</option>
             </select>
-            <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
-              <option value="all">{t("filterAll")}</option>
-              <option value="owned">{t("owned")}</option>
-              <option value="wishlist">{t("wishlist")}</option>
-              <option value="missing">{t("missing")}</option>
+            <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={{...selectStyle,fontSize:11}}>
+              <option value="all">Estado</option>
+              <option value="owned">✅</option>
+              <option value="wishlist">💛</option>
+              <option value="missing">❌</option>
             </select>
           </>}
         </div>}
