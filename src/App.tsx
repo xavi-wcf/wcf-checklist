@@ -1937,7 +1937,7 @@ export default function App() {
     if (user) {
       supabase.from("wcf_progress").select("favourites").eq("user_id", user.id).maybeSingle()
         .then(({ data }) => {
-          if (data?.favourites?.length > 0) {
+          if (data?.favourites && data.favourites.length > 0) {
             setFavourites(new Set(data.favourites));
           } else {
             try {
