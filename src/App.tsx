@@ -235,7 +235,8 @@ const T = {
   feedbackPH:     { es: "Describe el error o sugerencia...", en: "Describe the issue or suggestion...", th: "อธิบายปัญหาหรือข้อเสนอแนะ..." },
   feedbackSend:   { es: "Enviar",                   en: "Send",                      th: "ส่ง" },
   feedbackOk:     { es: "¡Gracias! Tu mensaje ha sido enviado.", en: "Thanks! Your message has been sent.", th: "ขอบคุณ! ส่งข้อความแล้ว" },
-  signIn:         { es: "Iniciar sesión",        en: "Sign in",                     th: "เข้าสู่ระบบ" },
+  installBanner:  { es: "Instala WCF Checklist en tu dispositivo", en: "Install WCF Checklist on your device", th: "ติดตั้ง WCF Checklist บนอุปกรณ์ของคุณ" },
+  installBtn:     { es: "Instalar",                en: "Install",                     th: "ติดตั้ง" },
   signInGoogle:   { es: "Continuar con Google",  en: "Continue with Google",        th: "ดำเนินการต่อด้วย Google" },
   signOut:        { es: "Cerrar sesión",          en: "Sign out",                    th: "ออกจากระบบ" },
   signInToMark:   { es: "Inicia sesión para marcar figuras", en: "Sign in to mark figures", th: "เข้าสู่ระบบเพื่อทำเครื่องหมาย" },
@@ -1734,29 +1735,14 @@ function LoginModal({ onClose, onGoogle }: { onClose:()=>void; onGoogle:()=>void
   );
 }
 
-const ADMIN_PASSWORD = "wcf2024admin";
+// ============================================================
+//  ADMIN EMAILS — añade aquí los emails con acceso admin
+// ============================================================
+const ADMIN_EMAILS = [
+  "xavoroolz@gmail.com", // cambia esto por tu email de Google
+];
 
-function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>void }) {
-  const [pwd, setPwd] = useState("");
-  const [error, setError] = useState(false);
-  const check = () => {
-    if (pwd === ADMIN_PASSWORD) { onSuccess(); onClose(); }
-    else { setError(true); setPwd(""); }
-  };
-  return (
-    <Modal title="🔐 Modo admin" onClose={onClose}>
-      <p style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Introduce la contraseña para activar el modo edición.</p>
-      <input type="password" value={pwd} onChange={e=>{setPwd(e.target.value);setError(false);}} onKeyDown={e=>e.key==="Enter"&&check()}
-        placeholder="Contraseña" autoFocus
-        style={{width:"100%",padding:"8px 10px",fontSize:14,border:`1px solid ${error?"#dc2626":"var(--border)"}`,borderRadius:8,outline:"none",boxSizing:"border-box" as const,marginBottom:error?4:0}} />
-      {error && <p style={{fontSize:12,color:"#dc2626",marginBottom:0}}>Contraseña incorrecta</p>}
-      <div style={{marginTop:16,display:"flex",gap:8,justifyContent:"flex-end"}}>
-        <Btn onClick={onClose}>Cancelar</Btn>
-        <Btn onClick={check} variant="primary">Entrar</Btn>
-      </div>
-    </Modal>
-  );
-}
+
 
 export default function App() {
   const { user, authReady, signInWithGoogle, signOut } = useAuth();
@@ -1766,8 +1752,7 @@ export default function App() {
   const { dark, toggleDark } = useDarkMode();
   const ready = ownedReady && dataReady && authReady;
 
-  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("wcf_admin") === "true");
-  const [showAdminPrompt, setShowAdminPrompt] = useState(false);
+  const isAdmin = user ? ADMIN_EMAILS.includes(user.email ?? "") : false;
   const [showAddSeries, setShowAddSeries] = useState(false);
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -1981,12 +1966,12 @@ export default function App() {
         <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"#fff"}}>{t("appTitle")}</span>
         <div style={{flex:1}} />
         <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",whiteSpace:"nowrap"}}>{totalAll} WCF</span>
-        {/* Language dropdown */}
+        {/* Language dropdown - flag only */}
         <div style={{position:"relative"}}>
           <button onClick={()=>setShowLangMenu(m=>!m)}
-            style={{padding:"3px 7px",fontSize:11,border:"1px solid rgba(255,255,255,0.3)",borderRadius:6,background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.9)",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-            <img src={LANGUAGES.find(l=>l.code===lang)?.flag} alt={lang} style={{width:14,height:10,objectFit:"cover",borderRadius:1}} />
-            {lang.toUpperCase()} ▾
+            style={{padding:"3px 6px",fontSize:11,border:"1px solid rgba(255,255,255,0.3)",borderRadius:6,background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.9)",cursor:"pointer",display:"flex",alignItems:"center",gap:3}}>
+            <img src={LANGUAGES.find(l=>l.code===lang)?.flag} alt={lang} style={{width:18,height:13,objectFit:"cover",borderRadius:2}} />
+            ▾
           </button>
           {showLangMenu && <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:200,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 4px 16px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:120}}>
             {LANGUAGES.map(l=>(
@@ -2001,10 +1986,7 @@ export default function App() {
           </div>}
         </div>
         <button onClick={toggleDark} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
-        <button onClick={()=>{if(isAdmin){setIsAdmin(false);localStorage.removeItem("wcf_admin");}else setShowAdminPrompt(true);}}
-          style={{background:isAdmin?"#fff":"rgba(255,255,255,0.1)",border:"1px solid "+(isAdmin?"#fff":"rgba(255,255,255,0.3)"),borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12,color:isAdmin?"#0a5244":"rgba(255,255,255,0.8)"}}>
-          {isAdmin?"🔓":"🔒"}
-        </button>
+
         {isAdmin && <button onClick={()=>{
           const json = JSON.stringify(data, null, 2);
           const blob = new Blob([json], {type:"application/json"});
@@ -2025,8 +2007,8 @@ export default function App() {
           </button>
         ) : (
           <button onClick={()=>setShowLogin(true)}
-            style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#fff",fontWeight:600}}>
-            {t("signIn")}
+            style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:14}} title={t("signIn")}>
+            👤
           </button>
         )}
       </div>
@@ -2035,12 +2017,12 @@ export default function App() {
       {showInstallBanner && (
         <div style={{background:"#0F6E56",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
           <img src="/icons/icon-72x72.png" alt="WCF" style={{width:28,height:28,borderRadius:6}} />
-          <span style={{flex:1,fontSize:12,color:"#fff",fontWeight:500}}>Instala WCF Checklist en tu dispositivo</span>
+          <span style={{flex:1,fontSize:12,color:"#fff",fontWeight:500}}>{t("installBanner")}</span>
           <button onClick={()=>{
             if(installPrompt) (installPrompt as any).prompt();
             setShowInstallBanner(false);
           }} style={{background:"#fff",color:"#0F6E56",border:"none",borderRadius:6,padding:"5px 10px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-            Instalar
+            {t("installBtn")}
           </button>
           <button onClick={()=>setShowInstallBanner(false)}
             style={{background:"none",border:"none",color:"rgba(255,255,255,0.7)",fontSize:18,cursor:"pointer",padding:0,lineHeight:1}}>×</button>
@@ -2401,7 +2383,6 @@ export default function App() {
         <SeriesDataCtx.Provider value={data}>
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
             {appContent}
-            {showAdminPrompt && <AdminPrompt onSuccess={()=>{setIsAdmin(true);localStorage.setItem("wcf_admin","true");}} onClose={()=>setShowAdminPrompt(false)} />}
             {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
           </DragCtx.Provider>
         </SeriesDataCtx.Provider>
