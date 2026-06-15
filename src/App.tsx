@@ -1702,7 +1702,7 @@ type TabType = "collection" | "database" | "stats";
 // ============================================================
 //  FEEDBACK MODAL
 // ============================================================
-function FeedbackModal({ onClose, data }: { onClose:()=>void; data?:unknown }) {
+function FeedbackModal({ onClose, data }: { onClose:()=>void; data?:object }) {
   const { t } = useTr();
   const [type, setType] = useState("bug");
   const [msg, setMsg] = useState("");
