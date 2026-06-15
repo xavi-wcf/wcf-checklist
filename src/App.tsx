@@ -442,24 +442,26 @@ function useOwned(userId: string|null) {
 
   useEffect(() => {
     if (userId) {
-      supabase.from("wcf_progress").select("owned,wishlist").eq("user_id", userId).maybeSingle()
+      supabase.from("wcf_progress").select("owned,wishlist,favourites").eq("user_id", userId).maybeSingle()
         .then(({ data, error }) => {
           if (error) console.error("Load error:", error);
-          if (data && (data.owned?.length > 0 || data.wishlist?.length > 0)) {
-            setOwned(new Set(data.owned ?? []));
-            setWishlist(new Set(data.wishlist ?? []));
+          if (data) {
+            if (data.owned?.length > 0) setOwned(new Set(data.owned));
+            if (data.wishlist?.length > 0) setWishlist(new Set(data.wishlist));
+            if (data.favourites?.length > 0) {
+              // dispatch event to set favourites in App
+              window.dispatchEvent(new CustomEvent("wcf_favourites", { detail: data.favourites }));
+            }
           } else {
-            // Fall back to localStorage
             try {
               const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
               const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
               setOwned(new Set(o)); setWishlist(new Set(w));
-              // Migrate to Supabase if has data
               if (o.length > 0 || w.length > 0) {
                 supabase.from("wcf_progress").upsert({
                   user_id: userId, owned: o, wishlist: w,
                   updated_at: new Date().toISOString()
-                }, { onConflict: "user_id" });
+                }, { onConflict: "user_id", ignoreDuplicates: false });
               }
             } catch {}
           }
@@ -1988,25 +1990,19 @@ export default function App() {
   const [favourites, setFavourites] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    if (user) {
-      supabase.from("wcf_progress").select("favourites").eq("user_id", user.id).maybeSingle()
-        .then(({ data }) => {
-          if (data?.favourites && data.favourites.length > 0) {
-            setFavourites(new Set(data.favourites));
-          } else {
-            try {
-              const f = JSON.parse(localStorage.getItem("wcf_favourites") ?? "[]");
-              setFavourites(new Set(f));
-            } catch {}
-          }
-        });
-    } else {
-      try {
-        const f = JSON.parse(localStorage.getItem("wcf_favourites") ?? "[]");
-        setFavourites(new Set(f));
-      } catch {}
-    }
-  }, [user]);
+    // Load favourites from localStorage initially
+    try {
+      const f = JSON.parse(localStorage.getItem("wcf_favourites") ?? "[]");
+      if (f.length > 0) setFavourites(new Set(f));
+    } catch {}
+    // Listen for favourites loaded from Supabase
+    const handler = (e: Event) => {
+      const favs = (e as CustomEvent).detail;
+      if (favs?.length > 0) setFavourites(new Set(favs));
+    };
+    window.addEventListener("wcf_favourites", handler);
+    return () => window.removeEventListener("wcf_favourites", handler);
+  }, []);
   const toggleFavourite = (id:number) => setFavourites(prev => {
     const n = new Set(prev); n.has(id)?n.delete(id):n.add(id);
     localStorage.setItem("wcf_favourites", JSON.stringify([...n]));
