@@ -4,14 +4,7 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
 const CHANGELOG = [
-{
-    id: 5,
-    date: "2025-06-12",
-    entries: [
-      "🎉 829 WCF added to One Piece (Official)",
-    ]
-  },
-{
+  {
     id: 4,
     date: "2025-06-10",
     entries: [
@@ -20,7 +13,7 @@ const CHANGELOG = [
       "🎉 24 WCF added to Kaiju nº8 (Official)",
     ]
   },
-{
+  {
     id: 3,
     date: "2025-06-09",
     entries: [
@@ -31,7 +24,7 @@ const CHANGELOG = [
       "🎉 22 WCF added to Others (Official)",
     ]
   },
- {
+  {
     id: 2,
     date: "2025-06-05",
     entries: [
@@ -242,6 +235,11 @@ const T = {
   feedbackPH:     { es: "Describe el error o sugerencia...", en: "Describe the issue or suggestion...", th: "อธิบายปัญหาหรือข้อเสนอแนะ..." },
   feedbackSend:   { es: "Enviar",                   en: "Send",                      th: "ส่ง" },
   feedbackOk:     { es: "¡Gracias! Tu mensaje ha sido enviado.", en: "Thanks! Your message has been sent.", th: "ขอบคุณ! ส่งข้อความแล้ว" },
+  signIn:         { es: "Iniciar sesión",        en: "Sign in",                     th: "เข้าสู่ระบบ" },
+  signInGoogle:   { es: "Continuar con Google",  en: "Continue with Google",        th: "ดำเนินการต่อด้วย Google" },
+  signOut:        { es: "Cerrar sesión",          en: "Sign out",                    th: "ออกจากระบบ" },
+  signInToMark:   { es: "Inicia sesión para marcar figuras", en: "Sign in to mark figures", th: "เข้าสู่ระบบเพื่อทำเครื่องหมาย" },
+  guestMode:      { es: "Modo invitado",          en: "Guest mode",                  th: "โหมดผู้เยี่ยมชม" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -370,26 +368,104 @@ const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 // ============================================================
 //  HOOKS
 // ============================================================
-function useOwned() {
+// ============================================================
+//  SUPABASE AUTH CLIENT
+// ============================================================
+import { createClient } from "@supabase/supabase-js";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+type AuthUser = { id: string; email?: string; name?: string; avatar?: string };
+
+function useAuth() {
+  const [user, setUser] = useState<AuthUser|null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.user_metadata?.full_name,
+          avatar: session.user.user_metadata?.avatar_url,
+        });
+      }
+      setAuthReady(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.user_metadata?.full_name,
+          avatar: session.user.user_metadata?.avatar_url,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signInWithGoogle = () => supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin }
+  });
+  const signOut = () => supabase.auth.signOut();
+
+  return { user, authReady, signInWithGoogle, signOut };
+}
+
+function useOwned(userId: string|null) {
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
-      const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
-      setOwned(new Set(o)); setWishlist(new Set(w));
-    } catch {}
-    sbGet("wcf_owned").then(() => { setReady(true); });
-  }, []);
+    if (userId) {
+      // Load from Supabase for logged in users
+      supabase.from("wcf_progress").select("owned,wishlist").eq("user_id", userId).single()
+        .then(({ data }) => {
+          if (data) {
+            setOwned(new Set(data.owned ?? []));
+            setWishlist(new Set(data.wishlist ?? []));
+          }
+          setReady(true);
+        });
+    } else {
+      // Load from localStorage for guests
+      try {
+        const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
+        const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
+        setOwned(new Set(o)); setWishlist(new Set(w));
+      } catch {}
+      setReady(true);
+    }
+  }, [userId]);
 
-  const saveLocal = (o: Set<number>, w: Set<number>) => {
-    localStorage.setItem("wcf_owned", JSON.stringify([...o]));
-    localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
-  };
-  const toggle = (id: number) => setOwned(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(n, wishlist); return n; });
-  const toggleWish = (id: number) => setWishlist(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); saveLocal(owned, n); return n; });
+  const saveProgress = useCallback((o: Set<number>, w: Set<number>) => {
+    if (userId) {
+      supabase.from("wcf_progress").upsert({
+        user_id: userId,
+        owned: [...o],
+        wishlist: [...w],
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+    } else {
+      localStorage.setItem("wcf_owned", JSON.stringify([...o]));
+      localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
+    }
+  }, [userId]);
+
+  const toggle = (id: number) => setOwned(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id);
+    saveProgress(n, wishlist); return n;
+  });
+  const toggleWish = (id: number) => setWishlist(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id);
+    saveProgress(owned, n); return n;
+  });
+
   return { owned, toggle, wishlist, toggleWish, imgbbKey: IMGBB_KEY, ready };
 }
 
@@ -1633,6 +1709,31 @@ function FeedbackModal({ onClose }: { onClose:()=>void }) {
   );
 }
 
+// ============================================================
+//  LOGIN MODAL
+// ============================================================
+function LoginModal({ onClose, onGoogle }: { onClose:()=>void; onGoogle:()=>void }) {
+  const { t } = useTr();
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:28,width:"100%",maxWidth:340,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}}>
+        <div style={{fontSize:36,marginBottom:12}}>📦</div>
+        <div style={{fontWeight:700,fontSize:18,marginBottom:8}}>WCF Checklist</div>
+        <div style={{fontSize:13,color:"var(--text3)",marginBottom:24}}>{t("signInToMark")}</div>
+        <button onClick={onGoogle}
+          style={{width:"100%",padding:"12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:12}}>
+          <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
+          {t("signInGoogle")}
+        </button>
+        <button onClick={onClose}
+          style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
+          {t("guestMode")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const ADMIN_PASSWORD = "wcf2024admin";
 
 function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>void }) {
@@ -1658,17 +1759,19 @@ function AdminPrompt({ onSuccess, onClose }: { onSuccess:()=>void; onClose:()=>v
 }
 
 export default function App() {
-  const { owned, toggle, wishlist, toggleWish, imgbbKey, ready: ownedReady } = useOwned();
+  const { user, authReady, signInWithGoogle, signOut } = useAuth();
+  const { owned, toggle, wishlist, toggleWish, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { lang, setLang, t } = useLang();
   const { dark, toggleDark } = useDarkMode();
-  const ready = ownedReady && dataReady;
+  const ready = ownedReady && dataReady && authReady;
 
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("wcf_admin") === "true");
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [showAddSeries, setShowAddSeries] = useState(false);
   const [editSeriesData, setEditSeriesData] = useState<Series|null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const latestId = Math.max(...CHANGELOG.map(c=>c.id));
   const [showChangelog, setShowChangelog] = useState(() => {
@@ -1676,6 +1779,13 @@ export default function App() {
     return seen < latestId;
   });
   const apiKey = imgbbKey;
+
+  const requireLogin = (fn: ()=>void) => {
+    if (!user) { setShowLogin(true); return; }
+    fn();
+  };
+  const toggleWithAuth = (id: number) => requireLogin(()=>toggle(id));
+  const toggleWishWithAuth = (id: number) => requireLogin(()=>toggleWish(id));
 
   const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:"oficial",sets:[],groups:[]}; setData(d=>[...d,s]); };
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
@@ -1753,9 +1863,17 @@ export default function App() {
   const [favourites, setFavourites] = useState<Set<number>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("wcf_favourites")??"[]")); } catch { return new Set(); }
   });
+  useEffect(() => {
+    if (user) {
+      supabase.from("wcf_progress").select("favourites").eq("user_id", user.id).single()
+        .then(({ data }) => { if (data?.favourites) setFavourites(new Set(data.favourites)); });
+    }
+  }, [user]);
   const toggleFavourite = (id:number) => setFavourites(prev => {
     const n = new Set(prev); n.has(id)?n.delete(id):n.add(id);
-    localStorage.setItem("wcf_favourites", JSON.stringify([...n])); return n;
+    localStorage.setItem("wcf_favourites", JSON.stringify([...n]));
+    if (user) supabase.from("wcf_progress").upsert({ user_id: user.id, favourites: [...n], updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    return n;
   });
   const [showFavPicker, setShowFavPicker] = useState(false);
   const [favPickerCat, setFavPickerCat] = useState<CategoryType>("oficial");
@@ -1889,6 +2007,20 @@ export default function App() {
         }} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Backup datos">💾</button>}
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
+        {user ? (
+          <button onClick={signOut} title={t("signOut")}
+            style={{background:"none",border:"none",cursor:"pointer",padding:0,borderRadius:"50%",overflow:"hidden",width:28,height:28,flexShrink:0}}>
+            {user.avatar
+              ? <img src={user.avatar} alt={user.name} style={{width:28,height:28,borderRadius:"50%",objectFit:"cover"}} />
+              : <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff"}}>{user.name?.[0]??user.email?.[0]??"?"}</div>
+            }
+          </button>
+        ) : (
+          <button onClick={()=>setShowLogin(true)}
+            style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#fff",fontWeight:600}}>
+            {t("signIn")}
+          </button>
+        )}
       </div>
 
       {/* FILTER BAR — hidden on stats tab */}
@@ -2036,7 +2168,7 @@ export default function App() {
                   {dbFigures.map(({figure,set,series,groupName})=>(
                     <SearchResultCard key={figure.id} figure={figure} series={series} set={set} groupName={groupName}
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
-                      onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)}
+                      onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
                       onEdit={(f)=>{
                         // Find groupId if figure is inside a group
                         const seriesObj = data.find(s=>s.id===series.id);
@@ -2074,8 +2206,8 @@ export default function App() {
                 return display.map((item) => item.type==="group" ? (
                   <GroupCard key={"g"+item.group.id}
                     group={item.group} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
-                    onToggle={toggle} onToggleWish={toggleWish}
-                    onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                    onToggle={toggleWithAuth} onToggleWish={toggleWishWithAuth}
+                    onToggleAll={(ids,markAs)=>requireLogin(()=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);}))}
                     onUpdateGroup={(n,l)=>updateGroup(dbSeriesObj.id,item.group.id,n,l)}
                     onDeleteGroup={()=>deleteGroup(dbSeriesObj.id,item.group.id)}
                     onAddSet={()=>addSet(dbSeriesObj.id,item.group.id)}
@@ -2090,8 +2222,8 @@ export default function App() {
                 ) : (
                   <SetCard key={"s"+item.set.id}
                     set={item.set} color={dbSeriesObj.color} owned={owned} wishlist={wishlist} apiKey={apiKey}
-                    onToggle={toggle} onToggleWish={toggleWish}
-                    onToggleAll={(ids,markAs)=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);})}
+                    onToggle={toggleWithAuth} onToggleWish={toggleWishWithAuth}
+                    onToggleAll={(ids,markAs)=>requireLogin(()=>ids.forEach(id=>{if(markAs!==owned.has(id))toggle(id);}))}
                     onUpdateSet={(n,rd,sl)=>updateSet(dbSeriesObj.id,item.set.id,n,rd,sl)}
                     onDeleteSet={()=>deleteSet(dbSeriesObj.id,item.set.id)}
                     onDuplicate={()=>duplicateSet(dbSeriesObj.id,item.set.id)}
@@ -2126,7 +2258,7 @@ export default function App() {
                         <div key={figure.id} style={{position:"relative"}}>
                           <SearchResultCard figure={figure} series={series} set={set}
                             isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
-                            onToggle={()=>toggle(figure.id)} onToggleWish={()=>toggleWish(figure.id)} />
+                            onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)} />
                           <div style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:9,padding:"2px 5px",borderRadius:4,pointerEvents:"none"}}>
                             {series.name}
                           </div>
@@ -2233,6 +2365,7 @@ export default function App() {
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} />}
+      {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
     </div>
   );
 
