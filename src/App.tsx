@@ -436,22 +436,20 @@ function useOwned(userId: string|null) {
 
   useEffect(() => {
     if (userId) {
-      // Load from Supabase for logged in users
-      supabase.from("wcf_progress").select("owned,wishlist").eq("user_id", userId).single()
-        .then(({ data }) => {
+      supabase.from("wcf_progress").select("owned,wishlist").eq("user_id", userId).maybeSingle()
+        .then(({ data, error }) => {
+          if (error) console.error("Load error:", error);
           if (data && (data.owned?.length > 0 || data.wishlist?.length > 0)) {
-            // Supabase has data — use it (overrides localStorage)
             setOwned(new Set(data.owned ?? []));
             setWishlist(new Set(data.wishlist ?? []));
           } else {
-            // No Supabase data yet — migrate from localStorage if exists
+            // Fall back to localStorage
             try {
               const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
               const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
+              setOwned(new Set(o)); setWishlist(new Set(w));
+              // Migrate to Supabase if has data
               if (o.length > 0 || w.length > 0) {
-                setOwned(new Set(o));
-                setWishlist(new Set(w));
-                // Save to Supabase
                 supabase.from("wcf_progress").upsert({
                   user_id: userId, owned: o, wishlist: w,
                   updated_at: new Date().toISOString()
@@ -462,7 +460,6 @@ function useOwned(userId: string|null) {
           setReady(true);
         });
     } else {
-      // Load from localStorage for guests
       try {
         const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
         const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
@@ -479,11 +476,12 @@ function useOwned(userId: string|null) {
         owned: [...o],
         wishlist: [...w],
         updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-    } else {
-      localStorage.setItem("wcf_owned", JSON.stringify([...o]));
-      localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
+      }, { onConflict: "user_id" })
+      .then(({ error }) => { if (error) console.error("Save error:", error); });
     }
+    // Always save to localStorage as fallback
+    localStorage.setItem("wcf_owned", JSON.stringify([...o]));
+    localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
   }, [userId]);
 
   const toggle = (id: number) => setOwned(prev => {
