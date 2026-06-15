@@ -5,41 +5,48 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 // ============================================================
 const CHANGELOG = [
   {
-    id: 4,
-    date: "2025-06-10",
-    entries: [
-      "🎉 111 WCF added to Shonen Jump (Official)",
-      "🎉 60 WCF added to Tokyo Revengers (Official)",
-      "🎉 24 WCF added to Kaiju nº8 (Official)",
-    ]
-  },
+      id: 5,
+      date: "2025-06-12",
+      entries: [
+        "🎉 1485 WCF added to One Piece (Official)",
+      ]
+    },
   {
-    id: 3,
-    date: "2025-06-09",
-    entries: [
-      "🎉 58 WCF added to My Hero Academia (Official)",
-      "🎉 45 WCF added to Naruto (Official)",
-      "🎉 15 WCF added to Hunter x Hunter (Official)",
-      "🎉 10 WCF added to Chainsaw Man (Official)",
-      "🎉 22 WCF added to Others (Official)",
-    ]
-  },
+      id: 4,
+      date: "2025-06-10",
+      entries: [
+        "🎉 111 WCF added to Shonen Jump (Official)",
+        "🎉 60 WCF added to Tokyo Revengers (Official)",
+        "🎉 24 WCF added to Kaiju nº8 (Official)",
+      ]
+    },
   {
-    id: 2,
-    date: "2025-06-05",
-    entries: [
-      "🎉 644 WCF added to Dragon Ball (Official)",
-      "🎉 104 WCF added to Shonen Jump (Official)",
-    ]
-  },
-  {
-    id: 1,
-    date: "2025-06-01",
-    entries: [
-      "🎉 App launched — welcome to WCF Checklist",
-    ]
-  },
-];
+      id: 3,
+      date: "2025-06-09",
+      entries: [
+        "🎉 58 WCF added to My Hero Academia (Official)",
+        "🎉 45 WCF added to Naruto (Official)",
+        "🎉 15 WCF added to Hunter x Hunter (Official)",
+        "🎉 10 WCF added to Chainsaw Man (Official)",
+        "🎉 22 WCF added to Others (Official)",
+      ]
+    },
+   {
+      id: 2,
+      date: "2025-06-05",
+      entries: [
+        "🎉 644 WCF added to Dragon Ball (Official)",
+        "🎉 104 WCF added to Shonen Jump (Official)",
+      ]
+    },
+    {
+      id: 1,
+      date: "2025-06-01",
+      entries: [
+        "🎉 App launched — welcome to WCF Checklist",
+      ]
+    },
+  ];
 // ── Fin del changelog ────────────────────────────────────────
 
 // ============================================================
