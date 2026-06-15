@@ -438,6 +438,7 @@ function useAuth() {
 function useOwned(userId: string|null) {
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
+  const [favourites, setFavourites] = useState<Set<number>>(new Set());
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -448,10 +449,7 @@ function useOwned(userId: string|null) {
           if (data) {
             if (data.owned?.length > 0) setOwned(new Set(data.owned));
             if (data.wishlist?.length > 0) setWishlist(new Set(data.wishlist));
-            if (data.favourites?.length > 0) {
-              // dispatch event to set favourites in App
-              window.dispatchEvent(new CustomEvent("wcf_favourites", { detail: data.favourites }));
-            }
+            if (data.favourites?.length > 0) setFavourites(new Set(data.favourites));
           } else {
             try {
               const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
@@ -502,7 +500,17 @@ function useOwned(userId: string|null) {
     saveProgress(owned, n); return n;
   });
 
-  return { owned, toggle, wishlist, toggleWish, imgbbKey: IMGBB_KEY, ready };
+  const toggleFavourite = (id: number) => setFavourites(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id);
+    localStorage.setItem("wcf_favourites", JSON.stringify([...n]));
+    if (userId) supabase.from("wcf_progress")
+      .update({ favourites: [...n], updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .then(({ error }) => { if (error) console.error("Fav save error:", error); });
+    return n;
+  });
+
+  return { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey: IMGBB_KEY, ready };
 }
 
 function useData() {
@@ -1866,7 +1874,7 @@ const ADMIN_EMAILS = [
 
 export default function App() {
   const { user, authReady, signInWithGoogle, signOut } = useAuth();
-  const { owned, toggle, wishlist, toggleWish, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null);
+  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { lang, setLang, t } = useLang();
   const { dark, toggleDark } = useDarkMode();
@@ -1987,31 +1995,6 @@ export default function App() {
   const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
 
   // Favourites — stored in localStorage
-  const [favourites, setFavourites] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    // Load favourites from localStorage initially
-    try {
-      const f = JSON.parse(localStorage.getItem("wcf_favourites") ?? "[]");
-      if (f.length > 0) setFavourites(new Set(f));
-    } catch {}
-    // Listen for favourites loaded from Supabase
-    const handler = (e: Event) => {
-      const favs = (e as CustomEvent).detail;
-      if (favs?.length > 0) setFavourites(new Set(favs));
-    };
-    window.addEventListener("wcf_favourites", handler);
-    return () => window.removeEventListener("wcf_favourites", handler);
-  }, []);
-  const toggleFavourite = (id:number) => setFavourites(prev => {
-    const n = new Set(prev); n.has(id)?n.delete(id):n.add(id);
-    localStorage.setItem("wcf_favourites", JSON.stringify([...n]));
-    if (user) supabase.from("wcf_progress")
-      .update({ favourites: [...n], updated_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .then(({ error }) => { if (error) console.error("Fav save error:", error); });
-    return n;
-  });
   const [showFavPicker, setShowFavPicker] = useState(false);
   const [favPickerCat, setFavPickerCat] = useState<CategoryType>("oficial");
   const [showFilters, setShowFilters] = useState(false);
