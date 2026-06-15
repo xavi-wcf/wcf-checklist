@@ -1941,6 +1941,7 @@ export default function App() {
   });
   const [showFavPicker, setShowFavPicker] = useState(false);
   const [favPickerCat, setFavPickerCat] = useState<CategoryType>("oficial");
+  const [showFilters, setShowFilters] = useState(false);
 
   const allFigures = (s: Series) => [...s.sets, ...(s.groups??[]).flatMap(g=>g.sets)].flatMap(st=>st.figures);
 
@@ -2101,61 +2102,79 @@ export default function App() {
       )}
 
       {/* FILTER BAR — hidden on stats tab */}
-      {activeTab!=="stats" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0a5244",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",flexShrink:0}}>
-        <div style={{flex:1,minWidth:120,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"rgba(255,255,255,0.12)"}}>
-          <span style={{color:"rgba(255,255,255,0.6)",fontSize:13}}>🔍</span>
-          <input value={activeTab==="collection"?colSearch:dbSearch}
-            onChange={e=>activeTab==="collection"?setColSearch(e.target.value):setDbSearch(e.target.value)}
-            placeholder={activeTab==="collection"?t("searchCol"):t("searchDb")}
-            style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"#fff"}} />
-          {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"rgba(255,255,255,0.6)",fontSize:14}}>×</span>}
+      {activeTab!=="stats" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0a5244",flexShrink:0}}>
+        {/* Search row */}
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <div style={{flex:1,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"rgba(255,255,255,0.12)"}}>
+            <span style={{color:"rgba(255,255,255,0.6)",fontSize:13}}>🔍</span>
+            <input value={activeTab==="collection"?colSearch:dbSearch}
+              onChange={e=>activeTab==="collection"?setColSearch(e.target.value):setDbSearch(e.target.value)}
+              placeholder={activeTab==="collection"?t("searchCol"):t("searchDb")}
+              style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"#fff"}} />
+            {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"rgba(255,255,255,0.6)",fontSize:14}}>×</span>}
+          </div>
+          {/* Filter toggle button */}
+          {(() => {
+            const hasActiveFilters = activeTab==="collection"
+              ? colCategory!=="all" || colSeries!=="all" || colSort!=="date" || colSize!=="m"
+              : dbCategory!=="all" || dbSeries!=="all" || dbSort!=="date" || dbSize!=="s" || dbFilter!=="all";
+            return (
+              <button onClick={()=>setShowFilters(f=>!f)}
+                style={{height:32,padding:"0 10px",borderRadius:8,border:`1px solid ${hasActiveFilters?"#fcd34d":"rgba(255,255,255,0.3)"}`,background:hasActiveFilters?"rgba(252,211,77,0.2)":"rgba(255,255,255,0.1)",color:hasActiveFilters?"#fcd34d":"rgba(255,255,255,0.8)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",gap:4}}>
+                ⚙️{hasActiveFilters&&<span style={{width:6,height:6,borderRadius:"50%",background:"#fcd34d",display:"inline-block"}} />}
+              </button>
+            );
+          })()}
         </div>
-        {activeTab==="collection" && <>
-          <select value={colCategory} onChange={e=>setColCategory(e.target.value as typeof colCategory)} style={selectStyle}>
-            <option value="all">{t("allCategories")}</option>
-            <option value="oficial">{t("officialBadge")}</option>
-            <option value="resina">{t("resinBadge")}</option>
-          </select>
-          <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
-            <option value="all">{t("allSeries")}</option>
-            {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
-          </select>
-          <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={selectStyle}>
-            <option value="alpha">{t("sortAZ")}</option>
-            <option value="date">{t("sortDate")}</option>
-          </select>
-          <select value={colSize} onChange={e=>setColSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
-            <option value="s">S</option>
-            <option value="m">M</option>
-            <option value="l">L</option>
-          </select>
-        </>}
-        {activeTab==="database" && <>
-          <select value={dbCategory} onChange={e=>setDbCategory(e.target.value as typeof dbCategory)} style={selectStyle}>
-            <option value="all">{t("allCategories")}</option>
-            <option value="oficial">{t("officialBadge")}</option>
-            <option value="resina">{t("resinBadge")}</option>
-          </select>
-          <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
-            <option value="all">{t("allSeries")}</option>
-            {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
-          </select>
-          <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={selectStyle}>
-            <option value="alpha">{t("sortAZ")}</option>
-            <option value="date">{t("sortDate")}</option>
-          </select>
-          <select value={dbSize} onChange={e=>setDbSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
-            <option value="s">S</option>
-            <option value="m">M</option>
-            <option value="l">L</option>
-          </select>
-          <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
-            <option value="all">{t("filterAll")}</option>
-            <option value="owned">{t("owned")}</option>
-            <option value="wishlist">{t("wishlist")}</option>
-            <option value="missing">{t("missing")}</option>
-          </select>
-        </>}
+        {/* Collapsible filters row */}
+        {showFilters && <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+          {activeTab==="collection" && <>
+            <select value={colCategory} onChange={e=>setColCategory(e.target.value as typeof colCategory)} style={selectStyle}>
+              <option value="all">{t("allCategories")}</option>
+              <option value="oficial">{t("officialBadge")}</option>
+              <option value="resina">{t("resinBadge")}</option>
+            </select>
+            <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
+              <option value="all">{t("allSeries")}</option>
+              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+            </select>
+            <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={selectStyle}>
+              <option value="alpha">{t("sortAZ")}</option>
+              <option value="date">{t("sortDate")}</option>
+            </select>
+            <select value={colSize} onChange={e=>setColSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
+              <option value="s">S</option>
+              <option value="m">M</option>
+              <option value="l">L</option>
+            </select>
+          </>}
+          {activeTab==="database" && <>
+            <select value={dbCategory} onChange={e=>setDbCategory(e.target.value as typeof dbCategory)} style={selectStyle}>
+              <option value="all">{t("allCategories")}</option>
+              <option value="oficial">{t("officialBadge")}</option>
+              <option value="resina">{t("resinBadge")}</option>
+            </select>
+            <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={selectStyle}>
+              <option value="all">{t("allSeries")}</option>
+              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+            </select>
+            <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={selectStyle}>
+              <option value="alpha">{t("sortAZ")}</option>
+              <option value="date">{t("sortDate")}</option>
+            </select>
+            <select value={dbSize} onChange={e=>setDbSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
+              <option value="s">S</option>
+              <option value="m">M</option>
+              <option value="l">L</option>
+            </select>
+            <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
+              <option value="all">{t("filterAll")}</option>
+              <option value="owned">{t("owned")}</option>
+              <option value="wishlist">{t("wishlist")}</option>
+              <option value="missing">{t("missing")}</option>
+            </select>
+          </>}
+        </div>}
       </div>}
 
       {/* SERIES DETAIL STICKY HEADER */}
