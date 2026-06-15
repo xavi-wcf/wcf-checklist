@@ -477,13 +477,14 @@ function useOwned(userId: string|null) {
 
   const saveProgress = useCallback((o: Set<number>, w: Set<number>) => {
     if (userId) {
-      supabase.from("wcf_progress").upsert({
-        user_id: userId,
-        owned: [...o],
-        wishlist: [...w],
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" })
-      .then(({ error }) => { if (error) console.error("Save error:", error); });
+      supabase.from("wcf_progress")
+        .upsert({
+          user_id: userId,
+          owned: [...o],
+          wishlist: [...w],
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id", ignoreDuplicates: false })
+        .then(({ error }) => { if (error) console.error("Save error:", error); });
     }
     // Always save to localStorage as fallback
     localStorage.setItem("wcf_owned", JSON.stringify([...o]));
@@ -2009,10 +2010,10 @@ export default function App() {
   const toggleFavourite = (id:number) => setFavourites(prev => {
     const n = new Set(prev); n.has(id)?n.delete(id):n.add(id);
     localStorage.setItem("wcf_favourites", JSON.stringify([...n]));
-    if (user) supabase.from("wcf_progress").upsert({
-      user_id: user.id, favourites: [...n], updated_at: new Date().toISOString()
-    }, { onConflict: "user_id" })
-    .then(({ error }) => { if (error) console.error("Fav save error:", error); });
+    if (user) supabase.from("wcf_progress")
+      .update({ favourites: [...n], updated_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .then(({ error }) => { if (error) console.error("Fav save error:", error); });
     return n;
   });
   const [showFavPicker, setShowFavPicker] = useState(false);
