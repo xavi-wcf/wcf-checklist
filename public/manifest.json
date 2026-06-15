@@ -4,8 +4,8 @@
   "description": "World Collectable Figure Checklist",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a5244",
-  "theme_color": "#0a5244",
+  "background_color": "#29ABE2",
+  "theme_color": "#29ABE2",
   "orientation": "portrait",
   "icons": [
     { "src": "/icons/icon-72x72.png",   "sizes": "72x72",   "type": "image/png" },
