@@ -243,7 +243,9 @@ const T = {
   feedbackPH:     { es: "Describe el error o sugerencia...", en: "Describe the issue or suggestion...", th: "อธิบายปัญหาหรือข้อเสนอแนะ..." },
   feedbackSend:   { es: "Enviar",                   en: "Send",                      th: "ส่ง" },
   feedbackOk:     { es: "¡Gracias! Tu mensaje ha sido enviado.", en: "Thanks! Your message has been sent.", th: "ขอบคุณ! ส่งข้อความแล้ว" },
-  installBanner:  { es: "Instala WCF Checklist en tu dispositivo", en: "Install WCF Checklist on your device", th: "ติดตั้ง WCF Checklist บนอุปกรณ์ของคุณ" },
+  communityTitle: { es: "Comunidad",              en: "Community",                   th: "ชุมชน" },
+  communityUsers: { es: "Coleccionistas",          en: "Collectors",                  th: "นักสะสม" },
+  communityFigs:  { es: "Figuras obtenidas",       en: "Figures owned",               th: "ตัวเลขที่มี" },
   installBtn:     { es: "Instalar",                en: "Install",                     th: "ติดตั้ง" },
   signIn:         { es: "Iniciar sesión",          en: "Sign in",                     th: "เข้าสู่ระบบ" },
   signInGoogle:   { es: "Continuar con Google",    en: "Continue with Google",        th: "ดำเนินการต่อด้วย Google" },
@@ -1410,11 +1412,11 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   const [communityStats, setCommunityStats] = useState<{users:number;totalOwned:number}|null>(null);
 
   useEffect(() => {
-    supabase.from("wcf_progress").select("owned", { count: "exact" })
-      .then(({ data: rows, count }) => {
+    supabase.from("wcf_progress").select("owned")
+      .then(({ data: rows }) => {
         if (rows) {
           const totalOwned = rows.reduce((acc, r) => acc + (r.owned?.length ?? 0), 0);
-          setCommunityStats({ users: count ?? 0, totalOwned });
+          setCommunityStats({ users: rows.length, totalOwned });
         }
       });
   }, []);
@@ -1520,15 +1522,15 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
       {/* Community stats */}
       {communityStats && (
         <div style={{marginTop:28,paddingTop:20,borderTop:"1px solid var(--border)"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}}>🌍 Community</div>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}}>🌍 {t("communityTitle")}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
               <div style={{fontSize:24,fontWeight:700,color:"#6366f1"}}>{communityStats.users}</div>
-              <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Collectors</div>
+              <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityUsers")}</div>
             </div>
             <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
               <div style={{fontSize:24,fontWeight:700,color:"#0F6E56"}}>{communityStats.totalOwned.toLocaleString()}</div>
-              <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Figures owned</div>
+              <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityFigs")}</div>
             </div>
           </div>
         </div>
