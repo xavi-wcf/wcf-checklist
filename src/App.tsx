@@ -246,6 +246,7 @@ const T = {
   communityTitle: { es: "Comunidad",              en: "Community",                   th: "ชุมชน" },
   communityUsers: { es: "Coleccionistas",          en: "Collectors",                  th: "นักสะสม" },
   communityFigs:  { es: "Figuras obtenidas",       en: "Figures owned",               th: "ตัวเลขที่มี" },
+  installBanner:  { es: "Instala WCF Checklist en tu dispositivo", en: "Install WCF Checklist on your device", th: "ติดตั้ง WCF Checklist บนอุปกรณ์ของคุณ" },
   installBtn:     { es: "Instalar",                en: "Install",                     th: "ติดตั้ง" },
   signIn:         { es: "Iniciar sesión",          en: "Sign in",                     th: "เข้าสู่ระบบ" },
   signInGoogle:   { es: "Continuar con Google",    en: "Continue with Google",        th: "ดำเนินการต่อด้วย Google" },
