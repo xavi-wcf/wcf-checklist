@@ -2251,7 +2251,7 @@ export default function App() {
       {activeTab==="database" && dbSeriesObj && !dbIsSearchMode && (
         <div style={{background:"var(--bg)",padding:"10px 16px",borderBottom:"2px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
-            <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
+            <button onClick={()=>{ setDbSelectedSeries(null); window.scrollTo(0,0); }} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
             {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
             {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
               <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
@@ -2265,7 +2265,7 @@ export default function App() {
       )}
 
       {/* MAIN CONTENT */}
-      <div style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
+      <div ref={(el)=>{ if(el && dbSelectedSeries) el.scrollTop=0; }} style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
 
         {/* ── COLLECTION TAB ── */}
         {activeTab==="collection" && (
@@ -2459,7 +2459,7 @@ export default function App() {
                     series={dbFilteredSeries}
                     seriesOwned={seriesOwned}
                     seriesTotal={seriesTotal}
-                    onSelect={setDbSelectedSeries}
+                    onSelect={(s)=>{ setDbSelectedSeries(s); window.scrollTo(0,0); }}
                     onReorder={(from,to)=>{
                       setData(d=>{
                         const all=[...d];
