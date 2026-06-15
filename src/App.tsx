@@ -1016,9 +1016,9 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       draggable={isAdmin && !!figure.image}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",transition:"transform 0.15s",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default",
+      style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default",
         transform: popping ? "scale(1.08)" : "scale(1)",
-        transition: popping ? "transform 0.15s ease-out" : "transform 0.2s ease-in, border 0.2s"
+        transition: popping ? "transform 0.15s ease-out" : "transform 0.2s ease-in, border 0.2s, background 0.2s"
       }}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
