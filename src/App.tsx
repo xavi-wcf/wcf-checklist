@@ -436,9 +436,25 @@ function useOwned(userId: string|null) {
       // Load from Supabase for logged in users
       supabase.from("wcf_progress").select("owned,wishlist").eq("user_id", userId).single()
         .then(({ data }) => {
-          if (data) {
+          if (data && (data.owned?.length > 0 || data.wishlist?.length > 0)) {
+            // Supabase has data — use it (overrides localStorage)
             setOwned(new Set(data.owned ?? []));
             setWishlist(new Set(data.wishlist ?? []));
+          } else {
+            // No Supabase data yet — migrate from localStorage if exists
+            try {
+              const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
+              const w = JSON.parse(localStorage.getItem("wcf_wishlist") ?? "[]");
+              if (o.length > 0 || w.length > 0) {
+                setOwned(new Set(o));
+                setWishlist(new Set(w));
+                // Save to Supabase
+                supabase.from("wcf_progress").upsert({
+                  user_id: userId, owned: o, wishlist: w,
+                  updated_at: new Date().toISOString()
+                }, { onConflict: "user_id" });
+              }
+            } catch {}
           }
           setReady(true);
         });
@@ -2243,7 +2259,7 @@ export default function App() {
           ) : dbSeriesObj ? (
             // Series detail
             <>
-              <div style={{position:"sticky",top:0,zIndex:20,background:"var(--bg)",paddingBottom:10,marginBottom:4,borderBottom:"1px solid var(--border)"}}>
+              <div style={{position:"sticky",top:-1,zIndex:20,background:"var(--bg)",paddingTop:8,paddingBottom:10,marginBottom:4,borderBottom:"2px solid var(--border)",marginLeft:-16,marginRight:-16,paddingLeft:16,paddingRight:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
                   <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
                   {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
