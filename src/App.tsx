@@ -1963,7 +1963,7 @@ export default function App() {
     <div style={{fontFamily:"system-ui,sans-serif",display:"flex",flexDirection:"column",height:"100vh",color:"var(--text)",background:"var(--bg)"}}>
 
       {/* TOP BAR */}
-      <div style={{borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",alignItems:"center",gap:8,background:"#0a5244",flexShrink:0}}>
+      <div style={{borderBottom:"1px solid var(--border)",padding:"6px 10px",display:"flex",alignItems:"center",gap:4,background:"#0a5244",flexShrink:0,overflow:"hidden"}}>
         <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"#fff"}}>{t("appTitle")}</span>
         <div style={{flex:1}} />
         <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",whiteSpace:"nowrap"}}>{totalAll} WCF</span>
@@ -1987,7 +1987,10 @@ export default function App() {
           </div>}
         </div>
         <button onClick={toggleDark} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
-
+        <button onClick={()=>window.open("https://ko-fi.com/wcf_checklist","_blank")}
+          style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Support WCF Checklist">☕</button>
+        <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
+        <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
         {isAdmin && <button onClick={()=>{
           const json = JSON.stringify(data, null, 2);
           const blob = new Blob([json], {type:"application/json"});
@@ -1996,10 +1999,6 @@ export default function App() {
           a.href = url; a.download = `wcf_backup_${new Date().toISOString().slice(0,10)}.json`;
           a.click(); URL.revokeObjectURL(url);
         }} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Backup datos">💾</button>}
-        <button onClick={()=>window.open("https://ko-fi.com/wcf_checklist","_blank")}
-          style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Support WCF Checklist">☕</button>
-        <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
-        <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
         {user ? (
           <button onClick={signOut} title={t("signOut")}
             style={{background:"none",border:"none",cursor:"pointer",padding:0,borderRadius:"50%",overflow:"hidden",width:28,height:28,flexShrink:0}}>
