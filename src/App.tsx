@@ -1931,19 +1931,35 @@ export default function App() {
   const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
 
   // Favourites — stored in localStorage
-  const [favourites, setFavourites] = useState<Set<number>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem("wcf_favourites")??"[]")); } catch { return new Set(); }
-  });
+  const [favourites, setFavourites] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     if (user) {
-      supabase.from("wcf_progress").select("favourites").eq("user_id", user.id).single()
-        .then(({ data }) => { if (data?.favourites) setFavourites(new Set(data.favourites)); });
+      supabase.from("wcf_progress").select("favourites").eq("user_id", user.id).maybeSingle()
+        .then(({ data }) => {
+          if (data?.favourites?.length > 0) {
+            setFavourites(new Set(data.favourites));
+          } else {
+            try {
+              const f = JSON.parse(localStorage.getItem("wcf_favourites") ?? "[]");
+              setFavourites(new Set(f));
+            } catch {}
+          }
+        });
+    } else {
+      try {
+        const f = JSON.parse(localStorage.getItem("wcf_favourites") ?? "[]");
+        setFavourites(new Set(f));
+      } catch {}
     }
   }, [user]);
   const toggleFavourite = (id:number) => setFavourites(prev => {
     const n = new Set(prev); n.has(id)?n.delete(id):n.add(id);
     localStorage.setItem("wcf_favourites", JSON.stringify([...n]));
-    if (user) supabase.from("wcf_progress").upsert({ user_id: user.id, favourites: [...n], updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    if (user) supabase.from("wcf_progress").upsert({
+      user_id: user.id, favourites: [...n], updated_at: new Date().toISOString()
+    }, { onConflict: "user_id" })
+    .then(({ error }) => { if (error) console.error("Fav save error:", error); });
     return n;
   });
   const [showFavPicker, setShowFavPicker] = useState(false);
