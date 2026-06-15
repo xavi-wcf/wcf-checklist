@@ -2259,7 +2259,7 @@ export default function App() {
           ) : dbSeriesObj ? (
             // Series detail
             <>
-              <div style={{position:"sticky",top:-1,zIndex:20,background:"var(--bg)",paddingTop:8,paddingBottom:10,marginBottom:4,borderBottom:"2px solid var(--border)",marginLeft:-16,marginRight:-16,paddingLeft:16,paddingRight:16}}>
+              <div style={{position:"sticky",top:0,zIndex:20,background:"var(--bg)",paddingTop:8,paddingBottom:10,marginBottom:4,borderBottom:"2px solid var(--border)",marginLeft:-16,marginRight:-16,paddingLeft:16,paddingRight:16,marginTop:-12}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
                   <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
                   {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
