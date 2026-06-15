@@ -1702,7 +1702,7 @@ type TabType = "collection" | "database" | "stats";
 // ============================================================
 //  FEEDBACK MODAL
 // ============================================================
-function FeedbackModal({ onClose }: { onClose:()=>void }) {
+function FeedbackModal({ onClose, data }: { onClose:()=>void; data?:unknown }) {
   const { t } = useTr();
   const [type, setType] = useState("bug");
   const [msg, setMsg] = useState("");
@@ -1760,7 +1760,15 @@ function FeedbackModal({ onClose }: { onClose:()=>void }) {
             <textarea value={msg} onChange={e=>setMsg(e.target.value)} placeholder={t("feedbackPH")} rows={4}
               style={{width:"100%",padding:"10px",fontSize:13,border:"1px solid var(--border)",borderRadius:8,outline:"none",resize:"none",fontFamily:"system-ui,sans-serif",boxSizing:"border-box" as const,background:"var(--bg2)",color:"var(--text)"}} />
           </div>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
+            {data && <button onClick={()=>{
+              const json = JSON.stringify(data, null, 2);
+              const blob = new Blob([json], {type:"application/json"});
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = `wcf_backup_${new Date().toISOString().slice(0,10)}.json`;
+              a.click(); URL.revokeObjectURL(url);
+            }} style={{padding:"8px 14px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>💾 Backup</button>}
             <button onClick={onClose} style={{padding:"8px 14px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>{t("cancelBtn")}</button>
             <button onClick={send} disabled={!msg.trim()||sending}
               style={{padding:"8px 14px",borderRadius:8,border:"none",background:msg.trim()?"#0a5244":"#ccc",color:"#fff",cursor:msg.trim()?"pointer":"not-allowed",fontSize:13,fontWeight:600}}>
@@ -2060,14 +2068,6 @@ export default function App() {
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
         <button onClick={()=>window.open("https://ko-fi.com/wcf_checklist","_blank")}
           style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Support WCF Checklist">☕</button>
-        {isAdmin && <button onClick={()=>{
-          const json = JSON.stringify(data, null, 2);
-          const blob = new Blob([json], {type:"application/json"});
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = `wcf_backup_${new Date().toISOString().slice(0,10)}.json`;
-          a.click(); URL.revokeObjectURL(url);
-        }} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Backup datos">💾</button>}
         {user ? (
           <button onClick={signOut} title={t("signOut")}
             style={{background:"none",border:"none",cursor:"pointer",padding:0,borderRadius:"50%",overflow:"hidden",width:28,height:28,flexShrink:0}}>
@@ -2259,7 +2259,7 @@ export default function App() {
           ) : dbSeriesObj ? (
             // Series detail
             <>
-              <div style={{position:"sticky",top:0,zIndex:20,background:"var(--bg)",paddingTop:8,paddingBottom:10,marginBottom:4,borderBottom:"2px solid var(--border)",marginLeft:-16,marginRight:-16,paddingLeft:16,paddingRight:16,marginTop:-12}}>
+              <div style={{position:"sticky",top:0,zIndex:20,background:"var(--bg)",paddingTop:12,paddingBottom:10,marginBottom:4,borderBottom:"2px solid var(--border)",marginLeft:-16,marginRight:-16,paddingLeft:16,paddingRight:16,marginTop:-12,boxShadow:"0 2px 8px var(--bg)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
                   <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
                   {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
@@ -2443,7 +2443,7 @@ export default function App() {
       )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} />}
+      {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
     </div>
   );
