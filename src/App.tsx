@@ -2251,7 +2251,7 @@ export default function App() {
       )}
 
       {/* MAIN CONTENT */}
-      <div key={renderKey} ref={(el)=>{ if(el && dbSelectedSeries) el.scrollTop=0; }} style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
+      <div key={renderKey} style={{flex:1,overflowY:"auto",padding:"12px 16px",paddingBottom:70}}>
 
         {/* ── COLLECTION TAB ── */}
         {activeTab==="collection" && (
