@@ -1943,8 +1943,15 @@ export default function App() {
       return words.every(w=>combined.includes(w));
     });
 
-  const applySort = (items: FlatFigure[], sort: "alpha"|"date") =>
-    [...items].sort((a,b) => sort==="date" ? (a.set.releaseDate??"").localeCompare(b.set.releaseDate??"") : a.figure.name.localeCompare(b.figure.name));
+  const applySort = (items: FlatFigure[], sort: "alpha"|"date", search: string = "") => {
+    const sorted = [...items].sort((a,b) => sort==="date"
+      ? (a.set.releaseDate??"").localeCompare(b.set.releaseDate??"")
+      : a.figure.name.localeCompare(b.figure.name));
+    if (!search.trim()) return sorted;
+    const words = search.toLowerCase().trim().split(/\s+/);
+    const nameMatch = (f: FlatFigure) => words.every(w=>f.figure.name.toLowerCase().includes(w));
+    return [...sorted.filter(nameMatch), ...sorted.filter(f=>!nameMatch(f))];
+  };
 
   // For search/display: deduplicate by figure.id (show each figure once)
   // For series progress: keep allFlatWithTags (figure can count in multiple series)
@@ -1953,9 +1960,9 @@ export default function App() {
     return items.filter(({figure}) => { if (seen.has(figure.id)) return false; seen.add(figure.id); return true; });
   };
 
-  const colOwned = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "owned")), colSort);
-  const colWishlist = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "wishlist")), colSort);
-  const dbFigures = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, dbSearch, dbSeries, dbCategory, dbFilter)), dbSort);
+  const colOwned = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "owned")), colSort, colSearch);
+  const colWishlist = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, colSearch, colSeries, colCategory, "wishlist")), colSort, colSearch);
+  const dbFigures = applySort(dedupeByFigureId(applyFilters(allFlatWithTags, dbSearch, dbSeries, dbCategory, dbFilter)), dbSort, dbSearch);
   const dbIsSearchMode = dbSearch.trim()!=="" || dbFilter!=="all" || dbSeries!=="all" || dbCategory!=="all";
 
   const sizeToColumns: Record<string,string> = { s:"repeat(auto-fill,minmax(90px,1fr))", m:"repeat(auto-fill,minmax(130px,1fr))", l:"repeat(auto-fill,minmax(180px,1fr))" };
@@ -2063,11 +2070,11 @@ export default function App() {
             <option value="alpha">{t("sortAZ")}</option>
             <option value="date">{t("sortDate")}</option>
           </select>
-          <div style={{display:"flex",gap:2}}>
-            {(["s","m","l"] as const).map(sz=>(
-              <button key={sz} onClick={()=>setColSize(sz)} style={{width:28,height:32,border:"1px solid rgba(255,255,255,0.3)",borderRadius:6,background:colSize===sz?"#fff":"rgba(255,255,255,0.12)",color:colSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
-            ))}
-          </div>
+          <select value={colSize} onChange={e=>setColSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
+            <option value="s">S</option>
+            <option value="m">M</option>
+            <option value="l">L</option>
+          </select>
         </>}
         {activeTab==="database" && <>
           <select value={dbCategory} onChange={e=>setDbCategory(e.target.value as typeof dbCategory)} style={selectStyle}>
@@ -2083,11 +2090,11 @@ export default function App() {
             <option value="alpha">{t("sortAZ")}</option>
             <option value="date">{t("sortDate")}</option>
           </select>
-          <div style={{display:"flex",gap:2}}>
-            {(["s","m","l"] as const).map(sz=>(
-              <button key={sz} onClick={()=>setDbSize(sz)} style={{width:28,height:32,border:"1px solid rgba(255,255,255,0.3)",borderRadius:6,background:dbSize===sz?"#fff":"#0a5244",color:dbSize===sz?"#0a5244":"rgba(255,255,255,0.7)",cursor:"pointer",fontSize:10,fontWeight:600}}>{sz.toUpperCase()}</button>
-            ))}
-          </div>
+          <select value={dbSize} onChange={e=>setDbSize(e.target.value as "s"|"m"|"l")} style={selectStyle}>
+            <option value="s">S</option>
+            <option value="m">M</option>
+            <option value="l">L</option>
+          </select>
           <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={selectStyle}>
             <option value="all">{t("filterAll")}</option>
             <option value="owned">{t("owned")}</option>
