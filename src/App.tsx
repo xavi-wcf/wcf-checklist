@@ -1016,9 +1016,10 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       draggable={isAdmin && !!figure.image}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      style={{border:`1px solid ${dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default",
-        transform: popping ? "scale(1.08)" : "scale(1)",
-        transition: popping ? "transform 0.15s ease-out" : "transform 0.2s ease-in, border 0.2s, background 0.2s"
+      style={{border:`1px solid ${popping?"#4ade80":dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:popping?"#E1F5EE":dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default",
+        transform: popping ? "scale(1.12)" : "scale(1)",
+        transition: popping ? "transform 0.2s cubic-bezier(0.36,0.07,0.19,0.97), border 0.1s, background 0.1s" : "transform 0.2s ease-in, border 0.3s, background 0.3s",
+        boxShadow: popping ? `0 0 12px ${color}99` : "none"
       }}
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
@@ -2242,18 +2243,20 @@ export default function App() {
           ) : dbSeriesObj ? (
             // Series detail
             <>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-                <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
-                {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
-                {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-                  <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
-                  <Btn small onClick={()=>addSet(dbSeriesObj.id)} variant="primary">{t("newSet")}</Btn>
-                  <Btn small onClick={()=>setEditSeriesData(dbSeriesObj)}>✏️</Btn>
-                  <Btn small onClick={()=>{deleteSeries(dbSeriesObj.id);setDbSelectedSeries(null);}} variant="danger">🗑</Btn>
-                </div>}
+              <div style={{position:"sticky",top:0,zIndex:20,background:"var(--bg)",paddingBottom:10,marginBottom:4,borderBottom:"1px solid var(--border)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
+                  <button onClick={()=>setDbSelectedSeries(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
+                  {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
+                  {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+                    <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
+                    <Btn small onClick={()=>addSet(dbSeriesObj.id)} variant="primary">{t("newSet")}</Btn>
+                    <Btn small onClick={()=>setEditSeriesData(dbSeriesObj)}>✏️</Btn>
+                    <Btn small onClick={()=>{deleteSeries(dbSeriesObj.id);setDbSelectedSeries(null);}} variant="danger">🗑</Btn>
+                  </div>}
+                </div>
+                <ProgressBar value={seriesOwned(dbSeriesObj)} total={seriesTotal(dbSeriesObj)} color={dbSeriesObj.color} />
               </div>
-              <ProgressBar value={seriesOwned(dbSeriesObj)} total={seriesTotal(dbSeriesObj)} color={dbSeriesObj.color} />
-              <div style={{marginBottom:16}} />
+              <div style={{marginBottom:12}} />
               {(() => {
                 // Build interleaved list of groups and loose sets, sorted by date
                 type Item = { type:"group"; group:FigureGroup; date:string } | { type:"set"; set:FigureSet; date:string };
