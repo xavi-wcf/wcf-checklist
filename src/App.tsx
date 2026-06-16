@@ -253,6 +253,9 @@ const T = {
   feedbackPH:     { es: "Describe el error o sugerencia...", en: "Describe the issue or suggestion...", th: "อธิบายปัญหาหรือข้อเสนอแนะ..." , fr: "Décris le problème ou la suggestion..." , vi: "Mô tả vấn đề hoặc góp ý..." },
   feedbackSend:   { es: "Enviar",                   en: "Send",                      th: "ส่ง" , fr: "Envoyer" , vi: "Gửi" },
   feedbackOk:     { es: "¡Gracias! Tu mensaje ha sido enviado.", en: "Thanks! Your message has been sent.", th: "ขอบคุณ! ส่งข้อความแล้ว" , fr: "Merci ! Ton message a été envoyé." , vi: "Cảm ơn! Tin nhắn của bạn đã được gửi." },
+  emptyColTitle:  { es: "Tu colección está vacía",      en: "Your collection is empty",       th: "คอลเลกชันของคุณว่างเปล่า", fr: "Ta collection est vide",           vi: "Bộ sưu tập của bạn trống" },
+  emptyColDesc:   { es: "¡Explora el catálogo y marca las figuras que tienes!", en: "Explore the catalogue and mark the figures you own!", th: "สำรวจแคตตาล็อกและทำเครื่องหมายตัวเลขที่คุณมี!", fr: "Explore le catalogue et marque les figurines que tu as !", vi: "Khám phá danh mục và đánh dấu các nhân vật bạn có!" },
+  emptyColBtn:    { es: "→ Ir al Catálogo",             en: "→ Go to Catalogue",              th: "→ ไปที่แคตตาล็อก", fr: "→ Aller au Catalogue",             vi: "→ Đến Danh mục" },
   communityTitle: { es: "Comunidad",              en: "Community",                   th: "ชุมชน" , fr: "Communauté" , vi: "Cộng đồng" },
   communityUsers: { es: "Coleccionistas",          en: "Collectors",                  th: "นักสะสม" , fr: "Collectionneurs" , vi: "Người sưu tập" },
   communityFigs:  { es: "Figuras obtenidas",       en: "Figures owned",               th: "ตัวเลขที่มี" , fr: "Figurines obtenues" , vi: "Nhân vật đã có" },
@@ -2281,6 +2284,18 @@ export default function App() {
         {/* ── COLLECTION TAB ── */}
         {activeTab==="collection" && (
           <div>
+            {/* Empty state when no figures owned or wishlisted */}
+            {colOwned.length===0 && colWishlist.length===0 && !colSearch && (
+              <div style={{textAlign:"center",padding:"3rem 1rem",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+                <div style={{fontSize:48}}>📦</div>
+                <div style={{fontSize:16,fontWeight:700,color:"var(--text)"}}>{t("emptyColTitle")}</div>
+                <div style={{fontSize:13,color:"var(--text3)",maxWidth:280,lineHeight:1.6}}>{t("emptyColDesc")}</div>
+                <button onClick={()=>setActiveTab("database")}
+                  style={{marginTop:8,padding:"10px 20px",borderRadius:10,border:"none",background:"#0a5244",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700}}>
+                  {t("emptyColBtn")}
+                </button>
+              </div>
+            )}
             {/* Owned section */}
             <div style={{marginBottom:28}}>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,paddingBottom:8,borderBottom:"2px solid #0F6E56"}}>
