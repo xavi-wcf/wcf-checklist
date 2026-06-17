@@ -384,7 +384,8 @@ const INITIAL_DATA: Series[] = [
 
 const SERIES_COLORS = ["#f97316","#8b5cf6","#ef4444","#06b6d4","#eab308","#0F6E56","#e11d48","#0ea5e9","#84cc16","#f43f5e","#b45309","#7c3aed","#0891b2","#dc2626"];
 const EMOJIS = ["⭐","🔥","💥","🎯","🐉","☠️","🗡️","💜","🟢","🔵","🟡","🟠","🟣","⚡","💚","🩷","🖤","⚪","🃏","🐗","👒","🦌","💪","🦋","🎭","👑","🌸","🦊","🐺","🏮"];
-function newId() { return Date.now() + Math.floor(Math.random() * 1000); }
+let _idCounter = Date.now();
+function newId() { return ++_idCounter; }
 
 async function uploadToImgBB(blob: Blob | File, apiKey: string): Promise<string> {
   const fd = new FormData();
@@ -1743,7 +1744,7 @@ type TabType = "collection" | "database" | "stats";
 // ============================================================
 //  FEEDBACK MODAL
 // ============================================================
-function FeedbackModal({ onClose, data }: { onClose:()=>void; data?:object }) {
+function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:object; userEmail?:string }) {
   const { t } = useTr();
   const [type, setType] = useState("bug");
   const [msg, setMsg] = useState("");
@@ -1766,6 +1767,7 @@ function FeedbackModal({ onClose, data }: { onClose:()=>void; data?:object }) {
           id: Date.now().toString(),
           type,
           message: msg.trim(),
+          email: userEmail ?? null,
           created_at: new Date().toISOString(),
         })
       });
@@ -2562,7 +2564,7 @@ export default function App() {
       )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} />}
+      {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
       {showOnboarding && <OnboardingModal
         onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
