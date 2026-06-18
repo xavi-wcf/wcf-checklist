@@ -1005,13 +1005,12 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onReorderDrop }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
   onQuickUpload?:(file:File)=>void;
   onSwapImage?:(fromId:number)=>void;
   onReorderStart?:()=>void;
-  onReorderDrop?:()=>void;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1141,7 +1140,7 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onSwapCross }: {
+function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross }: {
   set:FigureSet; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
@@ -1217,7 +1216,13 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
         </div>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
           {set.figures.map(f=>(
-            <FigureCard key={f.id} figure={f} color={color} isOwned={owned.has(f.id)} isWished={wishlist.has(f.id)}
+            <div key={f.id}
+              onDragOver={(e)=>{ if(e.dataTransfer.types.includes("wcf_reorder_id")) e.preventDefault(); }}
+              onDrop={(e)=>{ const fromId = parseInt(e.dataTransfer.getData("wcf_reorder_id")); if(!fromId||fromId===f.id) return; e.preventDefault(); e.stopPropagation();
+                const figs=[...set.figures]; const fi=figs.findIndex(x=>x.id===fromId); const ti=figs.findIndex(x=>x.id===f.id);
+                if(fi===-1||ti===-1) return; const [m]=figs.splice(fi,1); figs.splice(ti,0,m); onReorderFigures(set.id,figs); setReorderFromId(null);
+              }}>
+              <FigureCard figure={f} color={color} isOwned={owned.has(f.id)} isWished={wishlist.has(f.id)}
               onToggle={()=>onToggle(f.id)} onToggleWish={()=>onToggleWish(f.id)} onEdit={()=>setEditFigure(f)} onDelete={()=>onDeleteFigure(f.id)}
               onQuickUpload={isAdmin ? (file)=>setQuickCrop({file,figureId:f.id}) : undefined}
               onSwapImage={isAdmin ? (fromId)=>{
@@ -1230,17 +1235,8 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
                 }
               } : undefined}
               onReorderStart={isAdmin ? ()=>setReorderFromId(f.id) : undefined}
-              onReorderDrop={isAdmin && reorderFromId !== null && reorderFromId !== f.id ? ()=>{
-                const figs = [...set.figures];
-                const fromIdx = figs.findIndex(x=>x.id===reorderFromId);
-                const toIdx = figs.findIndex(x=>x.id===f.id);
-                if(fromIdx===-1||toIdx===-1) return;
-                const [moved] = figs.splice(fromIdx,1);
-                figs.splice(toIdx,0,moved);
-                onReorderFigures(set.id, figs);
-                setReorderFromId(null);
-              } : undefined}
             />
+            </div>
           ))}
         </div>
       </div>}
