@@ -1158,6 +1158,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   const [quickCrop,setQuickCrop]=useState<{file:File;figureId:number}|null>(null);
   const [uploading,setUploading]=useState(false);
   const [reorderFromId,setReorderFromId]=useState<number|null>(null);
+  void reorderFromId;
   const ownedCount = set.figures.filter(f=>owned.has(f.id)).length;
   const total = set.figures.length; const complete = ownedCount===total && total>0;
 
