@@ -1132,12 +1132,12 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onUpdateFigure, onDeleteFigure, onSwapCross }: {
+function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onSwapCross }: {
   set:FigureSet; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
   onMoveToGroup?:(gid:number)=>void; groups?:FigureGroup[];
-  onAddFigure:(f:Omit<Figure,"id">)=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
+  onAddFigure:(f:Omit<Figure,"id">)=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
 }) {
   const { t, lang } = useTr();
@@ -1227,7 +1227,10 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
       </div>}
       {editSet && <SetModal title={t("editSetTitle")} initial={set} apiKey={apiKey} onSave={(n,rd,sl)=>{onUpdateSet(n,rd,sl);setEditSet(false);}} onClose={()=>setEditSet(false)} />}
       {addFigure && <FigureModal title={t("newFigureTitle")} apiKey={apiKey} onSave={f=>{onAddFigure(f);setAddFigure(false);}} onClose={()=>setAddFigure(false)} />}
-      {bulkAdd && <BulkAddModal onSave={names=>{names.forEach(name=>onAddFigure({name,emoji:"⭐",image:""}));}} onClose={()=>setBulkAdd(false)} />}
+      {bulkAdd && <BulkAddModal onSave={names=>{
+        onAddFigures(names.map(name=>({name,emoji:"⭐",image:""})));
+        setBulkAdd(false);
+      }} onClose={()=>setBulkAdd(false)} />}
       {editFigure && <FigureModal title={t("editFigureTitle")} initial={editFigure} apiKey={apiKey} onSave={f=>{onUpdateFigure(editFigure.id,f);setEditFigure(null);}} onClose={()=>setEditFigure(null)} />}
       {quickCrop && (
         <CropModal
@@ -1354,12 +1357,12 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onUpdateFigure, onDeleteFigure, onSwapCross }: {
+function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onSwapCross }: {
   group:FigureGroup; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
   onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
-  onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
+  onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onAddFigures:(stid:number,fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
 }) {
   const { t } = useTr();
@@ -1402,6 +1405,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
               onDeleteSet={()=>onDeleteSet(st.id)}
               onDuplicate={()=>onDuplicateSet(st.id)}
               onAddFigure={(f)=>onAddFigure(st.id,f)}
+              onAddFigures={(fs)=>onAddFigures(st.id,fs)}
               onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
               onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
               onSwapCross={onSwapCross}
@@ -1978,6 +1982,12 @@ export default function App() {
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
     return {...s,sets:upd(s.sets)};
   }));
+  const addFigures = (sid:number,stid:number,fs:Omit<Figure,"id">[],gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const newFigs = fs.map(f=>({...f,id:newId()}));
+    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:[...st.figures,...newFigs]}:st);
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
+    return {...s,sets:upd(s.sets)};
+  }));
   const updateFigure = (sid:number,stid:number,fid:number,f:Omit<Figure,"id">,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
     const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:st.figures.map(fig=>fig.id===fid?{...fig,...f}:fig)}:st);
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
@@ -2415,6 +2425,7 @@ export default function App() {
                     onDeleteSet={(stid)=>deleteSet(dbSeriesObj.id,stid,item.group.id)}
                     onDuplicateSet={(stid)=>duplicateSet(dbSeriesObj.id,stid,item.group.id)}
                     onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f,item.group.id)}
+                    onAddFigures={(stid,fs)=>addFigures(dbSeriesObj.id,stid,fs,item.group.id)}
                     onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,item.group.id)}
                     onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,item.group.id)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
@@ -2430,6 +2441,7 @@ export default function App() {
                     onMoveToGroup={(gid)=>moveSetToGroup(dbSeriesObj.id,item.set.id,gid)}
                     groups={dbSeriesObj.groups}
                     onAddFigure={(f)=>addFigure(dbSeriesObj.id,item.set.id,f)}
+                    onAddFigures={(fs)=>addFigures(dbSeriesObj.id,item.set.id,fs)}
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
