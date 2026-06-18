@@ -1005,11 +1005,13 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onReorderDrop }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
   onQuickUpload?:(file:File)=>void;
   onSwapImage?:(fromId:number)=>void;
+  onReorderStart?:()=>void;
+  onReorderDrop?:()=>void;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1072,6 +1074,13 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>🔄</div>}
+      {/* Reorder handle */}
+      {isAdmin && onReorderStart && hover && (
+        <div draggable
+          onDragStart={(e)=>{ e.stopPropagation(); e.dataTransfer.setData("wcf_reorder_id", String(figure.id)); e.dataTransfer.effectAllowed="move"; onReorderStart(); }}
+          style={{position:"absolute",bottom:4,right:4,zIndex:5,cursor:"grab",fontSize:13,color:"rgba(0,0,0,0.4)",padding:"2px 4px",borderRadius:4,background:"rgba(255,255,255,0.8)",lineHeight:1}}
+          title="Reorder">⠿</div>
+      )}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
         {isAdmin && hover && <>
           <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
@@ -1138,6 +1147,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
   onMoveToGroup?:(gid:number)=>void; groups?:FigureGroup[];
   onAddFigure:(f:Omit<Figure,"id">)=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
+  onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
 }) {
   const { t, lang } = useTr();
@@ -1148,6 +1158,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   const [showMoveMenu,setShowMoveMenu]=useState(false);
   const [quickCrop,setQuickCrop]=useState<{file:File;figureId:number}|null>(null);
   const [uploading,setUploading]=useState(false);
+  const [reorderFromId,setReorderFromId]=useState<number|null>(null);
   const ownedCount = set.figures.filter(f=>owned.has(f.id)).length;
   const total = set.figures.length; const complete = ownedCount===total && total>0;
 
@@ -1210,16 +1221,24 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
               onToggle={()=>onToggle(f.id)} onToggleWish={()=>onToggleWish(f.id)} onEdit={()=>setEditFigure(f)} onDelete={()=>onDeleteFigure(f.id)}
               onQuickUpload={isAdmin ? (file)=>setQuickCrop({file,figureId:f.id}) : undefined}
               onSwapImage={isAdmin ? (fromId)=>{
-                // Find fromFig in this set
                 const fromFig = set.figures.find(x=>x.id===fromId);
                 if(fromFig) {
-                  // Both figures in same set — swap directly
                   onUpdateFigure(fromFig.id, {...fromFig, image: f.image??""});
                   onUpdateFigure(f.id, {...f, image: fromFig.image??""});
                 } else if(onSwapCross) {
-                  // Cross-set swap — delegate to parent
                   onSwapCross(fromId, f.id);
                 }
+              } : undefined}
+              onReorderStart={isAdmin ? ()=>setReorderFromId(f.id) : undefined}
+              onReorderDrop={isAdmin && reorderFromId !== null && reorderFromId !== f.id ? ()=>{
+                const figs = [...set.figures];
+                const fromIdx = figs.findIndex(x=>x.id===reorderFromId);
+                const toIdx = figs.findIndex(x=>x.id===f.id);
+                if(fromIdx===-1||toIdx===-1) return;
+                const [moved] = figs.splice(fromIdx,1);
+                figs.splice(toIdx,0,moved);
+                onReorderFigures(set.id, figs);
+                setReorderFromId(null);
               } : undefined}
             />
           ))}
@@ -1357,12 +1376,13 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onSwapCross }: {
+function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross }: {
   group:FigureGroup; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
   onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
   onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onAddFigures:(stid:number,fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
+  onReorderFigures:(stid:number,figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
 }) {
   const { t } = useTr();
@@ -1406,6 +1426,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
               onDuplicate={()=>onDuplicateSet(st.id)}
               onAddFigure={(f)=>onAddFigure(st.id,f)}
               onAddFigures={(fs)=>onAddFigures(st.id,fs)}
+              onReorderFigures={(_, figs)=>onReorderFigures(st.id, figs)}
               onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
               onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
               onSwapCross={onSwapCross}
@@ -1988,6 +2009,12 @@ export default function App() {
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
     return {...s,sets:upd(s.sets)};
   }));
+
+  const reorderFigures = (sid:number,stid:number,figures:Figure[],gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures}:st);
+    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
+    return {...s,sets:upd(s.sets)};
+  }));
   const updateFigure = (sid:number,stid:number,fid:number,f:Omit<Figure,"id">,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
     const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:st.figures.map(fig=>fig.id===fid?{...fig,...f}:fig)}:st);
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
@@ -2426,6 +2453,7 @@ export default function App() {
                     onDuplicateSet={(stid)=>duplicateSet(dbSeriesObj.id,stid,item.group.id)}
                     onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f,item.group.id)}
                     onAddFigures={(stid,fs)=>addFigures(dbSeriesObj.id,stid,fs,item.group.id)}
+                    onReorderFigures={(stid,figs)=>reorderFigures(dbSeriesObj.id,stid,figs,item.group.id)}
                     onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,item.group.id)}
                     onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,item.group.id)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
@@ -2442,6 +2470,7 @@ export default function App() {
                     groups={dbSeriesObj.groups}
                     onAddFigure={(f)=>addFigure(dbSeriesObj.id,item.set.id,f)}
                     onAddFigures={(fs)=>addFigures(dbSeriesObj.id,item.set.id,fs)}
+                    onReorderFigures={(_,figs)=>reorderFigures(dbSeriesObj.id,item.set.id,figs)}
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
