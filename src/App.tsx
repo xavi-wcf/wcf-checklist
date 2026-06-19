@@ -8,9 +8,6 @@ const CHANGELOG = [
     id: 6,
     date: "2025-06-19",
     entries: [
-      "🎉 Added 2 new languages:",
-      "🇯🇵 Japanese",
-      "🇨🇳 Chinese",
       "🎉 809 WCF added to Dragon Ball (Resin):",
       "　　League studio → 397",
       "　　Power studio → 97",
@@ -279,7 +276,7 @@ const T = {
   feedbackPH:     { es: "Describe el error o sugerencia...", en: "Describe the issue or suggestion...", th: "อธิบายปัญหาหรือข้อเสนอแนะ..." , fr: "Décris le problème ou la suggestion..." , vi: "Mô tả vấn đề hoặc góp ý..." , ja: "問題や提案を説明してください...", zh: "描述问题或建议..." },
   feedbackSend:   { es: "Enviar",                   en: "Send",                      th: "ส่ง" , fr: "Envoyer" , vi: "Gửi" , ja: "送信", zh: "发送" },
   feedbackOk:     { es: "¡Gracias! Tu mensaje ha sido enviado.", en: "Thanks! Your message has been sent.", th: "ขอบคุณ! ส่งข้อความแล้ว" , fr: "Merci ! Ton message a été envoyé." , vi: "Cảm ơn! Tin nhắn của bạn đã được gửi." , ja: "ありがとうございます！メッセージが送信されました。", zh: "感谢！您的消息已发送。" },
-  emptyColTitle:  { es: "Tu colección está vacía",      en: "Your collection is empty",       th: "คอลเลกชันของคุณว่างเปล่า", fr: "Ta collection est vide",           vi: "Bộ sưu tập của bạn trống" , ja: "コレクションが空です", zh: "您的收藏是空的" },
+  iosBanner:      { es: "¿iPhone o iPad? Abre en Safari → pulsa ⬆️ → Añadir a pantalla de inicio", en: "iPhone or iPad? Open in Safari → tap ⬆️ → Add to Home Screen", fr: "iPhone ou iPad ? Ouvre dans Safari → tape ⬆️ → Sur l'écran d'accueil", vi: "iPhone hoặc iPad? Mở trong Safari → nhấn ⬆️ → Thêm vào màn hình chính", ja: "iPhoneまたはiPadの場合：Safariで開き⬆️→「ホーム画面に追加」", zh: "iPhone或iPad用户：在Safari中打开→点击⬆️→添加到主屏幕", th: "iPhone หรือ iPad? เปิดใน Safari → แตะ ⬆️ → เพิ่มไปที่หน้าจอหลัก" },      en: "Your collection is empty",       th: "คอลเลกชันของคุณว่างเปล่า", fr: "Ta collection est vide",           vi: "Bộ sưu tập của bạn trống" , ja: "コレクションが空です", zh: "您的收藏是空的" },
   emptyColDesc:   { es: "¡Explora el catálogo y marca las figuras que tienes!", en: "Explore the catalogue and mark the figures you own!", th: "สำรวจแคตตาล็อกและทำเครื่องหมายตัวเลขที่คุณมี!", fr: "Explore le catalogue et marque les figurines que tu as !", vi: "Khám phá danh mục và đánh dấu các nhân vật bạn có!" , ja: "カタログを探索して所持フィギュアにチェックしましょう！", zh: "探索目录并标记您拥有的人偶！" },
   emptyColBtn:    { es: "→ Ir al Catálogo",             en: "→ Go to Catalogue",              th: "→ ไปที่แคตตาล็อก", fr: "→ Aller au Catalogue",             vi: "→ Đến Danh mục" , ja: "→ カタログへ", zh: "→ 前往目录" },
   communityTitle: { es: "Comunidad",              en: "Community",                   th: "ชุมชน" , fr: "Communauté" , vi: "Cộng đồng" , ja: "コミュニティ", zh: "社区" },
@@ -408,7 +405,7 @@ const INITIAL_DATA: Series[] = [
   ]},
 ];
 
-const SERIES_COLORS = ["#f97316","#8b5cf6","#ef4444","#06b6d4","#eab308","#0F6E56","#e11d48","#0ea5e9","#84cc16","#f43f5e","#b45309","#7c3aed","#0891b2","#dc2626"];
+const SERIES_COLORS = ["#f97316","#8b5cf6","#ef4444","#06b6d4","#eab308","#0174b0","#e11d48","#0ea5e9","#84cc16","#f43f5e","#b45309","#7c3aed","#0891b2","#dc2626"];
 const EMOJIS = ["⭐","🔥","💥","🎯","🐉","☠️","🗡️","💜","🟢","🔵","🟡","🟠","🟣","⚡","💚","🩷","🖤","⚪","🃏","🐗","👒","🦌","💪","🦋","🎭","👑","🌸","🦊","🐺","🏮"];
 let _idCounter = Date.now();
 function newId() { return ++_idCounter; }
@@ -856,10 +853,10 @@ function ImageUploader({ apiKey, currentUrl, onUploaded, label, aspectRatio, for
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        style={{border:`1.5px dashed ${dragOver?"#0F6E56":"var(--border)"}`,borderRadius:10,padding:12,cursor:uploading?"wait":"pointer",textAlign:"center",background:dragOver?"#E1F5EE":"var(--bg2)",marginBottom:4,transition:"border-color 0.2s, background 0.2s"}}>
+        style={{border:`1.5px dashed ${dragOver?"#0174b0":"var(--border)"}`,borderRadius:10,padding:12,cursor:uploading?"wait":"pointer",textAlign:"center",background:dragOver?"#e6f4fd":"var(--bg2)",marginBottom:4,transition:"border-color 0.2s, background 0.2s"}}>
         {currentUrl
           ? <div><img src={currentUrl} alt="" style={{maxHeight:80,maxWidth:"100%",borderRadius:6,marginBottom:6,objectFit:"contain"}} /><div style={{fontSize:12,color:"var(--text3)"}}>{uploading ? t("uploading") : t("uploadChange")}</div></div>
-          : <div style={{color:dragOver?"#0F6E56":"var(--text4)",fontSize:13}}>{uploading ? t("uploading") : dragOver ? "Suelta la imagen aquí" : t("uploadClick")}</div>
+          : <div style={{color:dragOver?"#0174b0":"var(--text4)",fontSize:13}}>{uploading ? t("uploading") : dragOver ? "Suelta la imagen aquí" : t("uploadClick")}</div>
         }
         <input ref={inputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>e.target.files?.[0]&&handleFile(e.target.files[0])} />
       </div>
@@ -884,7 +881,7 @@ function ProgressBar({ value, total, color }: { value:number; total:number; colo
   );
 }
 function Btn({ onClick, children, variant="default", small=false }: { onClick:()=>void; children:React.ReactNode; variant?:"default"|"primary"|"danger"; small?:boolean }) {
-  const bg = variant==="primary"?"#1a1a1a":variant==="danger"?"#fee2e2":"#f5f5f3";
+  const bg = variant==="primary"?"#0196e3":variant==="danger"?"#fee2e2":"#f5f5f3";
   const color = variant==="primary"?"#fff":variant==="danger"?"#dc2626":"#1a1a1a";
   return <button onClick={onClick} style={{padding:small?"4px 10px":"7px 14px",fontSize:small?12:13,fontWeight:500,border:"1px solid "+(variant==="danger"?"#fca5a5":"#e8e8e4"),borderRadius:8,background:bg,color,cursor:"pointer"}}>{children}</button>;
 }
@@ -1091,7 +1088,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       draggable={isAdmin && !!figure.image}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      style={{border:`1px solid ${popping?"#4ade80":dragOver?"#0F6E56":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:popping?"#E1F5EE":dragOver?"#E1F5EE":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",outline:dragOver?"2px dashed #0F6E56":"none",cursor:isAdmin&&figure.image?"grab":"default",
+      style={{border:`1px solid ${popping?"#4ade80":dragOver?"#0174b0":isOwned?color:isWished?"#f59e0b":"#e8e8e4"}`,borderRadius:10,background:popping?"#e6f4fd":dragOver?"#e6f4fd":isOwned?color+"18":isWished?"#fffbeb":"#fff",overflow:"hidden",position:"relative",outline:dragOver?"2px dashed #0174b0":"none",cursor:isAdmin&&figure.image?"grab":"default",
         transform: popping ? "scale(1.12)" : "scale(1)",
         transition: popping ? "transform 0.2s cubic-bezier(0.36,0.07,0.19,0.97), border 0.1s, background 0.1s" : "transform 0.2s ease-in, border 0.3s, background 0.3s",
         boxShadow: popping ? `0 0 12px ${color}99` : "none"
@@ -1203,11 +1200,11 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
             {set.seriesLogo && <img src={set.seriesLogo} alt="" style={{height:20,maxWidth:80,objectFit:"contain"}} />}
             <span style={{fontSize:15,fontWeight:600}}>{set.name}</span>
             {set.releaseDate && <span style={{fontSize:11,color:"var(--text4)"}}>📅 {formatDate(set.releaseDate)}</span>}
-            <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#E1F5EE":"#f0f0ec",color:complete?"#0F6E56":"#888",fontWeight:complete?600:400}}>
+            <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#e6f4fd":"#f0f0ec",color:complete?"#0174b0":"#888",fontWeight:complete?600:400}}>
               {complete ? t("complete") : `${ownedCount}/${total}`}
             </span>
             <button onClick={e=>{e.stopPropagation();onToggleAll(set.figures.map(f=>f.id),!complete);}}
-              style={{fontSize:11,padding:"2px 8px",borderRadius:12,border:"1px solid "+(complete?"#fca5a5":"#0F6E56"),background:complete?"#fee2e2":"#E1F5EE",color:complete?"#dc2626":"#0F6E56",cursor:"pointer",fontWeight:500}}>
+              style={{fontSize:11,padding:"2px 8px",borderRadius:12,border:"1px solid "+(complete?"#fca5a5":"#0174b0"),background:complete?"#fee2e2":"#e6f4fd",color:complete?"#dc2626":"#0174b0",cursor:"pointer",fontWeight:500}}>
               {complete ? t("unmarkAll") : t("markAll")}
             </button>
           </div>
@@ -1340,7 +1337,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
         {/* Line 1 — series + category tag (always) */}
         <div style={{fontSize:10,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:3,flexWrap:"nowrap",overflow:"hidden"}}>
           <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{series.name}</span>
-          <span style={{flexShrink:0,padding:"1px 4px",borderRadius:5,fontSize:9,fontWeight:600,background:series.category==="oficial"?"#E1F5EE":"#ede9fe",color:series.category==="oficial"?"#0F6E56":"#7c3aed",whiteSpace:"nowrap"}}>
+          <span style={{flexShrink:0,padding:"1px 4px",borderRadius:5,fontSize:9,fontWeight:600,background:series.category==="oficial"?"#e6f4fd":"#ede9fe",color:series.category==="oficial"?"#0174b0":"#7c3aed",whiteSpace:"nowrap"}}>
             {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
           </span>
           {figure.tags && <span style={{flexShrink:0,fontSize:9,color:"var(--text4)"}} title={figure.tags}>🏷️</span>}
@@ -1427,7 +1424,7 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
       <div onClick={()=>setOpen(!open)} style={{padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:"var(--bg3)"}}>
         {group.logo && !imgError && <img src={group.logo} alt={group.name} onError={()=>setImgError(true)} style={{height:24,maxWidth:80,objectFit:"contain"}} />}
         <span style={{fontSize:15,fontWeight:700,flex:1,color:"var(--text)"}}>{group.name} <span style={{fontSize:12,color:"var(--text4)",fontWeight:400}}>({group.sets.length} set{group.sets.length!==1?"s":""})</span></span>
-        <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#E1F5EE":"var(--bg)",color:complete?"#0F6E56":"var(--text3)",fontWeight:complete?600:400}}>
+        <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#e6f4fd":"var(--bg)",color:complete?"#0174b0":"var(--text3)",fontWeight:complete?600:400}}>
           {complete ? t("complete") : `${ownedCount}/${total}`}
         </span>
         <div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
@@ -1536,7 +1533,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
         <div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:24}}>
             {[
-              {label:t("statsTotalOwned"), value:`${ownedFavFigs}/${totalFavFigs}`, sub:`${pct}%`, color:"#0F6E56"},
+              {label:t("statsTotalOwned"), value:`${ownedFavFigs}/${totalFavFigs}`, sub:`${pct}%`, color:"#0174b0"},
               {label:t("statsTotalWish"), value:String(wishFavFigs), sub:"💛", color:"#f59e0b"},
               {label:t("statsCompletion"), value:`${pct}%`, sub:`${favSeries.length} series`, color:"#6366f1"},
             ].map(card=>(
@@ -1624,7 +1621,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityUsers")}</div>
             </div>
             <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
-              <div style={{fontSize:24,fontWeight:700,color:"#0F6E56"}}>{communityStats.totalOwned.toLocaleString()}</div>
+              <div style={{fontSize:24,fontWeight:700,color:"#0174b0"}}>{communityStats.totalOwned.toLocaleString()}</div>
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityFigs")}</div>
             </div>
           </div>
@@ -1661,7 +1658,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                 )}
                 <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 Most collected</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
-                  {communityStats.topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0F6E56" />)}
+                  {communityStats.topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0174b0" />)}
                 </div>
                 <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>💛 Most wished</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -1814,7 +1811,7 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
               <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,fontWeight:600}}>{formatDate(entry.date)}</div>
               {entry.entries.map((e,i)=>(
                 <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"5px 0",borderBottom:"1px solid var(--border)"}}>
-                  <span style={{color:"#0F6E56",flexShrink:0,marginTop:1}}>•</span>
+                  <span style={{color:"#0174b0",flexShrink:0,marginTop:1}}>•</span>
                   <span style={{fontSize:13,color:"var(--text)",lineHeight:1.4}}>{e}</span>
                 </div>
               ))}
@@ -1829,7 +1826,7 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
             </button>
           )}
           <button onClick={onClose}
-            style={{flex:1,padding:"9px",borderRadius:10,border:"none",background:"#0a5244",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>
+            style={{flex:1,padding:"9px",borderRadius:10,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>
             {t("changelogClose")}
           </button>
         </div>
@@ -1886,14 +1883,14 @@ function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:o
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
         </div>
         {sent ? (
-          <div style={{textAlign:"center",padding:"2rem",fontSize:14,color:"#0F6E56",fontWeight:600}}>{t("feedbackOk")}</div>
+          <div style={{textAlign:"center",padding:"2rem",fontSize:14,color:"#0174b0",fontWeight:600}}>{t("feedbackOk")}</div>
         ) : <>
           <div style={{marginBottom:12}}>
             <div style={{fontSize:12,color:"var(--text3)",marginBottom:6,fontWeight:500}}>{t("feedbackType")}</div>
             <div style={{display:"flex",gap:6}}>
               {[["bug",t("feedbackTypeBug")],["suggestion",t("feedbackTypeSug")],["other",t("feedbackTypeOth")]].map(([val,label])=>(
                 <button key={val} onClick={()=>setType(val)}
-                  style={{flex:1,padding:"6px 4px",borderRadius:8,border:`1px solid ${type===val?"#0F6E56":"var(--border)"}`,background:type===val?"#E1F5EE":"var(--bg2)",color:type===val?"#0F6E56":"var(--text3)",cursor:"pointer",fontSize:11,fontWeight:type===val?600:400}}>
+                  style={{flex:1,padding:"6px 4px",borderRadius:8,border:`1px solid ${type===val?"#0174b0":"var(--border)"}`,background:type===val?"#e6f4fd":"var(--bg2)",color:type===val?"#0174b0":"var(--text3)",cursor:"pointer",fontSize:11,fontWeight:type===val?600:400}}>
                   {label}
                 </button>
               ))}
@@ -1915,7 +1912,7 @@ function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:o
             }} style={{padding:"8px 14px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>💾 Backup</button>}
             <button onClick={onClose} style={{padding:"8px 14px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>{t("cancelBtn")}</button>
             <button onClick={send} disabled={!msg.trim()||sending}
-              style={{padding:"8px 14px",borderRadius:8,border:"none",background:msg.trim()?"#0a5244":"#ccc",color:"#fff",cursor:msg.trim()?"pointer":"not-allowed",fontSize:13,fontWeight:600}}>
+              style={{padding:"8px 14px",borderRadius:8,border:"none",background:msg.trim()?"#0196e3":"#ccc",color:"#fff",cursor:msg.trim()?"pointer":"not-allowed",fontSize:13,fontWeight:600}}>
               {sending?"...":t("feedbackSend")}
             </button>
           </div>
@@ -1945,7 +1942,7 @@ function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>v
           </div>
         )}
         <button onClick={onLogin}
-          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0a5244",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:10}}>
+          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:10}}>
           <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
           {t("onboardLogin")}
         </button>
@@ -2016,6 +2013,8 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState<Event|null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const [showIOSBanner, setShowIOSBanner] = useState(() => isIOS && !localStorage.getItem("wcf_ios_banner_dismissed") && !window.matchMedia('(display-mode: standalone)').matches);
 
   useEffect(() => {
     // Check if already installed as PWA
@@ -2224,7 +2223,7 @@ export default function App() {
   const dbIsSearchMode = dbSearch.trim()!=="" || dbFilter!=="all" || dbSeries!=="all" || dbCategory!=="all";
 
   const sizeToColumns: Record<string,string> = { s:"repeat(auto-fill,minmax(90px,1fr))", m:"repeat(auto-fill,minmax(130px,1fr))", l:"repeat(auto-fill,minmax(180px,1fr))" };
-  const selectStyle: React.CSSProperties = {height:32,padding:"0 6px",fontSize:12,border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,background:"#0a5244",cursor:"pointer",color:"#fff"};
+  const selectStyle: React.CSSProperties = {height:32,padding:"0 6px",fontSize:12,border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,background:"#0196e3",cursor:"pointer",color:"#fff"};
   const uniqSeries = data.filter((s,i,arr)=>arr.findIndex(x=>x.name===s.name)===i);
 
   const appContent = !ready ? (
@@ -2236,7 +2235,7 @@ export default function App() {
     <div style={{fontFamily:"system-ui,sans-serif",display:"flex",flexDirection:"column",height:"100vh",color:"var(--text)",background:"var(--bg)"}}>
 
       {/* TOP BAR */}
-      <div style={{borderBottom:"1px solid var(--border)",padding:"6px 10px",display:"flex",alignItems:"center",gap:4,background:"#0a5244",flexShrink:0,position:"relative",zIndex:100}}>
+      <div style={{borderBottom:"1px solid var(--border)",padding:"6px 10px",display:"flex",alignItems:"center",gap:4,background:"#0196e3",flexShrink:0,position:"relative",zIndex:100}}>
         <span style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",color:"#fff"}}>{t("appTitle")}</span>
         <div style={{flex:1}} />
         <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",whiteSpace:"nowrap"}}>{totalAll} WCF</span>
@@ -2286,13 +2285,13 @@ export default function App() {
 
       {/* INSTALL BANNER */}
       {showInstallBanner && (
-        <div style={{background:"#0F6E56",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{background:"#0174b0",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
           <img src="/icons/icon-72x72.png" alt="WCF" style={{width:28,height:28,borderRadius:6}} />
           <span style={{flex:1,fontSize:12,color:"#fff",fontWeight:500}}>{t("installBanner")}</span>
           <button onClick={()=>{
             if(installPrompt) (installPrompt as any).prompt();
             setShowInstallBanner(false);
-          }} style={{background:"#fff",color:"#0F6E56",border:"none",borderRadius:6,padding:"5px 10px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+          }} style={{background:"#fff",color:"#0174b0",border:"none",borderRadius:6,padding:"5px 10px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
             {t("installBtn")}
           </button>
           <button onClick={()=>setShowInstallBanner(false)}
@@ -2301,7 +2300,7 @@ export default function App() {
       )}
 
       {/* FILTER BAR — hidden on stats tab */}
-      {activeTab!=="stats" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0a5244",flexShrink:0}}>
+      {activeTab!=="stats" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0174b0",flexShrink:0}}>
         {/* Search row */}
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <div style={{flex:1,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"rgba(255,255,255,0.12)"}}>
@@ -2376,6 +2375,16 @@ export default function App() {
         </div>}
       </div>}
 
+      {/* iOS INSTALL BANNER */}
+      {showIOSBanner && (
+        <div style={{background:"#fbd100",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+          <span style={{fontSize:16}}>📱</span>
+          <span style={{flex:1,fontSize:11,color:"#5a4a00",fontWeight:500}}>{t("iosBanner")}</span>
+          <button onClick={()=>{ setShowIOSBanner(false); localStorage.setItem("wcf_ios_banner_dismissed","1"); }}
+            style={{background:"none",border:"none",color:"#5a4a00",fontSize:18,cursor:"pointer",padding:0,lineHeight:1,fontWeight:700}}>×</button>
+        </div>
+      )}
+
       {/* SERIES DETAIL STICKY HEADER */}
       {activeTab==="database" && dbSeriesObj && !dbIsSearchMode && (
         <div style={{background:"var(--bg)",padding:"10px 16px",borderBottom:"2px solid var(--border)",flexShrink:0}}>
@@ -2406,14 +2415,14 @@ export default function App() {
                 <div style={{fontSize:16,fontWeight:700,color:"var(--text)"}}>{t("emptyColTitle")}</div>
                 <div style={{fontSize:13,color:"var(--text3)",maxWidth:280,lineHeight:1.6}}>{t("emptyColDesc")}</div>
                 <button onClick={()=>setActiveTab("database")}
-                  style={{marginTop:8,padding:"10px 20px",borderRadius:10,border:"none",background:"#0a5244",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700}}>
+                  style={{marginTop:8,padding:"10px 20px",borderRadius:10,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700}}>
                   {t("emptyColBtn")}
                 </button>
               </div>
             )}
             {/* Owned section */}
             <div style={{marginBottom:28}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,paddingBottom:8,borderBottom:"2px solid #0F6E56"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,paddingBottom:8,borderBottom:"2px solid #0174b0"}}>
                 <span style={{fontSize:16}}>✅</span>
                 <span style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{t("owned")}</span>
                 <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg2)",padding:"2px 8px",borderRadius:10}}>{colOwned.length}</span>
@@ -2465,7 +2474,7 @@ export default function App() {
                         onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})} />
                       {isConfirm && (
                         <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
-                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#E1F5EE",color:"#0F6E56",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToOwned")}</button>
+                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#e6f4fd",color:"#0174b0",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToOwned")}</button>
                           <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
                           <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
                         </div>
@@ -2630,10 +2639,10 @@ export default function App() {
       </div>
 
       {/* BOTTOM TABS */}
-      <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0a5244",flexShrink:0,position:"sticky",bottom:0,zIndex:50}}>
+      <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0196e3",flexShrink:0,position:"sticky",bottom:0,zIndex:50}}>
         {([["collection","📦",t("tabCollection")],["database","🗃️",t("tabDatabase")],["stats","⭐",t("tabStats")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
-            style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fff":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+            style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fbd100":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:20}}>{icon}</span>
             {label}
           </button>
