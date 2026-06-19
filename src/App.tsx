@@ -1612,20 +1612,22 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
             </div>
           </div>
           {(() => {
-            const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s}))));
+            const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s,set:st}))));
             const findFig = (id:number) => allFigs.find(x=>x.figure.id===id);
+            const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
             const RankRow = ({item,i,color}:{item:{id:number;count:number};i:number;color:string}) => {
               const found = findFig(item.id);
               if(!found) return null;
               return (
                 <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
                   <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
-                  <div style={{width:36,height:36,borderRadius:6,overflow:"hidden",flexShrink:0,background:"var(--missing-bg)"}}>
+                  <div onClick={()=>found.figure.image&&setZoomImg({src:found.figure.image,name:found.figure.name})}
+                    style={{width:36,height:36,borderRadius:6,overflow:"hidden",flexShrink:0,background:"var(--missing-bg)",cursor:found.figure.image?"zoom-in":"default"}}>
                     {found.figure.image ? <img src={found.figure.image} alt={found.figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",fontSize:18}}>{found.figure.emoji}</div>}
                   </div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.figure.name}</div>
-                    <div style={{fontSize:10,color:"var(--text4)"}}>{found.series.name}</div>
+                    <div style={{fontSize:10,color:"var(--text4)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.series.name} — {found.set.name}</div>
                   </div>
                   <div style={{fontSize:11,fontWeight:700,color}}>{item.count}×</div>
                 </div>
@@ -1633,6 +1635,14 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
             };
             return (
               <>
+                {zoomImg && (
+                  <div onClick={()=>setZoomImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:24,cursor:"zoom-out"}}>
+                    <div style={{maxWidth:340,width:"100%",textAlign:"center"}}>
+                      <img src={zoomImg.src} alt={zoomImg.name} style={{width:"100%",borderRadius:12,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}} />
+                      <div style={{color:"#fff",marginTop:12,fontWeight:600,fontSize:14}}>{zoomImg.name}</div>
+                    </div>
+                  </div>
+                )}
                 <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 Most collected</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
                   {communityStats.topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0F6E56" />)}
