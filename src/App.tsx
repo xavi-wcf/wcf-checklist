@@ -5,6 +5,19 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 // ============================================================
 const CHANGELOG = [
   {
+    id: 6,
+    date: "2025-06-19",
+    entries: [
+      "🎉 809 WCF added to Dragon Ball (Resin):",
+      "　　League studio → 397",
+      "　　Power studio → 97",
+      "　　C studio → 202",
+      "　　AGO studio → 51",
+      "　　WooHoo studio → 16",
+      "　　Temps studio → 42",
+    ]
+  },
+  {
     id: 5,
     date: "2025-06-12",
     entries: [
