@@ -1476,6 +1476,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
 }) {
   const { t } = useTr();
   const [communityStats, setCommunityStats] = useState<{users:number;totalOwned:number;topOwned:{id:number;count:number}[];topWished:{id:number;count:number}[]}|null>(null);
+  const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
 
   useEffect(() => {
     supabase.from("wcf_progress").select("owned,wishlist")
@@ -1614,7 +1615,6 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
           {(() => {
             const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s,set:st}))));
             const findFig = (id:number) => allFigs.find(x=>x.figure.id===id);
-            const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
             const RankRow = ({item,i,color}:{item:{id:number;count:number};i:number;color:string}) => {
               const found = findFig(item.id);
               if(!found) return null;
