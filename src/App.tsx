@@ -1463,20 +1463,26 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   onOpenPicker:()=>void;
 }) {
   const { t } = useTr();
-  const [communityStats, setCommunityStats] = useState<{users:number;totalOwned:number}|null>(null);
+  const [communityStats, setCommunityStats] = useState<{users:number;totalOwned:number;topOwned:{id:number;count:number}[];topWished:{id:number;count:number}[]}|null>(null);
 
   useEffect(() => {
-    supabase.from("wcf_progress").select("owned")
+    supabase.from("wcf_progress").select("owned,wishlist")
       .then(({ data: rows, error }) => {
         if (error) { console.error("Community stats error:", error); return; }
         if (rows) {
-          const totalOwned = rows.reduce((acc, r) => {
-            const o = r.owned;
-            if (Array.isArray(o)) return acc + o.length;
-            if (typeof o === 'string') { try { return acc + JSON.parse(o).length; } catch { return acc; } }
-            return acc;
-          }, 0);
-          setCommunityStats({ users: rows.length, totalOwned });
+          const ownedCount: Record<number,number> = {};
+          const wishCount: Record<number,number> = {};
+          let totalOwned = 0;
+          for(const r of rows) {
+            const o = Array.isArray(r.owned) ? r.owned : [];
+            const w = Array.isArray(r.wishlist) ? r.wishlist : [];
+            totalOwned += o.length;
+            for(const id of o) ownedCount[id] = (ownedCount[id]??0) + 1;
+            for(const id of w) wishCount[id] = (wishCount[id]??0) + 1;
+          }
+          const topOwned = Object.entries(ownedCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id:Number(id),count}));
+          const topWished = Object.entries(wishCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id:Number(id),count}));
+          setCommunityStats({ users: rows.length, totalOwned, topOwned, topWished });
         }
       });
   }, []);
@@ -1583,7 +1589,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
       {communityStats && (
         <div style={{marginTop:28,paddingTop:20,borderTop:"1px solid var(--border)"}}>
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}}>🌍 {t("communityTitle")}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
             <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
               <div style={{fontSize:24,fontWeight:700,color:"#6366f1"}}>{communityStats.users}</div>
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityUsers")}</div>
@@ -1593,6 +1599,39 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityFigs")}</div>
             </div>
           </div>
+          {(() => {
+            const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s}))));
+            const findFig = (id:number) => allFigs.find(x=>x.figure.id===id);
+            const RankRow = ({item,i,color}:{item:{id:number;count:number};i:number;color:string}) => {
+              const found = findFig(item.id);
+              if(!found) return null;
+              return (
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
+                  <div style={{width:36,height:36,borderRadius:6,overflow:"hidden",flexShrink:0,background:"var(--missing-bg)"}}>
+                    {found.figure.image ? <img src={found.figure.image} alt={found.figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",fontSize:18}}>{found.figure.emoji}</div>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.figure.name}</div>
+                    <div style={{fontSize:10,color:"var(--text4)"}}>{found.series.name}</div>
+                  </div>
+                  <div style={{fontSize:11,fontWeight:700,color}}>{item.count}×</div>
+                </div>
+              );
+            };
+            return (
+              <>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 Most collected</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+                  {communityStats.topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0F6E56" />)}
+                </div>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>💛 Most wished</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {communityStats.topWished.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#f59e0b" />)}
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>
