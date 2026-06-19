@@ -110,6 +110,11 @@ function useDarkMode() {
 }
 
 const SUPABASE_URL = "https://odtcnomhpvxhgzbpaevh.supabase.co";
+
+// Global style for search placeholder
+const style = document.createElement("style");
+style.textContent = `.search-input::placeholder { color: rgba(255,255,255,0.75); }`;
+document.head.appendChild(style);
 const SUPABASE_KEY = "sb_publishable_AQN2HtfIBlrI8cmQYDZOuw_vaUyOL8u";
 
 async function sbGet(table: string) {
@@ -2309,7 +2314,8 @@ export default function App() {
             <input value={activeTab==="collection"?colSearch:dbSearch}
               onChange={e=>activeTab==="collection"?setColSearch(e.target.value):setDbSearch(e.target.value)}
               placeholder={activeTab==="collection"?t("searchCol"):t("searchDb")}
-              style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"#fff"}} />
+              style={{flex:1,border:"none",background:"transparent",fontSize:12,outline:"none",color:"#fff"}}
+              className="search-input" />
             {(activeTab==="collection"?colSearch:dbSearch) && <span onClick={()=>activeTab==="collection"?setColSearch(""):setDbSearch("")} style={{cursor:"pointer",color:"rgba(255,255,255,0.6)",fontSize:14}}>×</span>}
           </div>
           {/* Filter toggle button */}
