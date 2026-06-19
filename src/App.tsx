@@ -8,6 +8,9 @@ const CHANGELOG = [
     id: 6,
     date: "2025-06-19",
     entries: [
+      "🎉 Added 2 new languages:",
+      "🇯🇵 Japanese",
+      "🇨🇳 Chinese",
       "🎉 809 WCF added to Dragon Ball (Resin):",
       "　　League studio → 397",
       "　　Power studio → 97",
