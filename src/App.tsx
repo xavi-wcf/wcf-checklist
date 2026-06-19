@@ -2477,8 +2477,8 @@ export default function App() {
               {dbSeriesObj.sets.length===0 && (!dbSeriesObj.groups||dbSeriesObj.groups.length===0) && (
                 <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>
               )}
-              {/* Crossover figures — from other series tagged with this one, only oficial category */}
-              {(() => {
+              {/* Crossover figures — only shown for oficial series */}
+              {dbSeriesObj.category === "oficial" && (() => {
                 const crossover = allFlat.filter(({figure, series}) =>
                   series.id !== dbSeriesObj.id &&
                   series.category === "oficial" &&
