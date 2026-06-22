@@ -8,13 +8,14 @@ const CHANGELOG = [
     id: 6,
     date: "2025-06-19",
     entries: [
-      "🎉 809 WCF added to Dragon Ball (Resin):",
+      "🎉 861 WCF added to Dragon Ball (Resin):",
       "　　League studio → 397",
       "　　Power studio → 97",
       "　　C studio → 202",
       "　　AGO studio → 51",
       "　　WooHoo studio → 16",
       "　　Temps studio → 42",
+      "　　Other studios → 56",
     ]
   },
   {
@@ -2168,14 +2169,14 @@ export default function App() {
     });
   };
   const totalAll = data.flatMap(allFigures).length;
-  const seriesOwned = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&owned.has(x.figure.id)).length;
-  const seriesTotal = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id).length;
+  const seriesOwned = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&(x.originalCategory??x.series.category)===s.category&&owned.has(x.figure.id)).length;
+  const seriesTotal = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&(x.originalCategory??x.series.category)===s.category).length;
   const catOwned = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).filter(f=>owned.has(f.id)).length;
   const catTotal = (cat: CategoryType) => data.filter(s=>s.category===cat).flatMap(allFigures).length;
   const dbFilteredSeries = data.filter(s=>s.category===dbActiveCategory);
   const dbSeriesObj = dbSelectedSeries ? data.find(s=>s.id===dbSelectedSeries)??null : null;
 
-  type FlatFigure = { figure:Figure; set:FigureSet; series:Series; groupName?:string };
+  type FlatFigure = { figure:Figure; set:FigureSet; series:Series; groupName?:string; originalCategory?:string };
   const allFlat: FlatFigure[] = data.flatMap(series => [
     ...series.sets.flatMap(set => set.figures.map(figure => ({ figure, set, series }))),
     ...(series.groups??[]).flatMap(g => g.sets.flatMap(set => set.figures.map(figure => ({ figure, set, series, groupName: g.name }))))
@@ -2186,7 +2187,7 @@ export default function App() {
     if (!item.figure.tags) return [];
     return item.figure.tags.split(",").map(tg=>tg.trim()).filter(Boolean).flatMap(tag => {
       const taggedSeries = data.filter(s=>s.name.toLowerCase()===tag.toLowerCase() && s.id!==item.series.id);
-      return taggedSeries.map(s => ({ ...item, series: s }));
+      return taggedSeries.map(s => ({ ...item, series: s, originalCategory: item.series.category }));
     });
   });
   const allFlatWithTags = [...allFlat, ...taggedExtras];
