@@ -2047,7 +2047,7 @@ export default function App() {
   const toggleWithAuth = (id: number) => requireLogin(()=>toggle(id));
   const toggleWishWithAuth = (id: number) => requireLogin(()=>toggleWish(id));
 
-  const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category:"oficial",sets:[],groups:[]}; setData(d=>[...d,s]); };
+  const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string,category:CategoryType="oficial") => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category,sets:[],groups:[]}; setData(d=>[...d,s]); };
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
   const deleteSeries = (sid:number) => setData(d=>d.filter(s=>s.id!==sid));
   const addSet = (sid:number, gid?:number) => {
@@ -2697,7 +2697,7 @@ export default function App() {
           </div>
         </div>
       )}
-      {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
+      {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
