@@ -590,13 +590,12 @@ function useCommunityStats() {
   return { figureOwned, figureWished, users, totalOwned, topOwned, topWished };
 }
 
-
+function useData() {
   const [data, setDataState] = useState<Series[]>([]);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     sbGet("wcf_data").then(row => {
       if (row && Array.isArray(row.data) && row.data.length > 0) {
-        // Migrate: ensure every series has groups array
         const migrated = row.data.map((s: Series) => ({ ...s, groups: s.groups ?? [] }));
         setDataState(migrated);
       } else {
@@ -611,6 +610,7 @@ function useCommunityStats() {
   };
   return { data, setData, ready };
 }
+
 
 // ============================================================
 //  CROP MODAL — fixed crop box, image moves underneath
