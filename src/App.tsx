@@ -1153,9 +1153,14 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       </div>}
       {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
       {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
-      <div onClick={onDetail ?? handleToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
+      <div onClick={handleToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",position:"relative"}}>
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:36}}>{figure.emoji}</div><div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{t("noImage")}</div></div>}
+        {/* Zoom button */}
+        {onDetail && hasImage && (hover || isMobileDevice) && (
+          <button onClick={e=>{e.stopPropagation();onDetail();}}
+            style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.45)",border:"none",borderRadius:6,color:"#fff",width:24,height:24,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:4}}>🔍</button>
+        )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
         <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5}}>{figure.name}</div>
