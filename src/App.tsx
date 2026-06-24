@@ -2226,6 +2226,7 @@ export default function App() {
   const [dbSize,     setDbSize]     = useState<"s"|"m"|"l">("s");
 
   const [confirmFigure, setConfirmFigure] = useState<ConfirmFigure|null>(null);
+  const [detailFigureCol, setDetailFigureCol] = useState<{figure:Figure;series:Series;set:FigureSet}|null>(null);
   const [dbSeries,   setDbSeries]   = useState<number|"all">("all");
   const [dbCategory, setDbCategory] = useState<"all"|CategoryType>("all");
   const [dbSelectedSeries, setDbSelectedSeries] = useState<number|null>(null);
@@ -2549,6 +2550,7 @@ export default function App() {
                         onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})} />
                       {isConfirm && (
                         <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
+                          <button onClick={e=>{e.stopPropagation();setDetailFigureCol({figure,series,set});setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.9)",color:"#0196e3",cursor:"pointer",fontSize:9,fontWeight:700}}>🔍 Details</button>
                           <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fef3c7",color:"#92400e",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToWishlist")}</button>
                           <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
                           <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
@@ -2582,6 +2584,7 @@ export default function App() {
                         onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})} />
                       {isConfirm && (
                         <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
+                          <button onClick={e=>{e.stopPropagation();setDetailFigureCol({figure,series,set});setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.9)",color:"#0196e3",cursor:"pointer",fontSize:9,fontWeight:700}}>🔍 Details</button>
                           <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#e6f4fd",color:"#0174b0",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToOwned")}</button>
                           <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
                           <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
@@ -2811,6 +2814,17 @@ export default function App() {
         onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
         onGuest={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); }}
       />}
+      {detailFigureCol && (
+        <FigureDetailModal
+          figure={detailFigureCol.figure} set={detailFigureCol.set} series={detailFigureCol.series}
+          isOwned={owned.has(detailFigureCol.figure.id)} isWished={wishlist.has(detailFigureCol.figure.id)&&!owned.has(detailFigureCol.figure.id)}
+          onToggle={()=>toggleWithAuth(detailFigureCol.figure.id)}
+          onToggleWish={()=>toggleWishWithAuth(detailFigureCol.figure.id)}
+          onClose={()=>setDetailFigureCol(null)}
+          communityOwned={communityOwned[detailFigureCol.figure.id]??0}
+          communityWished={communityWished[detailFigureCol.figure.id]??0}
+        />
+      )}
     </div>
   );
 
