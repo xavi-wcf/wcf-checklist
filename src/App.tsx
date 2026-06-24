@@ -2006,7 +2006,6 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   onPrev?: ()=>void; onNext?: ()=>void;
   communityOwned: number; communityWished: number;
 }) {
-  const { t } = useTr();
   const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${months[parseInt(m)-1]} ${y}`; };
 
   return (
