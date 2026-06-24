@@ -8,14 +8,13 @@ const CHANGELOG = [
     id: 6,
     date: "2025-06-19",
     entries: [
-      "🎉 861 WCF added to Dragon Ball (Resin):",
+      "🎉 809 WCF added to Dragon Ball (Resin):",
       "　　League studio → 397",
       "　　Power studio → 97",
       "　　C studio → 202",
       "　　AGO studio → 51",
       "　　WooHoo studio → 16",
       "　　Temps studio → 42",
-      "　　Other studios → 56",
     ]
   },
   {
@@ -557,7 +556,41 @@ function useOwned(userId: string|null) {
   return { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey: IMGBB_KEY, ready };
 }
 
-function useData() {
+function useCommunityStats() {
+  const [figureOwned, setFigureOwned] = useState<Record<number,number>>({});
+  const [figureWished, setFigureWished] = useState<Record<number,number>>({});
+  const [users, setUsers] = useState(0);
+  const [totalOwned, setTotalOwned] = useState(0);
+  const [topOwned, setTopOwned] = useState<{id:number;count:number}[]>([]);
+  const [topWished, setTopWished] = useState<{id:number;count:number}[]>([]);
+
+  useEffect(() => {
+    supabase.from("wcf_progress").select("owned,wishlist")
+      .then(({ data: rows, error }) => {
+        if (error || !rows) return;
+        const oc: Record<number,number> = {};
+        const wc: Record<number,number> = {};
+        let tot = 0;
+        for(const r of rows) {
+          const o = Array.isArray(r.owned) ? r.owned : [];
+          const w = Array.isArray(r.wishlist) ? r.wishlist : [];
+          tot += o.length;
+          for(const id of o) oc[id] = (oc[id]??0) + 1;
+          for(const id of w) wc[id] = (wc[id]??0) + 1;
+        }
+        setFigureOwned(oc);
+        setFigureWished(wc);
+        setUsers(rows.length);
+        setTotalOwned(tot);
+        setTopOwned(Object.entries(oc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id:Number(id),count})));
+        setTopWished(Object.entries(wc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id:Number(id),count})));
+      });
+  }, []);
+
+  return { figureOwned, figureWished, users, totalOwned, topOwned, topWished };
+}
+
+
   const [data, setDataState] = useState<Series[]>([]);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -1035,12 +1068,13 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onDetail }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
   onQuickUpload?:(file:File)=>void;
   onSwapImage?:(fromId:number)=>void;
   onReorderStart?:()=>void;
+  onDetail?:()=>void;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1119,7 +1153,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       </div>}
       {isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
       {isWished && !isOwned && <div style={{position:"absolute",top:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
-      <div onClick={handleToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
+      <div onClick={onDetail ?? handleToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s"}}>
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:36}}>{figure.emoji}</div><div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{t("noImage")}</div></div>}
       </div>
@@ -1170,14 +1204,15 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross }: {
-  set:FigureSet; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
+function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, communityOwned, communityWished }: {
+  set:FigureSet; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
   onMoveToGroup?:(gid:number)=>void; groups?:FigureGroup[];
   onAddFigure:(f:Omit<Figure,"id">)=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
+  communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
 }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
@@ -1189,6 +1224,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
   const [uploading,setUploading]=useState(false);
   const [reorderFromId,setReorderFromId]=useState<number|null>(null);
   void reorderFromId;
+  const [detailFigure,setDetailFigure]=useState<Figure|null>(null);
   const ownedCount = set.figures.filter(f=>owned.has(f.id)).length;
   const total = set.figures.length; const complete = ownedCount===total && total>0;
 
@@ -1266,6 +1302,7 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
                 }
               } : undefined}
               onReorderStart={isAdmin ? ()=>setReorderFromId(f.id) : undefined}
+              onDetail={()=>setDetailFigure(f)}
             />
             </div>
           ))}
@@ -1277,6 +1314,21 @@ function SetCard({ set, color, owned, wishlist, apiKey, onToggle, onToggleWish, 
         onAddFigures(names.map(name=>({name,emoji:"⭐",image:""})));
         setBulkAdd(false);
       }} onClose={()=>setBulkAdd(false)} />}
+      {detailFigure && (() => {
+        const idx = set.figures.findIndex(f=>f.id===detailFigure.id);
+        return (
+          <FigureDetailModal
+            figure={detailFigure} set={set} series={series}
+            isOwned={owned.has(detailFigure.id)} isWished={wishlist.has(detailFigure.id)&&!owned.has(detailFigure.id)}
+            onToggle={()=>onToggle(detailFigure.id)} onToggleWish={()=>onToggleWish(detailFigure.id)}
+            onClose={()=>setDetailFigure(null)}
+            onPrev={idx>0?()=>setDetailFigure(set.figures[idx-1]):undefined}
+            onNext={idx<set.figures.length-1?()=>setDetailFigure(set.figures[idx+1]):undefined}
+            communityOwned={communityOwned?.[detailFigure.id]??0}
+            communityWished={communityWished?.[detailFigure.id]??0}
+          />
+        );
+      })()}
       {editFigure && <FigureModal title={t("editFigureTitle")} initial={editFigure} apiKey={apiKey} onSave={f=>{onUpdateFigure(editFigure.id,f);setEditFigure(null);}} onClose={()=>setEditFigure(null)} />}
       {quickCrop && (
         <CropModal
@@ -1405,14 +1457,15 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross }: {
-  group:FigureGroup; color:string; owned:Set<number>; wishlist:Set<number>; apiKey:string;
+function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished }: {
+  group:FigureGroup; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
   onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
   onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onAddFigures:(stid:number,fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
   onReorderFigures:(stid:number,figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
+  communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1453,12 +1506,14 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
               onUpdateSet={(n,rd,sl)=>onUpdateSet(st.id,n,rd,sl)}
               onDeleteSet={()=>onDeleteSet(st.id)}
               onDuplicate={()=>onDuplicateSet(st.id)}
+              series={series}
               onAddFigure={(f)=>onAddFigure(st.id,f)}
               onAddFigures={(fs)=>onAddFigures(st.id,fs)}
               onReorderFigures={(_, figs)=>onReorderFigures(st.id, figs)}
               onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
               onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
               onSwapCross={onSwapCross}
+              communityOwned={communityOwned} communityWished={communityWished}
             />
           ))}
         </div>
@@ -1489,36 +1544,15 @@ function GroupCard({ group, color, owned, wishlist, apiKey, onToggle, onToggleWi
 // ============================================================
 //  STATS TAB
 // ============================================================
-function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, seriesTotal, onOpenPicker }: {
+function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, seriesTotal, onOpenPicker, communityUsers, communityTotal, topOwned, topWished }: {
   data:Series[]; owned:Set<number>; wishlist:Set<number>; favourites:Set<number>;
   allFlat:{figure:Figure;series:Series}[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
   onOpenPicker:()=>void;
+  communityUsers:number; communityTotal:number;
+  topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
 }) {
   const { t } = useTr();
-  const [communityStats, setCommunityStats] = useState<{users:number;totalOwned:number;topOwned:{id:number;count:number}[];topWished:{id:number;count:number}[]}|null>(null);
   const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
-
-  useEffect(() => {
-    supabase.from("wcf_progress").select("owned,wishlist")
-      .then(({ data: rows, error }) => {
-        if (error) { console.error("Community stats error:", error); return; }
-        if (rows) {
-          const ownedCount: Record<number,number> = {};
-          const wishCount: Record<number,number> = {};
-          let totalOwned = 0;
-          for(const r of rows) {
-            const o = Array.isArray(r.owned) ? r.owned : [];
-            const w = Array.isArray(r.wishlist) ? r.wishlist : [];
-            totalOwned += o.length;
-            for(const id of o) ownedCount[id] = (ownedCount[id]??0) + 1;
-            for(const id of w) wishCount[id] = (wishCount[id]??0) + 1;
-          }
-          const topOwned = Object.entries(ownedCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id:Number(id),count}));
-          const topWished = Object.entries(wishCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id:Number(id),count}));
-          setCommunityStats({ users: rows.length, totalOwned, topOwned, topWished });
-        }
-      });
-  }, []);
   const favSeries = data.filter(s=>favourites.has(s.id));
   const favOficial = favSeries.filter(s=>s.category==="oficial");
   const favResina = favSeries.filter(s=>s.category==="resina");
@@ -1619,16 +1653,16 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
       )}
 
       {/* Community stats */}
-      {communityStats && (
+      {communityUsers > 0 && (
         <div style={{marginTop:28,paddingTop:20,borderTop:"1px solid var(--border)"}}>
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}}>🌍 {t("communityTitle")}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
             <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
-              <div style={{fontSize:24,fontWeight:700,color:"#6366f1"}}>{communityStats.users}</div>
+              <div style={{fontSize:24,fontWeight:700,color:"#6366f1"}}>{communityUsers}</div>
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityUsers")}</div>
             </div>
             <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
-              <div style={{fontSize:24,fontWeight:700,color:"#0174b0"}}>{communityStats.totalOwned.toLocaleString()}</div>
+              <div style={{fontSize:24,fontWeight:700,color:"#0174b0"}}>{communityTotal.toLocaleString()}</div>
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityFigs")}</div>
             </div>
           </div>
@@ -1665,11 +1699,11 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                 )}
                 <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 Most collected</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
-                  {communityStats.topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0174b0" />)}
+                  {topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0174b0" />)}
                 </div>
                 <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>💛 Most wished</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {communityStats.topWished.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#f59e0b" />)}
+                  {topWished.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#f59e0b" />)}
                 </div>
               </>
             );
@@ -1963,6 +1997,67 @@ function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>v
 }
 
 // ============================================================
+//  FIGURE DETAIL MODAL
+// ============================================================
+function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, onToggleWish, onClose, onPrev, onNext, communityOwned, communityWished }: {
+  figure: Figure; set: FigureSet; series: Series;
+  isOwned: boolean; isWished: boolean;
+  onToggle: ()=>void; onToggleWish: ()=>void; onClose: ()=>void;
+  onPrev?: ()=>void; onNext?: ()=>void;
+  communityOwned: number; communityWished: number;
+}) {
+  const { t } = useTr();
+  const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${months[parseInt(m)-1]} ${y}`; };
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:340,overflow:"hidden",boxShadow:"0 12px 40px rgba(0,0,0,0.4)"}}>
+        {/* Image */}
+        <div style={{width:"100%",aspectRatio:"1",background:isOwned?series.color+"30":isWished?"#fef9c3":"var(--missing-bg)",position:"relative",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+          {figure.image
+            ? <img src={figure.image} alt={figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+            : <div style={{fontSize:64}}>{figure.emoji}</div>}
+          {/* Nav arrows */}
+          {onPrev && <button onClick={onPrev} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>}
+          {onNext && <button onClick={onNext} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>}
+          {/* Close */}
+          <button onClick={onClose} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        </div>
+        {/* Info */}
+        <div style={{padding:"14px 16px 16px"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{figure.name}</div>
+          <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>{series.name} — {set.name}</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+            {set.releaseDate && <span style={{fontSize:11,color:"var(--text4)"}}>📅 {formatDate(set.releaseDate)}</span>}
+            <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:5,background:series.category==="oficial"?"#e6f4fd":"#ede9fe",color:series.category==="oficial"?"#0174b0":"#7c3aed"}}>{series.category==="oficial"?"Official":"Resin"}</span>
+          </div>
+          {/* Community stats */}
+          <div style={{display:"flex",gap:8,marginBottom:14}}>
+            <div style={{flex:1,background:"var(--bg2)",borderRadius:8,padding:"8px 10px",textAlign:"center",border:"1px solid var(--border)"}}>
+              <div style={{fontSize:16,fontWeight:700,color:"#0196e3"}}>{communityOwned}</div>
+              <div style={{fontSize:10,color:"var(--text4)"}}>collectors own this</div>
+            </div>
+            <div style={{flex:1,background:"var(--bg2)",borderRadius:8,padding:"8px 10px",textAlign:"center",border:"1px solid var(--border)"}}>
+              <div style={{fontSize:16,fontWeight:700,color:"#f59e0b"}}>{communityWished}</div>
+              <div style={{fontSize:10,color:"var(--text4)"}}>on wishlists</div>
+            </div>
+          </div>
+          {/* Actions */}
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={onToggle} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:isOwned?series.color:"#0196e3",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700}}>
+              {isOwned ? "✓ Owned" : "Mark as owned"}
+            </button>
+            <button onClick={onToggleWish} style={{padding:"10px 14px",borderRadius:10,border:`1px solid ${isWished?"#f59e0b":"var(--border)"}`,background:isWished?"#fef3c7":"var(--bg2)",cursor:"pointer",fontSize:16}}>
+              {isWished ? "💛" : "🤍"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 //  LOGIN MODAL
 // ============================================================
 function LoginModal({ onClose, onGoogle }: { onClose:()=>void; onGoogle:()=>void }) {
@@ -2000,6 +2095,7 @@ export default function App() {
   const { user, authReady, signInWithGoogle, signOut } = useAuth();
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null);
   const { data, setData, ready: dataReady } = useData();
+  const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const { lang, setLang, t } = useLang();
   const { dark, toggleDark } = useDarkMode();
   const ready = ownedReady && dataReady && authReady;
@@ -2550,6 +2646,8 @@ export default function App() {
                     onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,item.group.id)}
                     onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,item.group.id)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
+                    series={dbSeriesObj}
+                    communityOwned={communityOwned} communityWished={communityWished}
                   />
                 ) : (
                   <SetCard key={"s"+item.set.id}
@@ -2561,9 +2659,11 @@ export default function App() {
                     onDuplicate={()=>duplicateSet(dbSeriesObj.id,item.set.id)}
                     onMoveToGroup={(gid)=>moveSetToGroup(dbSeriesObj.id,item.set.id,gid)}
                     groups={dbSeriesObj.groups}
+                    series={dbSeriesObj}
                     onAddFigure={(f)=>addFigure(dbSeriesObj.id,item.set.id,f)}
                     onAddFigures={(fs)=>addFigures(dbSeriesObj.id,item.set.id,fs)}
                     onReorderFigures={(_,figs)=>reorderFigures(dbSeriesObj.id,item.set.id,figs)}
+                    communityOwned={communityOwned} communityWished={communityWished}
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
@@ -2642,6 +2742,8 @@ export default function App() {
           data={data} owned={owned} wishlist={wishlist} favourites={favourites}
           allFlat={allFlatWithTags} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
           onOpenPicker={()=>setShowFavPicker(true)}
+          communityUsers={communityUsers} communityTotal={communityTotal}
+          topOwned={topOwned} topWished={topWished}
         />}
 
       </div>
