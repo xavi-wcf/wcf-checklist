@@ -1359,12 +1359,13 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
 // ============================================================
 //  SEARCH RESULT CARD
 // ============================================================
-function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean }) {
+function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false, communityOwned=0, communityWished=0 }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean; communityOwned?:number; communityWished?:number }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
   const [hover, setHover]=useState(false);
   const [editing, setEditing]=useState(false);
+  const [showDetail, setShowDetail]=useState(false);
   const formatDate = (d?: string) => { if (!d) return null; const [y, m] = d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
   const MONTHS_FULL: Record<LangCode, string[]> = {
     es: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
@@ -1392,10 +1393,15 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
         </button>
       )}
       <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"var(--missing-bg)",overflow:"hidden",position:"relative",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",cursor:"pointer"}}>
-        {!hideIcons && isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
-        {!hideIcons && isWished && !isOwned && <div style={{position:"absolute",top:4,right:4,zIndex:2,fontSize:12}}>💛</div>}
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:compact?24:34}}>{figure.emoji}</div></div>}
+        {!hideIcons && isOwned && <div style={{position:"absolute",bottom:4,right:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
+        {!hideIcons && isWished && !isOwned && <div style={{position:"absolute",bottom:4,right:4,zIndex:2,fontSize:12}}>💛</div>}
+        {/* Zoom button */}
+        {hasImage && hover && !compact && (
+          <button onClick={e=>{e.stopPropagation();setShowDetail(true);}}
+            style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.45)",border:"none",borderRadius:6,color:"#fff",width:22,height:22,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:5}}>🔍</button>
+        )}
       </div>
       <div style={{padding:compact?"4px 6px 6px":"8px 10px 10px"}}>
         {/* Line 1 — series + category tag (always) */}
@@ -1429,6 +1435,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
       </div>
     </div>
     {editing && onEdit && <FigureModal title={t("editFigureTitle")} initial={figure} apiKey={IMGBB_KEY} onSave={(f)=>{onEdit(f);setEditing(false);}} onClose={()=>setEditing(false)} />}
+    {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} />}
     </> 
   );
 }
@@ -2613,8 +2620,8 @@ export default function App() {
                     <SearchResultCard key={figure.id} figure={figure} series={series} set={set} groupName={groupName}
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                       onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
+                      communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0}
                       onEdit={(f)=>{
-                        // Find groupId if figure is inside a group
                         const seriesObj = data.find(s=>s.id===series.id);
                         const grp = seriesObj?.groups.find(g=>g.sets.some(st=>st.id===set.id));
                         updateFigure(series.id, set.id, figure.id, f, grp?.id);
@@ -2700,7 +2707,8 @@ export default function App() {
                         <div key={figure.id} style={{position:"relative"}}>
                           <SearchResultCard figure={figure} series={series} set={set}
                             isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
-                            onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)} />
+                            onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
+                            communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0} />
                           <div style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:9,padding:"2px 5px",borderRadius:4,pointerEvents:"none"}}>
                             {series.name}
                           </div>
