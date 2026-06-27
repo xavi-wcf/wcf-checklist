@@ -5,6 +5,19 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 // ============================================================
 const CHANGELOG = [
   {
+    id: 7,
+    date: "2025-06-27",
+    entries: [
+      "🔍 Figure detail modal — tap the magnifier to see full image, info and community stats",
+      "🏆 Community ranking in My Stats: top 5 most collected and most wished figures",
+      "🎨 New color scheme — blue #0196e3 throughout the app, yellow #fbd100 as accent",
+      "🌐 Added 2 new languages: Japanese 🇯🇵 and Chinese 🇨🇳",
+      "🇫🇷 Improved French translations",
+      "🎉 69 WCF added to Hunter x Hunter (Resin):",
+      "　　Power studio → 69",
+    ]
+  },
+  {
     id: 6,
     date: "2025-06-19",
     entries: [
