@@ -1384,7 +1384,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
       onMouseLeave={e=>{e.currentTarget.style.transform="none";setHover(false);}}>
       {isAdmin && hover && !compact && (
         <button onClick={e=>{e.stopPropagation();setEditing(true);}}
-          style={{position:"absolute",top:4,right:4,zIndex:5,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
+          style={{position:"absolute",bottom:4,left:4,zIndex:5,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
       )}
       {!hideIcons && !isOwned && (
         <button onClick={e=>{e.stopPropagation();onToggleWish();}}
