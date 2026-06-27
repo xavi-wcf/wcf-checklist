@@ -1398,7 +1398,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
         {!hideIcons && isOwned && <div style={{position:"absolute",bottom:4,right:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
         {!hideIcons && isWished && !isOwned && <div style={{position:"absolute",bottom:4,right:4,zIndex:2,fontSize:12}}>💛</div>}
         {/* Zoom button */}
-        {hasImage && hover && !compact && (
+        {hasImage && !compact && (
           <button onClick={e=>{e.stopPropagation();setShowDetail(true);}}
             style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.45)",border:"none",borderRadius:6,color:"#fff",width:22,height:22,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:5}}>🔍</button>
         )}
