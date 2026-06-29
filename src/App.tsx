@@ -1380,7 +1380,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
 // ============================================================
 //  SEARCH RESULT CARD
 // ============================================================
-function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false, communityOwned=0, communityWished=0 }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean; communityOwned?:number; communityWished?:number }) {
+function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false, communityOwned=0, communityWished=0, userId }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean; communityOwned?:number; communityWished?:number; userId?:string }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
@@ -1456,7 +1456,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
       </div>
     </div>
     {editing && onEdit && <FigureModal title={t("editFigureTitle")} initial={figure} apiKey={IMGBB_KEY} onSave={(f)=>{onEdit(f);setEditing(false);}} onClose={()=>setEditing(false)} />}
-    {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} />}
+    {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} userId={userId} />}
     </> 
   );
 }
@@ -2417,7 +2417,24 @@ export default function App() {
   const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
 
   // Favourites — stored in localStorage
-  const [showModeration, setShowModeration] = useState(false);
+  const [newVersionAvailable, setNewVersionAvailable] = useState(false);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                setNewVersionAvailable(true);
+              }
+            });
+          }
+        });
+      });
+    }
+  }, []);
   const [showFavPicker, setShowFavPicker] = useState(false);
   const [favPickerCat, setFavPickerCat] = useState<CategoryType>("oficial");
   const [showFilters, setShowFilters] = useState(false);
@@ -2662,6 +2679,15 @@ export default function App() {
         </div>}
       </div>}
 
+      {/* NEW VERSION BANNER */}
+      {newVersionAvailable && (
+        <div onClick={()=>window.location.reload()} style={{background:"#fbd100",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0,cursor:"pointer"}}>
+          <span style={{fontSize:16}}>🆕</span>
+          <span style={{flex:1,fontSize:11,color:"#5a4a00",fontWeight:600}}>New version available — tap to update</span>
+          <span style={{fontSize:11,color:"#5a4a00",fontWeight:700,textDecoration:"underline"}}>Update</span>
+        </div>
+      )}
+
       {/* iOS INSTALL BANNER */}
       {showIOSBanner && (
         <div style={{background:"#fbd100",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -2792,6 +2818,7 @@ export default function App() {
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                       onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
                       communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0}
+                      userId={user?.id}
                       onEdit={(f)=>{
                         const seriesObj = data.find(s=>s.id===series.id);
                         const grp = seriesObj?.groups.find(g=>g.sets.some(st=>st.id===set.id));
@@ -2881,7 +2908,7 @@ export default function App() {
                           <SearchResultCard figure={figure} series={series} set={set}
                             isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                             onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
-                            communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0} />
+                            communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0} userId={user?.id} />
                           <div style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:9,padding:"2px 5px",borderRadius:4,pointerEvents:"none"}}>
                             {series.name}
                           </div>
