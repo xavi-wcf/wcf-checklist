@@ -1079,14 +1079,14 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onDetail, hasUserPhotos }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onDetail, userPhotoCount }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
   onQuickUpload?:(file:File)=>void;
   onSwapImage?:(fromId:number)=>void;
   onReorderStart?:()=>void;
   onDetail?:()=>void;
-  hasUserPhotos?:boolean;
+  userPhotoCount?:number;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1175,9 +1175,11 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         {isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
         {/* Wished heart - bottom left */}
         {isWished && !isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,fontSize:14}}>💛</div>}
-        {/* User photos badge - bottom right */}
-        {hasUserPhotos && (
-          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:"rgba(0,0,0,0.55)",borderRadius:5,padding:"1px 5px",fontSize:10,color:"#fff"}}>📸</div>
+        {/* User photos badge - bottom right of image */}
+        {(userPhotoCount??0) > 0 && (
+          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,display:"flex",alignItems:"center",gap:2,fontSize:11,color:"#fff",textShadow:"0 1px 3px rgba(0,0,0,0.8)",fontWeight:700}}>
+            📷{userPhotoCount}
+          </div>
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
@@ -1236,7 +1238,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
-  figuresWithPhotos?:Set<number>; userId?:string;
+  figuresWithPhotos?:Record<number,number>; userId?:string;
 }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
@@ -1327,7 +1329,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
               } : undefined}
               onReorderStart={isAdmin ? ()=>setReorderFromId(f.id) : undefined}
               onDetail={()=>setDetailFigure(f)}
-              hasUserPhotos={figuresWithPhotos?.has(f.id)}
+              userPhotoCount={figuresWithPhotos?.[f.id]??0}
             />
             </div>
           ))}
@@ -1499,7 +1501,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   onReorderFigures:(stid:number,figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
-  figuresWithPhotos?:Set<number>; userId?:string;
+  figuresWithPhotos?:Record<number,number>; userId?:string;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -2261,12 +2263,12 @@ export default function App() {
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
-  const [figuresWithPhotos, setFiguresWithPhotos] = useState<Set<number>>(new Set());
+  const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
 
   useEffect(() => {
     supabase.from("wcf_photos").select("figure_id").eq("approved", true)
       .then(({ data }) => {
-        if (data) setFiguresWithPhotos(new Set(data.map((r: {figure_id: number}) => r.figure_id)));
+        if (data) { const counts: Record<number,number> = {}; data.forEach((r: {figure_id:number}) => { counts[r.figure_id] = (counts[r.figure_id]??0)+1; }); setFiguresWithPhotos(counts); }
       });
   }, []);
   const { lang, setLang, t } = useLang();
