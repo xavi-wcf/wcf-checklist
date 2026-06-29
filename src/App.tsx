@@ -1177,7 +1177,10 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         {isWished && !isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,fontSize:14}}>💛</div>}
         {/* User photos badge - bottom right of image */}
         {(userPhotoCount??0) > 0 && (
-          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:color,borderRadius:10,padding:"1px 5px",display:"flex",alignItems:"center",gap:2,fontSize:9,color:"#fff",fontWeight:700}}>📷+{userPhotoCount}</div>
+          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:color,borderRadius:10,padding:"1px 5px",display:"flex",alignItems:"center",gap:2,fontSize:9,color:"#fff",fontWeight:700,lineHeight:1}}>
+            <span style={{fontSize:10,lineHeight:1,display:"flex",alignItems:"center"}}>📷</span>
+            <span>+{userPhotoCount}</span>
+          </div>
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
