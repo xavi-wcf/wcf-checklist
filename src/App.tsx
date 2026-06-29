@@ -2418,6 +2418,7 @@ export default function App() {
 
   // Favourites — stored in localStorage
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
+  const [showModeration, setShowModeration] = useState(false);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
