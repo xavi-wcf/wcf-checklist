@@ -1177,7 +1177,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         {isWished && !isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,fontSize:14}}>💛</div>}
         {/* User photos badge - bottom right of image */}
         {(userPhotoCount??0) > 0 && (
-          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:color,borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>📷</div>
+          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:color,borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>+{userPhotoCount}</div>
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
@@ -2151,11 +2151,18 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
               ) : (
                 <>
                   <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>Share your photo of this figure:</div>
-                  <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"10px",borderRadius:10,border:"1px dashed var(--border)",cursor:"pointer",fontSize:12,color:"var(--text3)",background:"var(--bg2)"}}>
-                    {uploading ? "⏳ Uploading..." : "📷 Upload photo"}
-                    <input type="file" accept="image/*" style={{display:"none"}} disabled={uploading}
-                      onChange={e=>{ const f=e.target.files?.[0]; if(f) handleUpload(f); }} />
-                  </label>
+                  <div style={{display:"flex",gap:8}}>
+                    <label style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"10px",borderRadius:10,border:"1px dashed var(--border)",cursor:"pointer",fontSize:12,color:"var(--text3)",background:"var(--bg2)"}}>
+                      {uploading ? "⏳" : "🖼️ Gallery"}
+                      <input type="file" accept="image/*" style={{display:"none"}} disabled={uploading}
+                        onChange={e=>{ const f=e.target.files?.[0]; if(f) handleUpload(f); }} />
+                    </label>
+                    <label style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"10px",borderRadius:10,border:"1px dashed var(--border)",cursor:"pointer",fontSize:12,color:"var(--text3)",background:"var(--bg2)"}}>
+                      {uploading ? "⏳" : "📷 Camera"}
+                      <input type="file" accept="image/*" capture="environment" style={{display:"none"}} disabled={uploading}
+                        onChange={e=>{ const f=e.target.files?.[0]; if(f) handleUpload(f); }} />
+                    </label>
+                  </div>
                   <div style={{fontSize:10,color:"var(--text4)",marginTop:6,textAlign:"center"}}>Photos are reviewed before appearing</div>
                 </>
               )}
