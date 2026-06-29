@@ -1350,7 +1350,6 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
             communityOwned={communityOwned?.[detailFigure.id]??0}
             communityWished={communityWished?.[detailFigure.id]??0}
             userId={userId}
-            userId={user?.id}
           />
         );
       })()}
@@ -1455,7 +1454,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
       </div>
     </div>
     {editing && onEdit && <FigureModal title={t("editFigureTitle")} initial={figure} apiKey={IMGBB_KEY} onSave={(f)=>{onEdit(f);setEditing(false);}} onClose={()=>setEditing(false)} />}
-    {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} userId={user?.id} />}
+    {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} />}
     </> 
   );
 }
@@ -2056,7 +2055,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   userId?: string;
 }) {
   const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${months[parseInt(m)-1]} ${y}`; };
-  const { photos, setPhotos } = useFigurePhotos(figure.id);
+  const { photos } = useFigurePhotos(figure.id);
   const [uploading, setUploading] = useState(false);
   const [zoomPhoto, setZoomPhoto] = useState<string|null>(null);
   const [uploadDone, setUploadDone] = useState(false);
@@ -2410,6 +2409,7 @@ export default function App() {
 
   // Favourites — stored in localStorage
   const [showModeration, setShowModeration] = useState(false);
+  const [showFavPicker, setShowFavPicker] = useState(false);
   const [favPickerCat, setFavPickerCat] = useState<CategoryType>("oficial");
   const [showFilters, setShowFilters] = useState(false);
 
