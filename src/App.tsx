@@ -13,8 +13,6 @@ const CHANGELOG = [
       "🎨 New color scheme — blue #0196e3 throughout the app, yellow #fbd100 as accent",
       "🌐 Added 2 new languages: Japanese 🇯🇵 and Chinese 🇨🇳",
       "🇫🇷 Improved French translations",
-      "🎉 69 WCF added to Hunter x Hunter (Resin):",
-      "　　Power studio → 69",
     ]
   },
   {
@@ -1081,13 +1079,14 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onDetail }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onDetail, hasUserPhotos }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
   onQuickUpload?:(file:File)=>void;
   onSwapImage?:(fromId:number)=>void;
   onReorderStart?:()=>void;
   onDetail?:()=>void;
+  hasUserPhotos?:boolean;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1150,6 +1149,10 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>🔄</div>}
+      {/* User photos badge */}
+      {hasUserPhotos && (
+        <div style={{position:"absolute",bottom:4,left:4,zIndex:3,background:"rgba(0,0,0,0.55)",borderRadius:5,padding:"1px 5px",fontSize:10,color:"#fff"}}>📸</div>
+      )}
       {/* Reorder handle */}
       {isAdmin && onReorderStart && hover && (
         <div draggable
@@ -1222,7 +1225,7 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, communityOwned, communityWished }: {
+function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId }: {
   set:FigureSet; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
@@ -1231,6 +1234,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
+  figuresWithPhotos?:Set<number>; userId?:string;
 }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
@@ -1321,6 +1325,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
               } : undefined}
               onReorderStart={isAdmin ? ()=>setReorderFromId(f.id) : undefined}
               onDetail={()=>setDetailFigure(f)}
+              hasUserPhotos={figuresWithPhotos?.has(f.id)}
             />
             </div>
           ))}
@@ -1344,6 +1349,8 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
             onNext={idx<set.figures.length-1?()=>setDetailFigure(set.figures[idx+1]):undefined}
             communityOwned={communityOwned?.[detailFigure.id]??0}
             communityWished={communityWished?.[detailFigure.id]??0}
+            userId={userId}
+            userId={user?.id}
           />
         );
       })()}
@@ -1448,7 +1455,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
       </div>
     </div>
     {editing && onEdit && <FigureModal title={t("editFigureTitle")} initial={figure} apiKey={IMGBB_KEY} onSave={(f)=>{onEdit(f);setEditing(false);}} onClose={()=>setEditing(false)} />}
-    {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} />}
+    {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} userId={user?.id} />}
     </> 
   );
 }
@@ -1482,7 +1489,7 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished }: {
+function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId }: {
   group:FigureGroup; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
@@ -1491,6 +1498,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   onReorderFigures:(stid:number,figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
+  figuresWithPhotos?:Set<number>; userId?:string;
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1539,6 +1547,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
               onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
               onSwapCross={onSwapCross}
               communityOwned={communityOwned} communityWished={communityWished}
+              figuresWithPhotos={figuresWithPhotos} userId={userId}
             />
           ))}
         </div>
@@ -2024,27 +2033,68 @@ function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>v
 // ============================================================
 //  FIGURE DETAIL MODAL
 // ============================================================
-function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, onToggleWish, onClose, onPrev, onNext, communityOwned, communityWished }: {
+type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; };
+
+function useFigurePhotos(figureId: number) {
+  const [photos, setPhotos] = useState<UserPhoto[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    supabase.from("wcf_photos").select("*").eq("figure_id", figureId).eq("approved", true)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { setPhotos(data ?? []); setLoading(false); });
+  }, [figureId]);
+  return { photos, setPhotos, loading };
+}
+
+function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, onToggleWish, onClose, onPrev, onNext, communityOwned, communityWished, userId }: {
   figure: Figure; set: FigureSet; series: Series;
   isOwned: boolean; isWished: boolean;
   onToggle: ()=>void; onToggleWish: ()=>void; onClose: ()=>void;
   onPrev?: ()=>void; onNext?: ()=>void;
   communityOwned: number; communityWished: number;
+  userId?: string;
 }) {
   const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${months[parseInt(m)-1]} ${y}`; };
+  const { photos, setPhotos } = useFigurePhotos(figure.id);
+  const [uploading, setUploading] = useState(false);
+  const [zoomPhoto, setZoomPhoto] = useState<string|null>(null);
+  const [uploadDone, setUploadDone] = useState(false);
+  const imgbbKey = import.meta.env.VITE_IMGBB_KEY as string ?? "";
+
+  const handleUpload = async (file: File) => {
+    if (!userId || !file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: "POST", body: fd });
+      const json = await res.json();
+      if (json.success) {
+        const url = json.data.url;
+        const del = json.data.delete_url;
+        await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, delete_url: del, approved: false });
+        setUploadDone(true);
+      }
+    } catch(e) { console.error(e); }
+    setUploading(false);
+  };
 
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:340,overflow:"hidden",boxShadow:"0 12px 40px rgba(0,0,0,0.4)"}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
+      {zoomPhoto && (
+        <div onClick={e=>{e.stopPropagation();setZoomPhoto(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <img src={zoomPhoto} alt="zoom" style={{maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
+        </div>
+      )}
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:340,overflow:"hidden",boxShadow:"0 12px 40px rgba(0,0,0,0.4)",marginTop:"auto",marginBottom:"auto"}}>
         {/* Image */}
         <div style={{width:"100%",aspectRatio:"1",background:isOwned?series.color+"30":isWished?"#fef9c3":"var(--missing-bg)",position:"relative",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
           {figure.image
             ? <img src={figure.image} alt={figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
             : <div style={{fontSize:64}}>{figure.emoji}</div>}
-          {/* Nav arrows */}
           {onPrev && <button onClick={onPrev} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>}
           {onNext && <button onClick={onNext} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>}
-          {/* Close */}
           <button onClick={onClose} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
         {/* Info */}
@@ -2067,7 +2117,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
             </div>
           </div>
           {/* Actions */}
-          <div style={{display:"flex",gap:8}}>
+          <div style={{display:"flex",gap:8,marginBottom:14}}>
             <button onClick={onToggle} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:isOwned?series.color:"#0196e3",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700}}>
               {isOwned ? "✓ Owned" : "Mark as owned"}
             </button>
@@ -2075,6 +2125,96 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
               {isWished ? "💛" : "🤍"}
             </button>
           </div>
+
+          {/* Community photos */}
+          {photos.length > 0 && (
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 Community photos ({photos.length})</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                {photos.map(p=>(
+                  <div key={p.id} onClick={()=>setZoomPhoto(p.url)} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",cursor:"zoom-in",background:"var(--missing-bg)"}}>
+                    <img src={p.url} alt="community" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Upload */}
+          {userId && (
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:12}}>
+              {uploadDone ? (
+                <div style={{fontSize:12,color:"#0196e3",textAlign:"center",padding:"8px 0"}}>
+                  ✅ Photo submitted! It will appear after review.
+                </div>
+              ) : (
+                <>
+                  <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>Share your photo of this figure:</div>
+                  <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"10px",borderRadius:10,border:"1px dashed var(--border)",cursor:"pointer",fontSize:12,color:"var(--text3)",background:"var(--bg2)"}}>
+                    {uploading ? "⏳ Uploading..." : "📷 Upload photo"}
+                    <input type="file" accept="image/*" capture="environment" style={{display:"none"}} disabled={uploading}
+                      onChange={e=>{ const f=e.target.files?.[0]; if(f) handleUpload(f); }} />
+                  </label>
+                  <div style={{fontSize:10,color:"var(--text4)",marginTop:6,textAlign:"center"}}>Photos are reviewed before appearing</div>
+                </>
+              )}
+            </div>
+          )}
+          {!userId && (
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:12,fontSize:11,color:"var(--text4)",textAlign:"center"}}>
+              Log in to share your photo of this figure
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  ADMIN PHOTO MODERATION
+// ============================================================
+function PhotoModerationPanel({ onClose }: { onClose: ()=>void }) {
+  const [photos, setPhotos] = useState<(UserPhoto & {figure_name?:string})[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from("wcf_photos").select("*").eq("approved", false).order("created_at", { ascending: true })
+      .then(({ data }) => { setPhotos(data ?? []); setLoading(false); });
+  }, []);
+
+  const approve = async (id: string) => {
+    await supabase.from("wcf_photos").update({ approved: true }).eq("id", id);
+    setPhotos(p => p.filter(x => x.id !== id));
+  };
+
+  const reject = async (id: string) => {
+    await supabase.from("wcf_photos").delete().eq("id", id);
+    setPhotos(p => p.filter(x => x.id !== id));
+  };
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:400,maxHeight:"85vh",overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 12px 40px rgba(0,0,0,0.4)"}}>
+        <div style={{padding:"16px 16px 12px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:15,fontWeight:700}}>📸 Photo moderation</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
+        </div>
+        <div style={{overflowY:"auto",flex:1,padding:16}}>
+          {loading && <div style={{textAlign:"center",color:"var(--text4)"}}>Loading...</div>}
+          {!loading && photos.length === 0 && <div style={{textAlign:"center",color:"var(--text4)"}}>No pending photos 🎉</div>}
+          {photos.map(p=>(
+            <div key={p.id} style={{marginBottom:16,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
+              <img src={p.url} alt="pending" style={{width:"100%",maxHeight:280,objectFit:"contain",background:"var(--missing-bg)"}} />
+              <div style={{padding:"10px 12px"}}>
+                <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>Figure ID: {p.figure_id}</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>approve(p.id)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>✅ Approve</button>
+                  <button onClick={()=>reject(p.id)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontWeight:700,fontSize:12}}>🗑 Reject</button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -2120,6 +2260,14 @@ export default function App() {
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
+  const [figuresWithPhotos, setFiguresWithPhotos] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    supabase.from("wcf_photos").select("figure_id").eq("approved", true)
+      .then(({ data }) => {
+        if (data) setFiguresWithPhotos(new Set(data.map((r: {figure_id: number}) => r.figure_id)));
+      });
+  }, []);
   const { lang, setLang, t } = useLang();
   const { dark, toggleDark } = useDarkMode();
   const ready = ownedReady && dataReady && authReady;
@@ -2261,7 +2409,7 @@ export default function App() {
   const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
 
   // Favourites — stored in localStorage
-  const [showFavPicker, setShowFavPicker] = useState(false);
+  const [showModeration, setShowModeration] = useState(false);
   const [favPickerCat, setFavPickerCat] = useState<CategoryType>("oficial");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -2389,6 +2537,7 @@ export default function App() {
         <button onClick={toggleDark} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
+        {isAdmin && <button onClick={()=>setShowModeration(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Photo moderation">📸</button>}
         {!isInstalled && installPrompt && (
           <button onClick={()=>{ (installPrompt as any).prompt(); }}
             style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("installBtn")}>📲</button>
@@ -2675,6 +2824,7 @@ export default function App() {
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
                     series={dbSeriesObj}
                     communityOwned={communityOwned} communityWished={communityWished}
+                    figuresWithPhotos={figuresWithPhotos} userId={user?.id}
                   />
                 ) : (
                   <SetCard key={"s"+item.set.id}
@@ -2691,6 +2841,7 @@ export default function App() {
                     onAddFigures={(fs)=>addFigures(dbSeriesObj.id,item.set.id,fs)}
                     onReorderFigures={(_,figs)=>reorderFigures(dbSeriesObj.id,item.set.id,figs)}
                     communityOwned={communityOwned} communityWished={communityWished}
+                    figuresWithPhotos={figuresWithPhotos} userId={user?.id}
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
@@ -2829,7 +2980,8 @@ export default function App() {
       )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
+      {showModeration && <PhotoModerationPanel onClose={()=>setShowModeration(false)} />}
+      {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
       {showOnboarding && <OnboardingModal
         onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
