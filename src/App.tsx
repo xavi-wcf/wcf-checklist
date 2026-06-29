@@ -1149,10 +1149,6 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>🔄</div>}
-      {/* User photos badge */}
-      {hasUserPhotos && (
-        <div style={{position:"absolute",bottom:4,left:4,zIndex:3,background:"rgba(0,0,0,0.55)",borderRadius:5,padding:"1px 5px",fontSize:10,color:"#fff"}}>📸</div>
-      )}
       {/* Reorder handle */}
       {isAdmin && onReorderStart && hover && (
         <div draggable
@@ -1167,15 +1163,21 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         </>}
         {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
       </div>}
-      {isOwned && <div style={{position:"absolute",bottom:6,right:6,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
-      {isWished && !isOwned && <div style={{position:"absolute",bottom:6,right:6,zIndex:2,fontSize:14}}>💛</div>}
       <div onClick={handleToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",position:"relative"}}>
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:36}}>{figure.emoji}</div><div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>{t("noImage")}</div></div>}
-        {/* Zoom button */}
+        {/* Zoom button - top right */}
         {onDetail && hasImage && (hover || isMobileDevice) && (
           <button onClick={e=>{e.stopPropagation();onDetail();}}
             style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.45)",border:"none",borderRadius:6,color:"#fff",width:24,height:24,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:4}}>🔍</button>
+        )}
+        {/* Owned check - bottom left */}
+        {isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,width:20,height:20,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>}
+        {/* Wished heart - bottom left */}
+        {isWished && !isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,fontSize:14}}>💛</div>}
+        {/* User photos badge - bottom right */}
+        {hasUserPhotos && (
+          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:"rgba(0,0,0,0.55)",borderRadius:5,padding:"1px 5px",fontSize:10,color:"#fff"}}>📸</div>
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
@@ -2151,7 +2153,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
                   <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>Share your photo of this figure:</div>
                   <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"10px",borderRadius:10,border:"1px dashed var(--border)",cursor:"pointer",fontSize:12,color:"var(--text3)",background:"var(--bg2)"}}>
                     {uploading ? "⏳ Uploading..." : "📷 Upload photo"}
-                    <input type="file" accept="image/*" capture="environment" style={{display:"none"}} disabled={uploading}
+                    <input type="file" accept="image/*" style={{display:"none"}} disabled={uploading}
                       onChange={e=>{ const f=e.target.files?.[0]; if(f) handleUpload(f); }} />
                   </label>
                   <div style={{fontSize:10,color:"var(--text4)",marginTop:6,textAlign:"center"}}>Photos are reviewed before appearing</div>
