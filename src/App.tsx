@@ -1177,9 +1177,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         {isWished && !isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,fontSize:14}}>💛</div>}
         {/* User photos badge - bottom right of image */}
         {(userPhotoCount??0) > 0 && (
-          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,display:"flex",alignItems:"center",gap:2,fontSize:11,color:"#fff",textShadow:"0 1px 3px rgba(0,0,0,0.8)",fontWeight:700}}>
-            📷{userPhotoCount}
-          </div>
+          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:color,borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>📷</div>
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
@@ -1418,8 +1416,8 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
       <div onClick={onToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?series.color+"30":"var(--missing-bg)",overflow:"hidden",position:"relative",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",cursor:"pointer"}}>
         {hasImage ? <img src={figure.image} alt={figure.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} />
           : <div style={{textAlign:"center"}}><div style={{fontSize:compact?24:34}}>{figure.emoji}</div></div>}
-        {!hideIcons && isOwned && <div style={{position:"absolute",bottom:4,right:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
-        {!hideIcons && isWished && !isOwned && <div style={{position:"absolute",bottom:4,right:4,zIndex:2,fontSize:12}}>💛</div>}
+        {!hideIcons && isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
+        {!hideIcons && isWished && !isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,fontSize:12}}>💛</div>}
         {/* Zoom button */}
         {hasImage && !compact && (
           <button onClick={e=>{e.stopPropagation();setShowDetail(true);}}
