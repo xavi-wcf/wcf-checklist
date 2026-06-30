@@ -1230,7 +1230,7 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId }: {
+function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   set:FigureSet; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
@@ -1240,6 +1240,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
   onSwapCross?:(fromId:number,toId:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
+  cardSize?:"s"|"m"|"l";
 }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
@@ -1308,7 +1309,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
           )}
           <Btn small onClick={onDeleteSet} variant="danger">{t("deleteSetBtn")}</Btn>
         </div>}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
+        <div style={{display:"grid",gridTemplateColumns: cardSize==="s"?"repeat(auto-fill, minmax(90px, 1fr))" : cardSize==="l"?"repeat(auto-fill, minmax(160px, 1fr))" : "repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
           {set.figures.map(f=>(
             <div key={f.id}
               onDragOver={(e)=>{ if(e.dataTransfer.types.includes("wcf_reorder_id")) e.preventDefault(); }}
@@ -1493,7 +1494,7 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId }: {
+function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   group:FigureGroup; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
@@ -1503,6 +1504,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   onSwapCross?:(fromId:number,toId:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
+  cardSize?:"s"|"m"|"l";
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
@@ -1552,6 +1554,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
               onSwapCross={onSwapCross}
               communityOwned={communityOwned} communityWished={communityWished}
               figuresWithPhotos={figuresWithPhotos} userId={userId}
+              cardSize={cardSize}
             />
           ))}
         </div>
@@ -2865,6 +2868,7 @@ export default function App() {
                     series={dbSeriesObj}
                     communityOwned={communityOwned} communityWished={communityWished}
                     figuresWithPhotos={figuresWithPhotos} userId={user?.id}
+                    cardSize={dbSize}
                   />
                 ) : (
                   <SetCard key={"s"+item.set.id}
@@ -2882,6 +2886,7 @@ export default function App() {
                     onReorderFigures={(_,figs)=>reorderFigures(dbSeriesObj.id,item.set.id,figs)}
                     communityOwned={communityOwned} communityWished={communityWished}
                     figuresWithPhotos={figuresWithPhotos} userId={user?.id}
+                    cardSize={dbSize}
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
