@@ -5,6 +5,19 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 // ============================================================
 const CHANGELOG = [
   {
+    id: 8,
+    date: "2025-07-01",
+    entries: [
+      "📸 New feature: upload your own photos for any figure! Tap the magnifier and share your collection with the community",
+      "🎉 165 WCF added to Naruto (Resin):",
+      "　　Power studio → 165",
+      "🎉 69 WCF added to Hunter x Hunter (Resin):",
+      "　　Power studio → 69",
+      "🎉 23 WCF added to Yu Yu Hakusho (Resin):",
+      "　　Power studio → 23",
+    ]
+  },
+  {
     id: 7,
     date: "2025-06-27",
     entries: [
@@ -1384,7 +1397,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
 // ============================================================
 //  SEARCH RESULT CARD
 // ============================================================
-function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false, communityOwned=0, communityWished=0, userId }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean; communityOwned?:number; communityWished?:number; userId?:string }) {
+function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false, communityOwned=0, communityWished=0, userId, userPhotoCount=0 }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean; communityOwned?:number; communityWished?:number; userId?:string; userPhotoCount?:number }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
@@ -1422,6 +1435,13 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
           : <div style={{textAlign:"center"}}><div style={{fontSize:compact?24:34}}>{figure.emoji}</div></div>}
         {!hideIcons && isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,width:16,height:16,borderRadius:"50%",background:series.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700}}>✓</div>}
         {!hideIcons && isWished && !isOwned && <div style={{position:"absolute",bottom:4,left:4,zIndex:2,fontSize:12}}>💛</div>}
+        {/* User photos badge */}
+        {userPhotoCount > 0 && (
+          <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:series.color,borderRadius:10,padding:"1px 5px",display:"flex",alignItems:"center",gap:2,fontSize:8,color:"#fff",fontWeight:700,lineHeight:1}}>
+            <span style={{fontSize:9,lineHeight:1,display:"flex",alignItems:"center"}}>📷</span>
+            <span>+{userPhotoCount}</span>
+          </div>
+        )}
         {/* Zoom button */}
         {hasImage && !compact && (
           <button onClick={e=>{e.stopPropagation();setShowDetail(true);}}
@@ -2757,6 +2777,7 @@ export default function App() {
                     <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start",position:"relative"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
                         isOwned={true} isWished={false} compact hideIcons
+                        userPhotoCount={figuresWithPhotos[figure.id]??0} userId={user?.id}
                         onToggle={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})}
                         onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})} />
                       {isConfirm && (
@@ -2791,6 +2812,7 @@ export default function App() {
                     <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start",position:"relative"}}>
                       <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
                         isOwned={false} isWished={true} compact hideIcons
+                        userPhotoCount={figuresWithPhotos[figure.id]??0} userId={user?.id}
                         onToggle={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})}
                         onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})} />
                       {isConfirm && (
@@ -2825,7 +2847,7 @@ export default function App() {
                       isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                       onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
                       communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0}
-                      userId={user?.id}
+                      userId={user?.id} userPhotoCount={figuresWithPhotos[figure.id]??0}
                       onEdit={(f)=>{
                         const seriesObj = data.find(s=>s.id===series.id);
                         const grp = seriesObj?.groups.find(g=>g.sets.some(st=>st.id===set.id));
@@ -2917,7 +2939,7 @@ export default function App() {
                           <SearchResultCard figure={figure} series={series} set={set}
                             isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                             onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
-                            communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0} userId={user?.id} />
+                            communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0} userId={user?.id} userPhotoCount={figuresWithPhotos[figure.id]??0} />
                           <div style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:9,padding:"2px 5px",borderRadius:4,pointerEvents:"none"}}>
                             {series.name}
                           </div>
