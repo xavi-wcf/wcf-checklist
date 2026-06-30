@@ -3063,6 +3063,7 @@ export default function App() {
           onClose={()=>setDetailFigureCol(null)}
           communityOwned={communityOwned[detailFigureCol.figure.id]??0}
           communityWished={communityWished[detailFigureCol.figure.id]??0}
+          userId={user?.id}
         />
       )}
     </div>
