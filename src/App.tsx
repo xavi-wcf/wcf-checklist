@@ -2101,12 +2101,19 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   const [uploading, setUploading] = useState(false);
   const [zoomPhoto, setZoomPhoto] = useState<string|null>(null);
   const [uploadDone, setUploadDone] = useState(false);
+  const [uploadError, setUploadError] = useState<string|null>(null);
   const imgbbKey = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 
   const handleUpload = async (file: File) => {
     if (!userId || !file) return;
     setUploading(true);
+    setUploadError(null);
     try {
+      if (!imgbbKey) {
+        setUploadError("Missing ImgBB API key. Check Vercel environment variables.");
+        setUploading(false);
+        return;
+      }
       const fd = new FormData();
       fd.append("image", file);
       const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: "POST", body: fd });
@@ -2116,8 +2123,14 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
         const del = json.data.delete_url;
         await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, delete_url: del, approved: false });
         setUploadDone(true);
+      } else {
+        setUploadError(json?.error?.message || "Upload failed. Check the ImgBB API key.");
+        console.error("ImgBB upload failed:", json);
       }
-    } catch(e) { console.error(e); }
+    } catch(e) {
+      setUploadError("Network error while uploading. Try again.");
+      console.error(e);
+    }
     setUploading(false);
   };
 
@@ -2204,6 +2217,11 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
                     </label>
                   </div>
                   <div style={{fontSize:10,color:"var(--text4)",marginTop:6,textAlign:"center"}}>Photos are reviewed before appearing</div>
+                  {uploadError && (
+                    <div style={{fontSize:11,color:"#dc2626",marginTop:8,textAlign:"center",background:"#fee2e2",borderRadius:8,padding:"6px 8px"}}>
+                      ⚠️ {uploadError}
+                    </div>
+                  )}
                 </>
               )}
             </div>
