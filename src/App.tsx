@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
 
 // ============================================================
 //  CHANGELOG — añade aquí las novedades antes de hacer push
@@ -2222,24 +2222,65 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
 // ============================================================
 //  ADMIN PHOTO MODERATION
 // ============================================================
-function PhotoModerationPanel({ onClose }: { onClose: ()=>void }) {
-  const [photos, setPhotos] = useState<(UserPhoto & {figure_name?:string})[]>([]);
+function buildFigureNameMap(data: Series[]): Record<number, string> {
+  const map: Record<number, string> = {};
+  data.forEach(series => {
+    const allSets: FigureSet[] = [
+      ...(series.sets ?? []),
+      ...(series.groups ?? []).flatMap(g => g.sets ?? []),
+    ];
+    allSets.forEach(set => {
+      (set.figures ?? []).forEach(fig => {
+        map[fig.id] = `${fig.name} — ${series.name} (${set.name})`;
+      });
+    });
+  });
+  return map;
+}
+
+function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Series[] }) {
+  const [tab, setTab] = useState<"pending"|"approved">("pending");
+  const [pending, setPending] = useState<UserPhoto[]>([]);
+  const [approved, setApproved] = useState<UserPhoto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string|null>(null);
+
+  const figureNameMap = useMemo(() => buildFigureNameMap(data), [data]);
+
+  const loadPending = () => {
+    setLoading(true);
+    supabase.from("wcf_photos").select("*").eq("approved", false).order("created_at", { ascending: true })
+      .then(({ data }) => { setPending(data ?? []); setLoading(false); });
+  };
+
+  const loadApproved = () => {
+    setLoading(true);
+    supabase.from("wcf_photos").select("*").eq("approved", true).order("created_at", { ascending: false })
+      .then(({ data }) => { setApproved(data ?? []); setLoading(false); });
+  };
 
   useEffect(() => {
-    supabase.from("wcf_photos").select("*").eq("approved", false).order("created_at", { ascending: true })
-      .then(({ data }) => { setPhotos(data ?? []); setLoading(false); });
-  }, []);
+    if (tab === "pending") loadPending();
+    else loadApproved();
+  }, [tab]);
 
   const approve = async (id: string) => {
     await supabase.from("wcf_photos").update({ approved: true }).eq("id", id);
-    setPhotos(p => p.filter(x => x.id !== id));
+    setPending(p => p.filter(x => x.id !== id));
   };
 
   const reject = async (id: string) => {
     await supabase.from("wcf_photos").delete().eq("id", id);
-    setPhotos(p => p.filter(x => x.id !== id));
+    setPending(p => p.filter(x => x.id !== id));
   };
+
+  const deleteApproved = async (id: string) => {
+    await supabase.from("wcf_photos").delete().eq("id", id);
+    setApproved(p => p.filter(x => x.id !== id));
+    setConfirmDeleteId(null);
+  };
+
+  const list = tab === "pending" ? pending : approved;
 
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -2248,18 +2289,41 @@ function PhotoModerationPanel({ onClose }: { onClose: ()=>void }) {
           <div style={{fontSize:15,fontWeight:700}}>📸 Photo moderation</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
         </div>
+        <div style={{display:"flex",borderBottom:"1px solid var(--border)"}}>
+          <button onClick={()=>setTab("pending")} style={{flex:1,padding:"10px",border:"none",background:tab==="pending"?"var(--bg2)":"transparent",cursor:"pointer",fontWeight:700,fontSize:12,color:tab==="pending"?"var(--text)":"var(--text4)",borderBottom:tab==="pending"?"2px solid #0196e3":"2px solid transparent"}}>
+            Pending {pending.length>0 && tab==="pending" ? `(${pending.length})` : ""}
+          </button>
+          <button onClick={()=>setTab("approved")} style={{flex:1,padding:"10px",border:"none",background:tab==="approved"?"var(--bg2)":"transparent",cursor:"pointer",fontWeight:700,fontSize:12,color:tab==="approved"?"var(--text)":"var(--text4)",borderBottom:tab==="approved"?"2px solid #0196e3":"2px solid transparent"}}>
+            Approved
+          </button>
+        </div>
         <div style={{overflowY:"auto",flex:1,padding:16}}>
           {loading && <div style={{textAlign:"center",color:"var(--text4)"}}>Loading...</div>}
-          {!loading && photos.length === 0 && <div style={{textAlign:"center",color:"var(--text4)"}}>No pending photos 🎉</div>}
-          {photos.map(p=>(
+          {!loading && list.length === 0 && (
+            <div style={{textAlign:"center",color:"var(--text4)"}}>
+              {tab==="pending" ? "No pending photos 🎉" : "No approved photos yet"}
+            </div>
+          )}
+          {list.map(p=>(
             <div key={p.id} style={{marginBottom:16,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
-              <img src={p.url} alt="pending" style={{width:"100%",maxHeight:280,objectFit:"contain",background:"var(--missing-bg)"}} />
+              <img src={p.url} alt="figure" style={{width:"100%",maxHeight:280,objectFit:"contain",background:"var(--missing-bg)"}} />
               <div style={{padding:"10px 12px"}}>
-                <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>Figure ID: {p.figure_id}</div>
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>approve(p.id)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>✅ Approve</button>
-                  <button onClick={()=>reject(p.id)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontWeight:700,fontSize:12}}>🗑 Reject</button>
+                <div style={{fontSize:12,fontWeight:600,marginBottom:8}}>
+                  {figureNameMap[p.figure_id] ?? `Figure ID: ${p.figure_id}`}
                 </div>
+                {tab === "pending" ? (
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>approve(p.id)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>✅ Approve</button>
+                    <button onClick={()=>reject(p.id)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontWeight:700,fontSize:12}}>🗑 Reject</button>
+                  </div>
+                ) : confirmDeleteId === p.id ? (
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>deleteApproved(p.id)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>Confirm delete</button>
+                    <button onClick={()=>setConfirmDeleteId(null)} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid var(--border)",background:"transparent",color:"var(--text3)",cursor:"pointer",fontWeight:700,fontSize:12}}>Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={()=>setConfirmDeleteId(p.id)} style={{width:"100%",padding:"8px",borderRadius:8,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontWeight:700,fontSize:12}}>🗑 Delete photo</button>
+                )}
               </div>
             </div>
           ))}
@@ -3061,7 +3125,7 @@ export default function App() {
       )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showModeration && <PhotoModerationPanel onClose={()=>setShowModeration(false)} />}
+      {showModeration && <PhotoModerationPanel onClose={()=>setShowModeration(false)} data={data} />}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
       {showOnboarding && <OnboardingModal
