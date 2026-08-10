@@ -1528,13 +1528,14 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
+function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onReorderSets, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   group:FigureGroup; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
   onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
   onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onAddFigures:(stid:number,fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
   onReorderFigures:(stid:number,figures:Figure[])=>void;
+  onReorderSets?:(sets:FigureSet[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
@@ -1550,6 +1551,15 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   const ownedCount = allFigs.filter(f=>owned.has(f.id)).length;
   const total = allFigs.length;
   const complete = ownedCount===total && total>0;
+
+  const moveSet = (idx:number, dir:-1|1) => {
+    const to = idx+dir;
+    if(to<0 || to>=group.sets.length || !onReorderSets) return;
+    const sets = [...group.sets];
+    const [m] = sets.splice(idx,1);
+    sets.splice(to,0,m);
+    onReorderSets(sets);
+  };
 
   return (
     <div style={{marginBottom:16,border:"2px solid var(--border2)",borderRadius:14,overflow:"hidden",background:"var(--bg2)"}}>
@@ -1573,23 +1583,35 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
       {open && (
         <div style={{padding:"8px 12px 12px"}}>
           {group.sets.length===0 && <div style={{textAlign:"center",padding:"1.5rem",color:"var(--text4)",fontSize:13}}>Sin sets. Pulsa "+ Set" para añadir.</div>}
-          {group.sets.map(st=>(
-            <SetCard key={st.id} set={st} color={color} owned={owned} wishlist={wishlist} apiKey={apiKey}
-              onToggle={onToggle} onToggleWish={onToggleWish} onToggleAll={onToggleAll}
-              onUpdateSet={(n,rd,sl)=>onUpdateSet(st.id,n,rd,sl)}
-              onDeleteSet={()=>onDeleteSet(st.id)}
-              onDuplicate={()=>onDuplicateSet(st.id)}
-              series={series}
-              onAddFigure={(f)=>onAddFigure(st.id,f)}
-              onAddFigures={(fs)=>onAddFigures(st.id,fs)}
-              onReorderFigures={(_, figs)=>onReorderFigures(st.id, figs)}
-              onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
-              onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
-              onSwapCross={onSwapCross}
-              communityOwned={communityOwned} communityWished={communityWished}
-              figuresWithPhotos={figuresWithPhotos} userId={userId}
-              cardSize={cardSize}
-            />
+          {group.sets.map((st,idx)=>(
+            <div key={st.id} style={{display:"flex",alignItems:"flex-start",gap:6}}>
+              {isAdmin && onReorderSets && group.sets.length>1 && (
+                <div style={{display:"flex",flexDirection:"column",gap:2,paddingTop:14}}>
+                  <button onClick={()=>moveSet(idx,-1)} disabled={idx===0}
+                    style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 5px",fontSize:11,cursor:idx===0?"default":"pointer",color:idx===0?"var(--text4)":"var(--text3)",opacity:idx===0?0.4:1}}>▲</button>
+                  <button onClick={()=>moveSet(idx,1)} disabled={idx===group.sets.length-1}
+                    style={{background:"none",border:"1px solid var(--border)",borderRadius:6,padding:"2px 5px",fontSize:11,cursor:idx===group.sets.length-1?"default":"pointer",color:idx===group.sets.length-1?"var(--text4)":"var(--text3)",opacity:idx===group.sets.length-1?0.4:1}}>▼</button>
+                </div>
+              )}
+              <div style={{flex:1}}>
+                <SetCard set={st} color={color} owned={owned} wishlist={wishlist} apiKey={apiKey}
+                  onToggle={onToggle} onToggleWish={onToggleWish} onToggleAll={onToggleAll}
+                  onUpdateSet={(n,rd,sl)=>onUpdateSet(st.id,n,rd,sl)}
+                  onDeleteSet={()=>onDeleteSet(st.id)}
+                  onDuplicate={()=>onDuplicateSet(st.id)}
+                  series={series}
+                  onAddFigure={(f)=>onAddFigure(st.id,f)}
+                  onAddFigures={(fs)=>onAddFigures(st.id,fs)}
+                  onReorderFigures={(_, figs)=>onReorderFigures(st.id, figs)}
+                  onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
+                  onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
+                  onSwapCross={onSwapCross}
+                  communityOwned={communityOwned} communityWished={communityWished}
+                  figuresWithPhotos={figuresWithPhotos} userId={userId}
+                  cardSize={cardSize}
+                />
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -2495,6 +2517,9 @@ export default function App() {
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
     return {...s,sets:upd(s.sets)};
   }));
+  const reorderSets = (sid:number,gid:number,sets:FigureSet[]) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets}:g)};
+  }));
   const updateFigure = (sid:number,stid:number,fid:number,f:Omit<Figure,"id">,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
     const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:st.figures.map(fig=>fig.id===fid?{...fig,...f}:fig)}:st);
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
@@ -2980,6 +3005,7 @@ export default function App() {
                     onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f,item.group.id)}
                     onAddFigures={(stid,fs)=>addFigures(dbSeriesObj.id,stid,fs,item.group.id)}
                     onReorderFigures={(stid,figs)=>reorderFigures(dbSeriesObj.id,stid,figs,item.group.id)}
+                    onReorderSets={(sets)=>reorderSets(dbSeriesObj.id,item.group.id,sets)}
                     onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,item.group.id)}
                     onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,item.group.id)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
