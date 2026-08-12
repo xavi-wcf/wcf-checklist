@@ -5,6 +5,16 @@ import { useState, useEffect, useRef, useCallback, useMemo, createContext, useCo
 // ============================================================
 const CHANGELOG = [
   {
+    id: 10,
+    date: "2025-08-12",
+    entries: [
+      "🎉 1376 WCF added to One Piece (Resin):",
+      "　　Yz studio → 737",
+      "　　A+ studio → 512",
+      "　　MDS studio → 127",
+    ]
+  },
+  {
     id: 9,
     date: "2025-07-09",
     entries: [
