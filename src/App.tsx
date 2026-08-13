@@ -464,12 +464,28 @@ const EMOJIS = ["⭐","🔥","💥","🎯","🐉","☠️","🗡️","💜","�
 let _idCounter = Date.now();
 function newId() { return ++_idCounter; }
 
-async function uploadToImgBB(blob: Blob | File, apiKey: string): Promise<string> {
-  const fd = new FormData();
-  fd.append("image", blob);
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Error");
-  return (await res.json()).data.url as string;
+async function uploadToR2(blob: Blob | File): Promise<string> {
+  const contentType = (blob as File).type || "image/jpeg";
+
+  // 1. Pedimos al backend (función serverless) una URL firmada de subida.
+  //    El secret de R2 nunca sale del servidor, solo vive en Vercel.
+  const signRes = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contentType }),
+  });
+  if (!signRes.ok) throw new Error("Error obteniendo URL de subida");
+  const { uploadUrl, publicUrl } = await signRes.json();
+
+  // 2. Subimos el archivo directamente a Cloudflare R2 (sin pasar por Vercel)
+  const putRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: blob,
+  });
+  if (!putRes.ok) throw new Error("Error subiendo la imagen a R2");
+
+  return publicUrl as string;
 }
 
 // ImgBB key from environment variable (set in Vercel dashboard)
@@ -913,14 +929,14 @@ function ImageUploader({ apiKey, currentUrl, onUploaded, label, aspectRatio, for
     if (!apiKey) { setError(t("noApiKey")); return; }
     if (skipCrop) {
       setUploading(true); setError("");
-      uploadToImgBB(file, apiKey).then(url=>onUploaded(url)).catch(()=>setError(t("uploadError"))).finally(()=>setUploading(false));
+      uploadToR2(file).then(url=>onUploaded(url)).catch(()=>setError(t("uploadError"))).finally(()=>setUploading(false));
     } else {
       const r = new FileReader(); r.onload = e => setCropSrc(e.target?.result as string); r.readAsDataURL(file);
     }
   };
   const handleCropConfirm = async (blob: Blob) => {
     setCropSrc(null); setUploading(true); setError("");
-    try { onUploaded(await uploadToImgBB(blob, apiKey)); } catch { setError(t("uploadError")); } finally { setUploading(false); }
+    try { onUploaded(await uploadToR2(blob)); } catch { setError(t("uploadError")); } finally { setUploading(false); }
   };
 
   const [dragOver, setDragOver] = useState(false);
@@ -1404,7 +1420,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
           onConfirm={async(blob)=>{
             setQuickCrop(null); setUploading(true);
             try {
-              const url = await uploadToImgBB(blob, apiKey);
+              const url = await uploadToR2(blob);
               const fig = set.figures.find(f=>f.id===quickCrop.figureId);
               if(fig) onUpdateFigure(quickCrop.figureId, {...fig, image:url});
             } catch(e){ console.error(e); }
@@ -2134,31 +2150,15 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   const [zoomPhoto, setZoomPhoto] = useState<string|null>(null);
   const [uploadDone, setUploadDone] = useState(false);
   const [uploadError, setUploadError] = useState<string|null>(null);
-  const imgbbKey = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 
   const handleUpload = async (file: File) => {
     if (!userId || !file) return;
     setUploading(true);
     setUploadError(null);
     try {
-      if (!imgbbKey) {
-        setUploadError("Missing ImgBB API key. Check Vercel environment variables.");
-        setUploading(false);
-        return;
-      }
-      const fd = new FormData();
-      fd.append("image", file);
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: "POST", body: fd });
-      const json = await res.json();
-      if (json.success) {
-        const url = json.data.url;
-        const del = json.data.delete_url;
-        await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, delete_url: del, approved: false });
-        setUploadDone(true);
-      } else {
-        setUploadError(json?.error?.message || "Upload failed. Check the ImgBB API key.");
-        console.error("ImgBB upload failed:", json);
-      }
+      const url = await uploadToR2(file);
+      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, approved: false });
+      setUploadDone(true);
     } catch(e) {
       setUploadError("Network error while uploading. Try again.");
       console.error(e);
