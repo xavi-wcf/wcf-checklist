@@ -1781,13 +1781,34 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   const { t } = useTr();
   const figureFranchiseMap = useFigureFranchiseMap(data);
   const ownedIdsArr = useMemo(() => [...owned], [owned]);
+
+  const favSeries = data.filter(s=>favourites.has(s.id));
+  const favOficial = favSeries.filter(s=>s.category==="oficial");
+  const favResina = favSeries.filter(s=>s.category==="resina");
+  // Use allFlat (with tags) to count figures per fav series
+  const favFlat = allFlat.filter(({series})=>favourites.has(series.id));
+  const totalFavFigs = favFlat.length;
+  const ownedFavFigs = favFlat.filter(({figure})=>owned.has(figure.id)).length;
+  const wishFavFigs = favFlat.filter(({figure})=>wishlist.has(figure.id)&&!owned.has(figure.id)).length;
+  const pct = totalFavFigs ? Math.round(ownedFavFigs/totalFavFigs*100) : 0;
+
+  // Solo mostramos badges de las franquicias presentes entre tus series favoritas
+  const favFranchiseKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const s of favSeries) {
+      const f = FRANCHISES.find(fr => fr.match(s.name));
+      if (f) keys.add(f.key);
+    }
+    return keys;
+  }, [favSeries]);
+
   const myBadgeProgress = useMemo(() => {
     const counts: Record<string,number> = {};
     for (const id of ownedIdsArr) {
       const key = figureFranchiseMap.get(id);
       if (key) counts[key] = (counts[key] ?? 0) + 1;
     }
-    const rows = FRANCHISES.map(f => {
+    const rows = FRANCHISES.filter(f => favFranchiseKeys.has(f.key)).map(f => {
       const count = counts[f.key] ?? 0;
       const tier = tierForCount(count, f.thresholds);
       const nextThreshold = tier < f.thresholds.length ? f.thresholds[tier] : null;
@@ -1807,38 +1828,23 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
       nextThreshold: globalNext, remaining: globalNext !== null ? globalNext - ownedIdsArr.length : 0,
     };
     return [global, ...rows];
-  }, [ownedIdsArr, figureFranchiseMap, t]);
+  }, [ownedIdsArr, figureFranchiseMap, favFranchiseKeys, t]);
 
-  const favSeries = data.filter(s=>favourites.has(s.id));
-  const favOficial = favSeries.filter(s=>s.category==="oficial");
-  const favResina = favSeries.filter(s=>s.category==="resina");
-  // Use allFlat (with tags) to count figures per fav series
-  const favFlat = allFlat.filter(({series})=>favourites.has(series.id));
-  const totalFavFigs = favFlat.length;
-  const ownedFavFigs = favFlat.filter(({figure})=>owned.has(figure.id)).length;
-  const wishFavFigs = favFlat.filter(({figure})=>wishlist.has(figure.id)&&!owned.has(figure.id)).length;
-  const pct = totalFavFigs ? Math.round(ownedFavFigs/totalFavFigs*100) : 0;
   return (
     <div>
       <div style={{marginBottom:24}}>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:10}}>🎖️ {t("myBadges")}</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           {myBadgeProgress.map(b => (
-            <div key={b.key} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)",opacity:b.tier>0?1:0.5}}>
-              <div style={{width:28,height:28,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <BadgeIcon icon={b.icon} size={26} />
+            <div key={b.key} style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center",opacity:b.tier>0?1:0.5}}>
+              <div style={{display:"flex",justifyContent:"center",marginBottom:6}}>
+                <BadgeIcon icon={b.icon} size={28} />
               </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                  {b.label}{b.tierName ? ` — ${b.tierName}` : ""}
-                </div>
-                <div style={{fontSize:10,color:"var(--text4)",marginTop:1}}>
-                  {b.nextThreshold !== null
-                    ? `${b.remaining} ${t("toNextLevel")}`
-                    : `✨ ${t("maxLevelReached")}`}
-                </div>
+              <div style={{fontSize:12,fontWeight:700,color:b.color,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{b.tierName ?? "—"}</div>
+              <div style={{fontSize:9,color:"var(--text3)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{b.label}</div>
+              <div style={{fontSize:9,color:"var(--text4)",marginTop:4}}>
+                {b.nextThreshold !== null ? `${b.remaining} ${t("toNextLevel")}` : `✨ ${t("maxLevelReached")}`}
               </div>
-              <div style={{fontSize:11,fontWeight:700,color:b.color}}>{b.count}</div>
             </div>
           ))}
         </div>
