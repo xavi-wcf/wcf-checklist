@@ -741,6 +741,8 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
   const [topCollectors, setTopCollectors] = useState<LeaderboardEntry[]>([]);
   const [myUploaderRank, setMyUploaderRank] = useState<number|null>(null);
   const [myCollectorRank, setMyCollectorRank] = useState<number|null>(null);
+  const [myUploaderEntry, setMyUploaderEntry] = useState<LeaderboardEntry|null>(null);
+  const [myCollectorEntry, setMyCollectorEntry] = useState<LeaderboardEntry|null>(null);
 
   useEffect(() => {
     supabase.from("wcf_photos").select("user_id,uploader_name,uploader_email").eq("approved", true)
@@ -762,6 +764,7 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
         if (currentUserId) {
           const idx = full.findIndex(e => e.userId === currentUserId);
           setMyUploaderRank(idx >= 0 ? idx + 1 : null);
+          setMyUploaderEntry(idx >= 0 ? full[idx] : null);
         }
       });
 
@@ -776,11 +779,12 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
         if (currentUserId) {
           const idx = full.findIndex(e => e.userId === currentUserId);
           setMyCollectorRank(idx >= 0 ? idx + 1 : null);
+          setMyCollectorEntry(idx >= 0 ? full[idx] : null);
         }
       });
   }, [currentUserId]);
 
-  return { topUploaders, topCollectors, myUploaderRank, myCollectorRank };
+  return { topUploaders, topCollectors, myUploaderRank, myCollectorRank, myUploaderEntry, myCollectorEntry };
 }
 
 function useData() {
@@ -2127,7 +2131,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
 }) {
   const { t } = useTr();
   const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
-  const { topUploaders, topCollectors, myUploaderRank, myCollectorRank } = useCommunityLeaderboards(currentUserId);
+  const { topUploaders, topCollectors, myUploaderRank, myCollectorRank, myUploaderEntry, myCollectorEntry } = useCommunityLeaderboards(currentUserId);
   const [showBadgeLegend, setShowBadgeLegend] = useState(false);
   const figureFranchiseMap = useFigureFranchiseMap(data);
   const getBadgesForUser = (ownedIds?: number[]) => getBadgesForOwnedIds(ownedIds, figureFranchiseMap, t);
@@ -2162,11 +2166,11 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
     return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
   };
 
-  const UserRankRow = ({entry,i,rankColor,unitLabel,badges}:{entry:LeaderboardEntry;i:number;rankColor:string;unitLabel:string;badges?:{key:string;icon:string;color:string;title:string}[]}) => {
+  const UserRankRow = ({entry,i,rankColor,unitLabel,badges,highlight}:{entry:LeaderboardEntry;i:number;rankColor:string;unitLabel:string;badges?:{key:string;icon:string;color:string;title:string}[];highlight?:boolean}) => {
     const avatarColor = colorForUser(entry.userId);
     const [activeBadge, setActiveBadge] = useState<string|null>(null);
     return (
-      <div style={{padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+      <div style={{padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:highlight?`1.5px solid ${rankColor}`:"1px solid var(--border)"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
           <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:avatarColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff"}}>
@@ -2265,12 +2269,13 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
             {topUploaders.length > 0
               ? topUploaders.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} rankColor="#8b5cf6" unitLabel={t("photosCount")} />)
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
+            {myUploaderRank !== null && myUploaderRank > 10 && myUploaderEntry && (
+              <>
+                <div style={{textAlign:"center",fontSize:12,color:"var(--text4)",letterSpacing:2}}>···</div>
+                <UserRankRow entry={myUploaderEntry} i={myUploaderRank-1} rankColor="#8b5cf6" unitLabel={t("photosCount")} highlight />
+              </>
+            )}
           </div>
-          {myUploaderRank !== null && myUploaderRank > 10 && (
-            <div style={{fontSize:11,color:"var(--text4)",textAlign:"center",marginTop:-16,marginBottom:24}}>
-              {t("yourPosition")}: <strong style={{color:"var(--text3)"}}>#{myUploaderRank}</strong>
-            </div>
-          )}
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
             📦 {t("topCollectors")}
@@ -2280,12 +2285,13 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
             {topCollectors.length > 0
               ? topCollectors.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} rankColor="#10b981" unitLabel={t("figuresCount")} badges={getBadgesForUser(entry.ownedIds)} />)
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
+            {myCollectorRank !== null && myCollectorRank > 10 && myCollectorEntry && (
+              <>
+                <div style={{textAlign:"center",fontSize:12,color:"var(--text4)",letterSpacing:2}}>···</div>
+                <UserRankRow entry={myCollectorEntry} i={myCollectorRank-1} rankColor="#10b981" unitLabel={t("figuresCount")} badges={getBadgesForUser(myCollectorEntry.ownedIds)} highlight />
+              </>
+            )}
           </div>
-          {myCollectorRank !== null && myCollectorRank > 10 && (
-            <div style={{fontSize:11,color:"var(--text4)",textAlign:"center",marginTop:-16,marginBottom:24}}>
-              {t("yourPosition")}: <strong style={{color:"var(--text3)"}}>#{myCollectorRank}</strong>
-            </div>
-          )}
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 {t("mostCollected")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
