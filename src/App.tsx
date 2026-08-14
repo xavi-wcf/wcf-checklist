@@ -186,7 +186,7 @@ async function sbUpsert(table: string, data: object) {
 // ============================================================
 type LangCode = "es" | "en" | "th" | "fr" | "vi" | "ja" | "zh";
 const LANGUAGES: { code: LangCode; flag: string; label: string }[] = [
-  { code: "en", flag: "https://flagcdn.com/gb.svg", label: "EN" },
+  { code: "en", flag: "https://flagcdn.com/us.svg", label: "EN" },
   { code: "es", flag: "https://flagcdn.com/es.svg", label: "ES" },
   { code: "fr", flag: "https://flagcdn.com/fr.svg", label: "FR" },
   { code: "vi", flag: "https://flagcdn.com/vn.svg", label: "VI" },
@@ -314,6 +314,12 @@ const T = {
   changelogHistory:{ es: "Ver historial completo", en: "Full history",               th: "ประวัติทั้งหมด" , fr: "Historique complet" , vi: "Lịch sử đầy đủ" , ja: "全履歴", zh: "完整历史" },
   changelogClose: { es: "Entendido",              en: "Got it",                      th: "เข้าใจแล้ว" , fr: "Compris" , vi: "Đã hiểu" , ja: "了解", zh: "明白了" },
   tabStats:       { es: "Mis Stats",              en: "My Stats",                    th: "สถิติของฉัน" , fr: "Mes Stats" , vi: "Thống kê" , ja: "マイ統計", zh: "我的统计" },
+  tabCommunity:   { es: "Comunidad",               en: "Community",                   th: "ชุมชน" , fr: "Communauté" , vi: "Cộng đồng" , ja: "コミュニティ", zh: "社区" },
+  topUploaders:   { es: "Top subidas de fotos",    en: "Top photo uploaders",          th: "ผู้อัปโหลดรูปสูงสุด" , fr: "Top contributeurs photo" , vi: "Người tải ảnh nhiều nhất" , ja: "写真投稿トップ", zh: "上传照片排行榜" },
+  topCollectors:  { es: "Top colecciones",         en: "Top collections",              th: "คอลเลกชันยอดนิยม" , fr: "Meilleures collections" , vi: "Bộ sưu tập hàng đầu" , ja: "コレクション数ランキング", zh: "收藏排行榜" },
+  photosCount:    { es: "fotos",                   en: "photos",                       th: "รูปภาพ" , fr: "photos" , vi: "ảnh" , ja: "枚", zh: "张照片" },
+  figuresCount:   { es: "figuras",                 en: "figures",                      th: "ฟิกเกอร์" , fr: "figurines" , vi: "mô hình" , ja: "体", zh: "个手办" },
+  noLeaderboardData: { es: "Todavía no hay datos suficientes", en: "Not enough data yet", th: "ยังไม่มีข้อมูลเพียงพอ" , fr: "Pas encore assez de données" , vi: "Chưa đủ dữ liệu" , ja: "まだデータがありません", zh: "暂无足够数据" },
   favSeries:      { es: "⭐ Series favoritas",    en: "⭐ Favourite series",          th: "⭐ ซีรีส์โปรด" , fr: "⭐ Séries favorites" , vi: "⭐ Series yêu thích" , ja: "⭐ お気に入りシリーズ", zh: "⭐ 喜爱系列" },
   noFavSeries:    { es: "Selecciona tus series favoritas para ver tus estadísticas.", en: "Select your favourite series to see your stats.", th: "เลือกซีรีส์โปรดเพื่อดูสถิติ" , fr: "Sélectionne tes séries favorites pour voir tes statistiques." , vi: "Chọn series yêu thích để xem thống kê." , ja: "お気に入りシリーズを選んで統計を確認しましょう。", zh: "选择您喜爱的系列以查看统计数据。" },
   statsTotalOwned:{ es: "Figuras obtenidas",      en: "Figures owned",               th: "ตัวเลขที่มี" , fr: "Figurines obtenues" , vi: "Nhân vật đã có" , ja: "所持フィギュア数", zh: "已拥有人偶" },
@@ -547,7 +553,7 @@ function useAuth() {
   return { user, authReady, signInWithGoogle, signOut };
 }
 
-function useOwned(userId: string|null) {
+function useOwned(userId: string|null, userName?: string|null, userEmail?: string|null) {
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [favourites, setFavourites] = useState<Set<number>>(new Set());
@@ -570,6 +576,7 @@ function useOwned(userId: string|null) {
               if (o.length > 0 || w.length > 0) {
                 supabase.from("wcf_progress").upsert({
                   user_id: userId, owned: o, wishlist: w,
+                  owner_name: userName ?? null, owner_email: userEmail ?? null,
                   updated_at: new Date().toISOString()
                 }, { onConflict: "user_id", ignoreDuplicates: false });
               }
@@ -594,6 +601,8 @@ function useOwned(userId: string|null) {
           user_id: userId,
           owned: [...o],
           wishlist: [...w],
+          owner_name: userName ?? null,
+          owner_email: userEmail ?? null,
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id", ignoreDuplicates: false })
         .then(({ error }) => { if (error) console.error("Save error:", error); });
@@ -601,7 +610,7 @@ function useOwned(userId: string|null) {
     // Always save to localStorage as fallback
     localStorage.setItem("wcf_owned", JSON.stringify([...o]));
     localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
-  }, [userId]);
+  }, [userId, userName, userEmail]);
 
   const toggle = (id: number) => setOwned(prev => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id);
@@ -657,6 +666,50 @@ function useCommunityStats() {
   }, []);
 
   return { figureOwned, figureWished, users, totalOwned, topOwned, topWished };
+}
+
+type LeaderboardEntry = { userId: string; name: string; count: number };
+
+function useCommunityLeaderboards() {
+  const [topUploaders, setTopUploaders] = useState<LeaderboardEntry[]>([]);
+  const [topCollectors, setTopCollectors] = useState<LeaderboardEntry[]>([]);
+
+  useEffect(() => {
+    supabase.from("wcf_photos").select("user_id,uploader_name,uploader_email").eq("approved", true)
+      .then(({ data: rows, error }) => {
+        if (error || !rows) return;
+        const counts: Record<string, { name: string; count: number }> = {};
+        for (const r of rows) {
+          if (!r.user_id) continue;
+          if (!counts[r.user_id]) counts[r.user_id] = { name: r.uploader_name || r.uploader_email || "Anonymous", count: 0 };
+          counts[r.user_id].count++;
+          // Keep the most descriptive name available among that user's rows
+          if (!counts[r.user_id].name || counts[r.user_id].name === "Anonymous") {
+            counts[r.user_id].name = r.uploader_name || r.uploader_email || "Anonymous";
+          }
+        }
+        setTopUploaders(
+          Object.entries(counts)
+            .map(([userId, v]) => ({ userId, name: v.name, count: v.count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10)
+        );
+      });
+
+    supabase.from("wcf_progress").select("user_id,owned,owner_name,owner_email")
+      .then(({ data: rows, error }) => {
+        if (error || !rows) return;
+        setTopCollectors(
+          rows
+            .filter(r => r.user_id && Array.isArray(r.owned) && r.owned.length > 0)
+            .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10)
+        );
+      });
+  }, []);
+
+  return { topUploaders, topCollectors };
 }
 
 function useData() {
@@ -1690,12 +1743,10 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
 // ============================================================
 //  STATS TAB
 // ============================================================
-function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, seriesTotal, onOpenPicker, communityUsers, communityTotal, topOwned, topWished }: {
+function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, seriesTotal, onOpenPicker }: {
   data:Series[]; owned:Set<number>; wishlist:Set<number>; favourites:Set<number>;
   allFlat:{figure:Figure;series:Series}[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
   onOpenPicker:()=>void;
-  communityUsers:number; communityTotal:number;
-  topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
 }) {
   const { t } = useTr();
   const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
@@ -1797,12 +1848,70 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
           })}
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Community stats */}
-      {communityUsers > 0 && (
-        <div style={{marginTop:28,paddingTop:20,borderTop:"1px solid var(--border)"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}}>🌍 {t("communityTitle")}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+// ============================================================
+//  COMMUNITY TAB — global rankings (figures, uploaders, collectors)
+// ============================================================
+function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished }: {
+  data: Series[]; communityUsers:number; communityTotal:number;
+  topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
+}) {
+  const { t } = useTr();
+  const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
+  const { topUploaders, topCollectors } = useCommunityLeaderboards();
+
+  const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s,set:st}))));
+  const findFig = (id:number) => allFigs.find(x=>x.figure.id===id);
+
+  const RankRow = ({item,i,color}:{item:{id:number;count:number};i:number;color:string}) => {
+    const found = findFig(item.id);
+    if(!found) return null;
+    return (
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+        <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
+        <div onClick={()=>found.figure.image&&setZoomImg({src:found.figure.image,name:found.figure.name})}
+          style={{width:36,height:36,borderRadius:6,overflow:"hidden",flexShrink:0,background:"var(--missing-bg)",cursor:found.figure.image?"zoom-in":"default"}}>
+          {found.figure.image ? <img src={found.figure.image} alt={found.figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",fontSize:18}}>{found.figure.emoji}</div>}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.figure.name}</div>
+          <div style={{fontSize:10,color:"var(--text4)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.series.name} — {found.set.name}</div>
+        </div>
+        <div style={{fontSize:11,fontWeight:700,color}}>{item.count}×</div>
+      </div>
+    );
+  };
+
+  const UserRankRow = ({entry,i,color,unitLabel}:{entry:LeaderboardEntry;i:number;color:string;unitLabel:string}) => (
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+      <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
+      <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color}}>
+        {entry.name?.[0]?.toUpperCase() ?? "?"}
+      </div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{entry.name}</div>
+      </div>
+      <div style={{fontSize:11,fontWeight:700,color}}>{entry.count} {unitLabel}</div>
+    </div>
+  );
+
+  return (
+    <div>
+      {zoomImg && (
+        <div onClick={()=>setZoomImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:24,cursor:"zoom-out"}}>
+          <div style={{maxWidth:340,width:"100%",textAlign:"center"}}>
+            <img src={zoomImg.src} alt={zoomImg.name} style={{width:"100%",borderRadius:12,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}} />
+            <div style={{color:"#fff",marginTop:12,fontWeight:600,fontSize:14}}>{zoomImg.name}</div>
+          </div>
+        </div>
+      )}
+
+      {communityUsers > 0 ? (
+        <>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
             <div style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center"}}>
               <div style={{fontSize:24,fontWeight:700,color:"#6366f1"}}>{communityUsers}</div>
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityUsers")}</div>
@@ -1812,49 +1921,33 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityFigs")}</div>
             </div>
           </div>
-          {(() => {
-            const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s,set:st}))));
-            const findFig = (id:number) => allFigs.find(x=>x.figure.id===id);
-            const RankRow = ({item,i,color}:{item:{id:number;count:number};i:number;color:string}) => {
-              const found = findFig(item.id);
-              if(!found) return null;
-              return (
-                <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
-                  <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
-                  <div onClick={()=>found.figure.image&&setZoomImg({src:found.figure.image,name:found.figure.name})}
-                    style={{width:36,height:36,borderRadius:6,overflow:"hidden",flexShrink:0,background:"var(--missing-bg)",cursor:found.figure.image?"zoom-in":"default"}}>
-                    {found.figure.image ? <img src={found.figure.image} alt={found.figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",fontSize:18}}>{found.figure.emoji}</div>}
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.figure.name}</div>
-                    <div style={{fontSize:10,color:"var(--text4)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.series.name} — {found.set.name}</div>
-                  </div>
-                  <div style={{fontSize:11,fontWeight:700,color}}>{item.count}×</div>
-                </div>
-              );
-            };
-            return (
-              <>
-                {zoomImg && (
-                  <div onClick={()=>setZoomImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:24,cursor:"zoom-out"}}>
-                    <div style={{maxWidth:340,width:"100%",textAlign:"center"}}>
-                      <img src={zoomImg.src} alt={zoomImg.name} style={{width:"100%",borderRadius:12,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}} />
-                      <div style={{color:"#fff",marginTop:12,fontWeight:600,fontSize:14}}>{zoomImg.name}</div>
-                    </div>
-                  </div>
-                )}
-                <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 Most collected</div>
-                <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
-                  {topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0174b0" />)}
-                </div>
-                <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>💛 Most wished</div>
-                <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {topWished.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#f59e0b" />)}
-                </div>
-              </>
-            );
-          })()}
-        </div>
+
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 Most collected</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
+            {topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0174b0" />)}
+          </div>
+
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>💛 Most wished</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
+            {topWished.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#f59e0b" />)}
+          </div>
+
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 {t("topUploaders")}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
+            {topUploaders.length > 0
+              ? topUploaders.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} color="#8b5cf6" unitLabel={t("photosCount")} />)
+              : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
+          </div>
+
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📦 {t("topCollectors")}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {topCollectors.length > 0
+              ? topCollectors.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} color="#10b981" unitLabel={t("figuresCount")} />)
+              : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
+          </div>
+        </>
+      ) : (
+        <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noLeaderboardData")}</div>
       )}
     </div>
   );
@@ -2024,7 +2117,7 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
 
 type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"|"wishlist" };
 
-type TabType = "collection" | "database" | "stats";
+type TabType = "collection" | "database" | "community" | "stats";
 
 // ============================================================
 //  FEEDBACK MODAL
@@ -2453,7 +2546,7 @@ const ADMIN_EMAILS = [
 
 export default function App() {
   const { user, authReady, signInWithGoogle, signOut } = useAuth();
-  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null);
+  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
@@ -2795,7 +2888,7 @@ export default function App() {
       )}
 
       {/* FILTER BAR — hidden on stats tab */}
-      {activeTab!=="stats" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0174b0",flexShrink:0}}>
+      {activeTab!=="stats" && activeTab!=="community" && <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#0174b0",flexShrink:0}}>
         {/* Search row */}
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <div style={{flex:1,display:"flex",alignItems:"center",gap:6,border:"1px solid var(--border)",borderRadius:8,padding:"0 10px",height:32,background:"rgba(255,255,255,0.12)"}}>
@@ -3149,20 +3242,23 @@ export default function App() {
             </>
           )
         )}
+        {/* ── COMMUNITY TAB ── */}
+        {activeTab==="community" && <CommunityTab
+          data={data} communityUsers={communityUsers} communityTotal={communityTotal}
+          topOwned={topOwned} topWished={topWished}
+        />}
         {/* ── STATS TAB ── */}
         {activeTab==="stats" && <StatsTab
           data={data} owned={owned} wishlist={wishlist} favourites={favourites}
           allFlat={allFlatWithTags} seriesOwned={seriesOwned} seriesTotal={seriesTotal}
           onOpenPicker={()=>setShowFavPicker(true)}
-          communityUsers={communityUsers} communityTotal={communityTotal}
-          topOwned={topOwned} topWished={topWished}
         />}
 
       </div>
 
       {/* BOTTOM TABS */}
       <div style={{display:"flex",borderTop:"1px solid var(--border)",background:"#0196e3",flexShrink:0,position:"sticky",bottom:0,zIndex:50}}>
-        {([["collection","📦",t("tabCollection")],["database","🗃️",t("tabDatabase")],["stats","⭐",t("tabStats")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
+        {([["collection","📦",t("tabCollection")],["database","🗃️",t("tabDatabase")],["community","🌍",t("tabCommunity")],["stats","⭐",t("tabStats")]] as [TabType,string,string][]).map(([tab,icon,label])=>(
           <button key={tab} onClick={()=>setActiveTab(tab as TabType)}
             style={{flex:1,padding:"10px 8px 8px",fontSize:11,fontWeight:500,border:"none",background:"transparent",cursor:"pointer",color:activeTab===tab?"#fff":"rgba(255,255,255,0.5)",borderTop:activeTab===tab?"2px solid #fbd100":"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:20}}>{icon}</span>
