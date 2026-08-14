@@ -1749,7 +1749,6 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   onOpenPicker:()=>void;
 }) {
   const { t } = useTr();
-  const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
   const favSeries = data.filter(s=>favourites.has(s.id));
   const favOficial = favSeries.filter(s=>s.category==="oficial");
   const favResina = favSeries.filter(s=>s.category==="resina");
