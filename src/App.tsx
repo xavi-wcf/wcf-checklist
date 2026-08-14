@@ -1916,11 +1916,11 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     thresholds:[1,5,15,30,50],
     tierNames:["Estudiante","Héroe Novato","Héroe Pro","Top 10","Símbolo de Paz"],
     icons:[
-      "🎒",
-      "🦸",
-      "💪",
-      "🏆",
-      "👑"
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/midoriya64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/mirio64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/mount64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/hawks64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/allmight64.png"
     ] },
   { key:"hxh", label:"Hunter x Hunter", match:n=>n.includes("Hunter"), color:"#059669",
     thresholds:[1,10,30,60,100],
@@ -1936,21 +1936,21 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     thresholds:[1,10,30,60,100],
     tierNames:["Mizunoto","Cazademonios","Luna Superior","Hashira","Rey Demonio"],
     icons:[
-      "💧",
-      "⚒️",
-      "🌍",
-      "🌟",
-      "🗡️"
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/inosuke64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/tanjiro64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/akaza64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/rengoku64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/muzan64.png"
     ] },
   { key:"bleach", label:"Bleach", match:n=>n.includes("Bleach"), color:"#6366f1",
     thresholds:[1,10,30,60,100],
-    tierNames:["Sustituto","Bankai","Tercera Espada","Cuarta Espada","Dios de la Traición"],
+    tierNames:["Sustituto","Shinigami","Espada","Resurreccion","Dios de la Traición"],
     icons:[
-      "👤",
-      "💀",
-      "⚡",
-      "👹",
-      "🔢"
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/ichigo64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/rukia64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/nelliel.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/ulquiorra.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/aizen64.png"
     ] },
 ];
 
