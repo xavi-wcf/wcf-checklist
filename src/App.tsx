@@ -326,6 +326,10 @@ const T = {
   badgeLegendDesc:  { es: "Cada serie tiene 5 niveles según cuántas figuras tengas de ella. También hay una medalla global según tu total de figuras.", en: "Each series has 5 levels based on how many figures you own from it. There's also a global badge based on your total figure count.", th: "แต่ละซีรีส์มี 5 ระดับตามจำนวนฟิกเกอร์ที่คุณมี นอกจากนี้ยังมีเหรียญรวมตามจำนวนฟิกเกอร์ทั้งหมดของคุณ" , fr: "Chaque série a 5 niveaux selon le nombre de figurines que tu possèdes. Il y a aussi un badge global basé sur ton total de figurines." , vi: "Mỗi series có 5 cấp độ dựa trên số mô hình bạn sở hữu. Cũng có huy hiệu toàn cầu dựa trên tổng số mô hình của bạn." , ja: "各シリーズには所持数に応じた5段階のレベルがあります。所持総数に応じたグローバルバッジもあります。", zh: "每个系列根据你拥有的手办数量分为5个等级。还有一个基于总手办数量的全局徽章。" },
   globalBadgeLabel: { es: "Total (todas las series)", en: "Total (all series)", th: "รวมทั้งหมด (ทุกซีรีส์)" , fr: "Total (toutes séries)" , vi: "Tổng (tất cả series)" , ja: "合計（全シリーズ）", zh: "总计（所有系列）" },
   close:            { es: "Cerrar",                  en: "Close",                        th: "ปิด" , fr: "Fermer" , vi: "Đóng" , ja: "閉じる", zh: "关闭" },
+  yourPosition:     { es: "Tu posición",              en: "Your position",                th: "อันดับของคุณ" , fr: "Ta position" , vi: "Vị trí của bạn" , ja: "あなたの順位", zh: "你的排名" },
+  myBadges:         { es: "Mis medallas",             en: "My badges",                    th: "เหรียญตราของฉัน" , fr: "Mes badges" , vi: "Huy hiệu của tôi" , ja: "マイバッジ", zh: "我的徽章" },
+  maxLevelReached:  { es: "¡Nivel máximo!",           en: "Max level!",                    th: "ระดับสูงสุด!" , fr: "Niveau max !" , vi: "Cấp độ tối đa!" , ja: "最大レベル！", zh: "最高等级！" },
+  toNextLevel:      { es: "para el siguiente nivel",  en: "to next level",                 th: "สู่ระดับถัดไป" , fr: "avant le niveau suivant" , vi: "để lên cấp tiếp theo" , ja: "次のレベルまで", zh: "距下一等级" },
   favSeries:      { es: "⭐ Series favoritas",    en: "⭐ Favourite series",          th: "⭐ ซีรีส์โปรด" , fr: "⭐ Séries favorites" , vi: "⭐ Series yêu thích" , ja: "⭐ お気に入りシリーズ", zh: "⭐ 喜爱系列" },
   noFavSeries:    { es: "Selecciona tus series favoritas para ver tus estadísticas.", en: "Select your favourite series to see your stats.", th: "เลือกซีรีส์โปรดเพื่อดูสถิติ" , fr: "Sélectionne tes séries favorites pour voir tes statistiques." , vi: "Chọn series yêu thích để xem thống kê." , ja: "お気に入りシリーズを選んで統計を確認しましょう。", zh: "选择您喜爱的系列以查看统计数据。" },
   statsTotalOwned:{ es: "Figuras obtenidas",      en: "Figures owned",               th: "ตัวเลขที่มี" , fr: "Figurines obtenues" , vi: "Nhân vật đã có" , ja: "所持フィギュア数", zh: "已拥有人偶" },
@@ -691,9 +695,11 @@ function usePendingPhotosCount(isAdmin: boolean) {
   return { count, refresh: load };
 }
 
-function useCommunityLeaderboards() {
+function useCommunityLeaderboards(currentUserId?: string|null) {
   const [topUploaders, setTopUploaders] = useState<LeaderboardEntry[]>([]);
   const [topCollectors, setTopCollectors] = useState<LeaderboardEntry[]>([]);
+  const [myUploaderRank, setMyUploaderRank] = useState<number|null>(null);
+  const [myCollectorRank, setMyCollectorRank] = useState<number|null>(null);
 
   useEffect(() => {
     supabase.from("wcf_photos").select("user_id,uploader_name,uploader_email").eq("approved", true)
@@ -708,28 +714,32 @@ function useCommunityLeaderboards() {
             counts[r.user_id].name = r.uploader_name || r.uploader_email || "Anonymous";
           }
         }
-        setTopUploaders(
-          Object.entries(counts)
-            .map(([userId, v]) => ({ userId, name: v.name, count: v.count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10)
-        );
+        const full = Object.entries(counts)
+          .map(([userId, v]) => ({ userId, name: v.name, count: v.count }))
+          .sort((a, b) => b.count - a.count);
+        setTopUploaders(full.slice(0, 10));
+        if (currentUserId) {
+          const idx = full.findIndex(e => e.userId === currentUserId);
+          setMyUploaderRank(idx >= 0 ? idx + 1 : null);
+        }
       });
 
     supabase.from("wcf_progress").select("user_id,owned,owner_name,owner_email")
       .then(({ data: rows, error }) => {
         if (error || !rows) return;
-        setTopCollectors(
-          rows
-            .filter(r => r.user_id && Array.isArray(r.owned) && r.owned.length > 0)
-            .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length, ownedIds: r.owned as number[] }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10)
-        );
+        const full = rows
+          .filter(r => r.user_id && Array.isArray(r.owned) && r.owned.length > 0)
+          .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length, ownedIds: r.owned as number[] }))
+          .sort((a, b) => b.count - a.count);
+        setTopCollectors(full.slice(0, 10));
+        if (currentUserId) {
+          const idx = full.findIndex(e => e.userId === currentUserId);
+          setMyCollectorRank(idx >= 0 ? idx + 1 : null);
+        }
       });
-  }, []);
+  }, [currentUserId]);
 
-  return { topUploaders, topCollectors };
+  return { topUploaders, topCollectors, myUploaderRank, myCollectorRank };
 }
 
 function useData() {
@@ -1769,6 +1779,36 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   onOpenPicker:()=>void;
 }) {
   const { t } = useTr();
+  const figureFranchiseMap = useFigureFranchiseMap(data);
+  const ownedIdsArr = useMemo(() => [...owned], [owned]);
+  const myBadgeProgress = useMemo(() => {
+    const counts: Record<string,number> = {};
+    for (const id of ownedIdsArr) {
+      const key = figureFranchiseMap.get(id);
+      if (key) counts[key] = (counts[key] ?? 0) + 1;
+    }
+    const rows = FRANCHISES.map(f => {
+      const count = counts[f.key] ?? 0;
+      const tier = tierForCount(count, f.thresholds);
+      const nextThreshold = tier < f.thresholds.length ? f.thresholds[tier] : null;
+      return {
+        key: f.key, label: f.label, color: f.color, count, tier,
+        icon: tier > 0 ? f.icons[tier-1] : f.icons[0],
+        tierName: tier > 0 ? f.tierNames[tier-1] : null,
+        nextThreshold, remaining: nextThreshold !== null ? nextThreshold - count : 0,
+      };
+    });
+    const globalTier = tierForCount(ownedIdsArr.length, GLOBAL_BADGE.thresholds);
+    const globalNext = globalTier < GLOBAL_BADGE.thresholds.length ? GLOBAL_BADGE.thresholds[globalTier] : null;
+    const global = {
+      key:"global", label: t("globalBadgeLabel"), color: GLOBAL_BADGE.color, count: ownedIdsArr.length, tier: globalTier,
+      icon: globalTier > 0 ? GLOBAL_BADGE.icons[globalTier-1] : GLOBAL_BADGE.icons[0],
+      tierName: globalTier > 0 ? GLOBAL_BADGE.tierNames[globalTier-1] : null,
+      nextThreshold: globalNext, remaining: globalNext !== null ? globalNext - ownedIdsArr.length : 0,
+    };
+    return [global, ...rows];
+  }, [ownedIdsArr, figureFranchiseMap, t]);
+
   const favSeries = data.filter(s=>favourites.has(s.id));
   const favOficial = favSeries.filter(s=>s.category==="oficial");
   const favResina = favSeries.filter(s=>s.category==="resina");
@@ -1780,6 +1820,30 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   const pct = totalFavFigs ? Math.round(ownedFavFigs/totalFavFigs*100) : 0;
   return (
     <div>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:10}}>🎖️ {t("myBadges")}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {myBadgeProgress.map(b => (
+            <div key={b.key} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)",opacity:b.tier>0?1:0.5}}>
+              <div style={{width:28,height:28,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <BadgeIcon icon={b.icon} size={26} />
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {b.label}{b.tierName ? ` — ${b.tierName}` : ""}
+                </div>
+                <div style={{fontSize:10,color:"var(--text4)",marginTop:1}}>
+                  {b.nextThreshold !== null
+                    ? `${b.remaining} ${t("toNextLevel")}`
+                    : `✨ ${t("maxLevelReached")}`}
+                </div>
+              </div>
+              <div style={{fontSize:11,fontWeight:700,color:b.color}}>{b.count}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <button onClick={onOpenPicker}
         style={{width:"100%",padding:"12px",borderRadius:12,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
         ⭐ {t("favSeries")} <span style={{fontSize:12,color:"var(--text3)",fontWeight:400}}>({favSeries.length})</span>
@@ -1975,17 +2039,9 @@ function BadgeIcon({ icon, size=12 }: { icon:string; size?:number }) {
 }
 
 
-function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished }: {
-  data: Series[]; communityUsers:number; communityTotal:number;
-  topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
-}) {
-  const { t } = useTr();
-  const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
-  const { topUploaders, topCollectors } = useCommunityLeaderboards();
-  const [showBadgeLegend, setShowBadgeLegend] = useState(false);
-
-  // Mapa figureId -> clave de franquicia (para poder contar cuántas tiene cada usuario de cada una)
-  const figureFranchiseMap = useMemo(() => {
+// Mapa figureId -> clave de franquicia (reutilizable desde cualquier pestaña)
+function useFigureFranchiseMap(data: Series[]) {
+  return useMemo(() => {
     const map = new Map<number,string>();
     for (const s of data) {
       const franchise = FRANCHISES.find(f => f.match(s.name));
@@ -1995,28 +2051,40 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
     }
     return map;
   }, [data]);
+}
 
-  const getBadgesForUser = (ownedIds?: number[]) => {
-    if (!ownedIds || ownedIds.length === 0) return [];
-    const counts: Record<string,number> = {};
-    for (const id of ownedIds) {
-      const key = figureFranchiseMap.get(id);
-      if (key) counts[key] = (counts[key] ?? 0) + 1;
-    }
-    const badges = FRANCHISES.map(f => {
-      const count = counts[f.key] ?? 0;
-      const tier = tierForCount(count, f.thresholds);
-      if (tier === 0) return null;
-      return { key:f.key, icon:f.icons[tier-1], color:f.color, title:`${f.label}: ${count} — ${f.tierNames[tier-1]}` };
-    }).filter(Boolean) as {key:string;icon:string;color:string;title:string}[];
+function getBadgesForOwnedIds(ownedIds: number[]|undefined, figureFranchiseMap: Map<number,string>) {
+  if (!ownedIds || ownedIds.length === 0) return [];
+  const counts: Record<string,number> = {};
+  for (const id of ownedIds) {
+    const key = figureFranchiseMap.get(id);
+    if (key) counts[key] = (counts[key] ?? 0) + 1;
+  }
+  const badges = FRANCHISES.map(f => {
+    const count = counts[f.key] ?? 0;
+    const tier = tierForCount(count, f.thresholds);
+    if (tier === 0) return null;
+    return { key:f.key, icon:f.icons[tier-1], color:f.color, title:`${f.label}: ${count} — ${f.tierNames[tier-1]}` };
+  }).filter(Boolean) as {key:string;icon:string;color:string;title:string}[];
 
-    // Badge global, calculado sobre el total de figuras posee (todas las series)
-    const globalTier = tierForCount(ownedIds.length, GLOBAL_BADGE.thresholds);
-    if (globalTier > 0) {
-      badges.unshift({ key:"global", icon:GLOBAL_BADGE.icons[globalTier-1], color:GLOBAL_BADGE.color, title:`Total: ${ownedIds.length} — ${GLOBAL_BADGE.tierNames[globalTier-1]}` });
-    }
-    return badges;
-  };
+  const globalTier = tierForCount(ownedIds.length, GLOBAL_BADGE.thresholds);
+  if (globalTier > 0) {
+    badges.unshift({ key:"global", icon:GLOBAL_BADGE.icons[globalTier-1], color:GLOBAL_BADGE.color, title:`Total: ${ownedIds.length} — ${GLOBAL_BADGE.tierNames[globalTier-1]}` });
+  }
+  return badges;
+}
+
+function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished, currentUserId }: {
+  data: Series[]; communityUsers:number; communityTotal:number;
+  topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
+  currentUserId?: string|null;
+}) {
+  const { t } = useTr();
+  const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
+  const { topUploaders, topCollectors, myUploaderRank, myCollectorRank } = useCommunityLeaderboards(currentUserId);
+  const [showBadgeLegend, setShowBadgeLegend] = useState(false);
+  const figureFranchiseMap = useFigureFranchiseMap(data);
+  const getBadgesForUser = (ownedIds?: number[]) => getBadgesForOwnedIds(ownedIds, figureFranchiseMap);
 
 
   const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s,set:st}))));
@@ -2152,6 +2220,11 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
               ? topUploaders.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} rankColor="#8b5cf6" unitLabel={t("photosCount")} />)
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
           </div>
+          {myUploaderRank !== null && myUploaderRank > 10 && (
+            <div style={{fontSize:11,color:"var(--text4)",textAlign:"center",marginTop:-16,marginBottom:24}}>
+              {t("yourPosition")}: <strong style={{color:"var(--text3)"}}>#{myUploaderRank}</strong>
+            </div>
+          )}
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
             📦 {t("topCollectors")}
@@ -2162,6 +2235,11 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
               ? topCollectors.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} rankColor="#10b981" unitLabel={t("figuresCount")} badges={getBadgesForUser(entry.ownedIds)} />)
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
           </div>
+          {myCollectorRank !== null && myCollectorRank > 10 && (
+            <div style={{fontSize:11,color:"var(--text4)",textAlign:"center",marginTop:-16,marginBottom:24}}>
+              {t("yourPosition")}: <strong style={{color:"var(--text3)"}}>#{myCollectorRank}</strong>
+            </div>
+          )}
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 {t("mostCollected")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
@@ -3494,7 +3572,7 @@ export default function App() {
         {/* ── COMMUNITY TAB ── */}
         {activeTab==="community" && <CommunityTab
           data={data} communityUsers={communityUsers} communityTotal={communityTotal}
-          topOwned={topOwned} topWished={topWished}
+          topOwned={topOwned} topWished={topWished} currentUserId={user?.id ?? null}
         />}
         {/* ── STATS TAB ── */}
         {activeTab==="stats" && <StatsTab
