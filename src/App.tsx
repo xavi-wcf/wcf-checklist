@@ -322,6 +322,10 @@ const T = {
   noLeaderboardData: { es: "Todavía no hay datos suficientes", en: "Not enough data yet", th: "ยังไม่มีข้อมูลเพียงพอ" , fr: "Pas encore assez de données" , vi: "Chưa đủ dữ liệu" , ja: "まだデータがありません", zh: "暂无足够数据" },
   mostCollected:  { es: "Top más coleccionadas",   en: "Top most collected",           th: "Top ที่สะสมมากที่สุด" , fr: "Top les plus collectionnées" , vi: "Top được sưu tầm nhiều nhất" , ja: "Top 最も集められた", zh: "Top 收藏最多" },
   mostWished:     { es: "Top más deseadas",        en: "Top most wished",              th: "Top ที่ต้องการมากที่สุด" , fr: "Top les plus désirées" , vi: "Top được mong muốn nhiều nhất" , ja: "Top 最も欲しい", zh: "Top 最想要" },
+  badgeLegendTitle: { es: "¿Cómo funcionan las medallas?", en: "How do badges work?", th: "เหรียญตราทำงานอย่างไร" , fr: "Comment fonctionnent les badges ?" , vi: "Huy hiệu hoạt động thế nào?" , ja: "バッジの仕組み", zh: "徽章如何运作？" },
+  badgeLegendDesc:  { es: "Cada serie tiene 5 niveles según cuántas figuras tengas de ella. También hay una medalla global según tu total de figuras.", en: "Each series has 5 levels based on how many figures you own from it. There's also a global badge based on your total figure count.", th: "แต่ละซีรีส์มี 5 ระดับตามจำนวนฟิกเกอร์ที่คุณมี นอกจากนี้ยังมีเหรียญรวมตามจำนวนฟิกเกอร์ทั้งหมดของคุณ" , fr: "Chaque série a 5 niveaux selon le nombre de figurines que tu possèdes. Il y a aussi un badge global basé sur ton total de figurines." , vi: "Mỗi series có 5 cấp độ dựa trên số mô hình bạn sở hữu. Cũng có huy hiệu toàn cầu dựa trên tổng số mô hình của bạn." , ja: "各シリーズには所持数に応じた5段階のレベルがあります。所持総数に応じたグローバルバッジもあります。", zh: "每个系列根据你拥有的手办数量分为5个等级。还有一个基于总手办数量的全局徽章。" },
+  globalBadgeLabel: { es: "Total (todas las series)", en: "Total (all series)", th: "รวมทั้งหมด (ทุกซีรีส์)" , fr: "Total (toutes séries)" , vi: "Tổng (tất cả series)" , ja: "合計（全シリーズ）", zh: "总计（所有系列）" },
+  close:            { es: "Cerrar",                  en: "Close",                        th: "ปิด" , fr: "Fermer" , vi: "Đóng" , ja: "閉じる", zh: "关闭" },
   favSeries:      { es: "⭐ Series favoritas",    en: "⭐ Favourite series",          th: "⭐ ซีรีส์โปรด" , fr: "⭐ Séries favorites" , vi: "⭐ Series yêu thích" , ja: "⭐ お気に入りシリーズ", zh: "⭐ 喜爱系列" },
   noFavSeries:    { es: "Selecciona tus series favoritas para ver tus estadísticas.", en: "Select your favourite series to see your stats.", th: "เลือกซีรีส์โปรดเพื่อดูสถิติ" , fr: "Sélectionne tes séries favorites pour voir tes statistiques." , vi: "Chọn series yêu thích để xem thống kê." , ja: "お気に入りシリーズを選んで統計を確認しましょう。", zh: "选择您喜爱的系列以查看统计数据。" },
   statsTotalOwned:{ es: "Figuras obtenidas",      en: "Figures owned",               th: "ตัวเลขที่มี" , fr: "Figurines obtenues" , vi: "Nhân vật đã có" , ja: "所持フィギュア数", zh: "已拥有人偶" },
@@ -1881,23 +1885,11 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
   { key:"dbz", label:"Dragon Ball", match:n=>n.includes("Dragon Ball"), color:"#f59e0b",
     thresholds:[1,50,150,300,500],
     tierNames:["Guerrero Z","Super Saiyan","Super Saiyan 3","Super Saiyan 4","Super Saiyan God"],
-    icons:[
-    "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/normal64.png",
-    "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss1-64.png",
-    "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss3-64.png",
-    "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss4-64.png",
-    "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ssg-64.png"
-  ] },
+    icons:["🥋","⚡","💥","🔥","✨"] },
   { key:"op", label:"One Piece", match:n=>n.includes("One Piece"), color:"#0174b0",
     thresholds:[1,100,300,600,1000],
     tierNames:["Novato","Supernova","Shichibukai","Yonkō","Rey Pirata"],
-    icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/luffy64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/law64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/shichibukai64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/yonko64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/king64.png"
-    ] },
+    icons:["🏴‍☠️","⚡","⚔️","👑","💰"] },
   { key:"naruto", label:"Naruto", match:n=>n.includes("Naruto"), color:"#f97316",
     thresholds:[1,15,45,90,150],
     tierNames:["Academia Ninja","Genin","Chūnin","Jōnin","Kage"],
@@ -1948,6 +1940,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
   const { t } = useTr();
   const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
   const { topUploaders, topCollectors } = useCommunityLeaderboards();
+  const [showBadgeLegend, setShowBadgeLegend] = useState(false);
 
   // Mapa figureId -> clave de franquicia (para poder contar cuántas tiene cada usuario de cada una)
   const figureFranchiseMap = useMemo(() => {
@@ -2057,6 +2050,47 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
         </div>
       )}
 
+      {showBadgeLegend && (
+        <div onClick={()=>setShowBadgeLegend(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:14,padding:18,maxWidth:420,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:6}}>🏅 {t("badgeLegendTitle")}</div>
+            <div style={{fontSize:12,color:"var(--text4)",marginBottom:16,lineHeight:1.4}}>{t("badgeLegendDesc")}</div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,marginBottom:6}}>🌐 {t("globalBadgeLabel")}</div>
+              <div style={{display:"flex",gap:10}}>
+                {GLOBAL_BADGE.icons.map((icon,idx)=>(
+                  <div key={idx} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:1}}>
+                    <BadgeIcon icon={icon} size={26} />
+                    <div style={{fontSize:9,textAlign:"center",color:"var(--text4)"}}>{GLOBAL_BADGE.tierNames[idx]}</div>
+                    <div style={{fontSize:9,color:"var(--text4)",opacity:0.7}}>{GLOBAL_BADGE.thresholds[idx]}+</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {FRANCHISES.map(f=>(
+              <div key={f.key} style={{marginBottom:16}}>
+                <div style={{fontSize:12,fontWeight:700,marginBottom:6,color:f.color}}>{f.label}</div>
+                <div style={{display:"flex",gap:10}}>
+                  {f.icons.map((icon,idx)=>(
+                    <div key={idx} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:1}}>
+                      <BadgeIcon icon={icon} size={26} />
+                      <div style={{fontSize:9,textAlign:"center",color:"var(--text4)"}}>{f.tierNames[idx]}</div>
+                      <div style={{fontSize:9,color:"var(--text4)",opacity:0.7}}>{f.thresholds[idx]}+</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <button onClick={()=>setShowBadgeLegend(false)} style={{width:"100%",padding:"10px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",fontWeight:600,fontSize:13,cursor:"pointer",marginTop:4}}>
+              {t("close")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {communityUsers > 0 ? (
         <>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
@@ -2077,7 +2111,10 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
           </div>
 
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📦 {t("topCollectors")}</div>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+            📦 {t("topCollectors")}
+            <span onClick={()=>setShowBadgeLegend(true)} title={t("badgeLegendTitle")} style={{cursor:"pointer",width:16,height:16,borderRadius:"50%",border:"1px solid var(--text4)",color:"var(--text4)",fontSize:10,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>?</span>
+          </div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
             {topCollectors.length > 0
               ? topCollectors.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} rankColor="#10b981" unitLabel={t("figuresCount")} badges={getBadgesForUser(entry.ownedIds)} />)
