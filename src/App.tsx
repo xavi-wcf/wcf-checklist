@@ -363,8 +363,8 @@ const useTr = () => useContext(LangCtx);
 const AdminCtx = createContext(false);
 const useAdmin = () => useContext(AdminCtx);
 
-const UserEmailCtx = createContext<string|null>(null);
-const useUserEmail = () => useContext(UserEmailCtx);
+const UserInfoCtx = createContext<{email:string|null; name:string|null}>({email:null, name:null});
+const useUserInfo = () => useContext(UserInfoCtx);
 
 const SeriesDataCtx = createContext<Series[]>([]);
 const useSeriesData = () => useContext(SeriesDataCtx);
@@ -2125,7 +2125,7 @@ function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>v
 // ============================================================
 //  FIGURE DETAIL MODAL
 // ============================================================
-type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_email?: string|null; };
+type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_email?: string|null; uploader_name?: string|null; };
 
 function useFigurePhotos(figureId: number) {
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
@@ -2154,7 +2154,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   const [uploadDone, setUploadDone] = useState(false);
   const [uploadError, setUploadError] = useState<string|null>(null);
 
-  const uploaderEmail = useUserEmail();
+  const { email: uploaderEmail, name: uploaderName } = useUserInfo();
 
   const handleUpload = async (file: File) => {
     if (!userId || !file) return;
@@ -2162,7 +2162,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
     setUploadError(null);
     try {
       const url = await uploadToR2(file);
-      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, approved: false });
+      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, uploader_name: uploaderName, approved: false });
       setUploadDone(true);
     } catch(e) {
       setUploadError("Network error while uploading. Try again.");
@@ -2367,7 +2367,7 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
                   {figureNameMap[p.figure_id] ?? `Figure ID: ${p.figure_id}`}
                 </div>
                 <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>
-                  📧 {p.uploader_email ?? "Unknown (uploaded before tracking was added)"}
+                  👤 {p.uploader_name ?? p.uploader_email ?? "Unknown (uploaded before tracking was added)"}
                 </div>
                 {tab === "pending" ? (
                   <div style={{display:"flex",gap:8}}>
@@ -3213,7 +3213,7 @@ export default function App() {
 
   return (
     <LangProvider value={langValue}>
-      <UserEmailCtx.Provider value={user?.email ?? null}>
+      <UserInfoCtx.Provider value={{email: user?.email ?? null, name: user?.name ?? null}}>
       <AdminCtx.Provider value={isAdmin}>
         <SeriesDataCtx.Provider value={data}>
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
@@ -3222,7 +3222,7 @@ export default function App() {
           </DragCtx.Provider>
         </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
-      </UserEmailCtx.Provider>
+      </UserInfoCtx.Provider>
     </LangProvider>
   );
 }
