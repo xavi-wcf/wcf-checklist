@@ -1896,32 +1896,62 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     thresholds:[1,100,300,600,1000],
     tierNames:["Novato","Supernova","Shichibukai","Yonkō","Rey Pirata"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/luffy64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/law64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/shichibukai64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/yonko64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/king64.png"
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/luffy64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/supernova64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/shichibukai64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/yonko64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/king64.png"
     ] },
   { key:"naruto", label:"Naruto", match:n=>n.includes("Naruto"), color:"#f97316",
     thresholds:[1,15,45,90,150],
     tierNames:["Academia Ninja","Genin","Chūnin","Jōnin","Kage"],
-    icons:["🎓","🍥","🌀","⚡","🔥"] },
+    icons:[
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/konohamaru64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/naruto64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/rocklee64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/kakashi64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/hokage64.png"
+    ] },
   { key:"mha", label:"My Hero Academia", match:n=>n.includes("My Hero Academia"), color:"#dc2626",
     thresholds:[1,5,15,30,50],
     tierNames:["Estudiante","Héroe Novato","Héroe Pro","Top 10","Símbolo de Paz"],
-    icons:["🎒","🦸","💪","🏆","👑"] },
+    icons:[
+      "🎒",
+      "🦸",
+      "💪",
+      "🏆",
+      "👑"
+    ] },
   { key:"hxh", label:"Hunter x Hunter", match:n=>n.includes("Hunter"), color:"#059669",
     thresholds:[1,10,30,60,100],
     tierNames:["Aspirante","Hunter","Especialista","Zodiaco","Presidente"],
-    icons:["🪪","✳️","🔰","🐉","👑"] },
+    icons:[
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/tonpa64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/gon64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/hisoka64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/ging64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/netero64.png"
+    ] },
   { key:"kny", label:"Kimetsu no Yaiba", match:n=>n.includes("Kimetsu"), color:"#7c3aed",
     thresholds:[1,10,30,60,100],
     tierNames:["Mizunoto","Cazademonios","Luna Superior","Hashira","Rey Demonio"],
-    icons:["💧","⚒️","🌍","🌟","🗡️"] },
+    icons:[
+      "💧",
+      "⚒️",
+      "🌍",
+      "🌟",
+      "🗡️"
+    ] },
   { key:"bleach", label:"Bleach", match:n=>n.includes("Bleach"), color:"#6366f1",
     thresholds:[1,10,30,60,100],
     tierNames:["Sustituto","Bankai","Tercera Espada","Cuarta Espada","Dios de la Traición"],
-    icons:["👤","💀","⚡","👹","🔢"] },
+    icons:[
+      "👤",
+      "💀",
+      "⚡",
+      "👹",
+      "🔢"
+    ] },
 ];
 
 // Badge global (todas las series juntas, no una franquicia concreta)
