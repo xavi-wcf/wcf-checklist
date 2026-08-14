@@ -236,6 +236,8 @@ const T = {
   uploadClick:      { es: "📁 Clic para subir imagen", en: "📁 Click to upload image",  th: "📁 คลิกเพื่ออัปโหลดรูป" , fr: "📁 Cliquer pour envoyer" , vi: "📁 Nhấn để tải lên" , ja: "📁 クリックしてアップロード", zh: "📁 点击上传" },
   uploadChange:     { es: "Clic para cambiar",         en: "Click to change",            th: "คลิกเพื่อเปลี่ยน" , fr: "Cliquer pour changer" , vi: "Nhấn để thay đổi" , ja: "クリックして変更", zh: "点击更改" },
   uploadError:      { es: "Error al subir. Comprueba la API key.", en: "Upload error. Check your API key.", th: "เกิดข้อผิดพลาด ตรวจสอบ API key" , fr: "Erreur d'envoi. Vérifie la clé API." , vi: "Lỗi tải lên. Kiểm tra API key." , ja: "アップロードエラー。APIキーを確認してください。", zh: "上传错误。请检查API密钥。" },
+  uploadedBy:       { es: "Subida por", en: "Uploaded by", th: "อัปโหลดโดย" , fr: "Envoyée par" , vi: "Được tải lên bởi" , ja: "アップロード者:", zh: "上传者：" },
+  communityMember:  { es: "un coleccionista", en: "a collector", th: "นักสะสม" , fr: "un collectionneur" , vi: "một nhà sưu tầm" , ja: "コレクター", zh: "一位收藏家" },
   noApiKey:         { es: "Añade tu API key de ImgBB en ⚙️ Ajustes", en: "Add your ImgBB API key in ⚙️ Settings", th: "เพิ่ม API key ของ ImgBB ใน ⚙️ การตั้งค่า" , fr: "Ajoute ta clé API ImgBB dans ⚙️ Paramètres" , vi: "Thêm API key ImgBB trong ⚙️ Cài đặt" , ja: "⚙️ 設定でImgBB APIキーを追加してください", zh: "请在⚙️设置中添加ImgBB API密钥" },
   apiKeyWarning:    { es: "Añade tu API key de ImgBB en", en: "Add your ImgBB API key in", th: "เพิ่ม API key ของ ImgBB ใน" , fr: "Ajoute ta clé API ImgBB dans" , vi: "Thêm API key ImgBB trong" , ja: "ImgBB APIキーを追加してください", zh: "请添加ImgBB API密钥" },
   noImage:          { es: "sin imagen",                en: "no image",                   th: "ไม่มีรูป" , fr: "sans image" , vi: "chưa có hình" , ja: "画像なし", zh: "无图片" },
@@ -2147,10 +2149,11 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   communityOwned: number; communityWished: number;
   userId?: string;
 }) {
+  const { t } = useTr();
   const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${months[parseInt(m)-1]} ${y}`; };
   const { photos } = useFigurePhotos(figure.id);
   const [uploading, setUploading] = useState(false);
-  const [zoomPhoto, setZoomPhoto] = useState<string|null>(null);
+  const [zoomPhoto, setZoomPhoto] = useState<UserPhoto|null>(null);
   const [uploadDone, setUploadDone] = useState(false);
   const [uploadError, setUploadError] = useState<string|null>(null);
 
@@ -2175,7 +2178,12 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
       {zoomPhoto && (
         <div onClick={e=>{e.stopPropagation();setZoomPhoto(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-          <img src={zoomPhoto} alt="zoom" style={{maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
+          <div style={{position:"relative",maxWidth:"100%",maxHeight:"90vh"}}>
+            <img src={zoomPhoto.url} alt="zoom" style={{display:"block",maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
+            <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:8,maxWidth:"80%",textAlign:"right"}}>
+              {t("uploadedBy")} {zoomPhoto.uploader_name ?? zoomPhoto.uploader_email ?? t("communityMember")}
+            </div>
+          </div>
         </div>
       )}
       <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:340,overflow:"hidden",boxShadow:"0 12px 40px rgba(0,0,0,0.4)",marginTop:"auto",marginBottom:"auto"}}>
@@ -2223,7 +2231,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
               <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 Community photos ({photos.length})</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
                 {photos.map(p=>(
-                  <div key={p.id} onClick={()=>setZoomPhoto(p.url)} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",cursor:"zoom-in",background:"var(--missing-bg)"}}>
+                  <div key={p.id} onClick={()=>setZoomPhoto(p)} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",cursor:"zoom-in",background:"var(--missing-bg)"}}>
                     <img src={p.url} alt="community" style={{width:"100%",height:"100%",objectFit:"cover"}} />
                   </div>
                 ))}
