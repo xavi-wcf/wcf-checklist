@@ -670,7 +670,23 @@ function useCommunityStats() {
   return { figureOwned, figureWished, users, totalOwned, topOwned, topWished };
 }
 
-type LeaderboardEntry = { userId: string; name: string; count: number };
+type LeaderboardEntry = { userId: string; name: string; count: number; ownedIds?: number[] };
+
+function usePendingPhotosCount() {
+  const [count, setCount] = useState(0);
+  const isAdmin = useAdmin();
+  const load = useCallback(() => {
+    supabase.from("wcf_photos").select("id", { count: "exact", head: true }).eq("approved", false)
+      .then(({ count: c }) => setCount(c ?? 0));
+  }, []);
+  useEffect(() => {
+    if (!isAdmin) return;
+    load();
+    const interval = setInterval(load, 60000); // refresca cada minuto
+    return () => clearInterval(interval);
+  }, [isAdmin, load]);
+  return { count, refresh: load };
+}
 
 function useCommunityLeaderboards() {
   const [topUploaders, setTopUploaders] = useState<LeaderboardEntry[]>([]);
@@ -685,7 +701,6 @@ function useCommunityLeaderboards() {
           if (!r.user_id) continue;
           if (!counts[r.user_id]) counts[r.user_id] = { name: r.uploader_name || r.uploader_email || "Anonymous", count: 0 };
           counts[r.user_id].count++;
-          // Keep the most descriptive name available among that user's rows
           if (!counts[r.user_id].name || counts[r.user_id].name === "Anonymous") {
             counts[r.user_id].name = r.uploader_name || r.uploader_email || "Anonymous";
           }
@@ -704,7 +719,7 @@ function useCommunityLeaderboards() {
         setTopCollectors(
           rows
             .filter(r => r.user_id && Array.isArray(r.owned) && r.owned.length > 0)
-            .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length }))
+            .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length, ownedIds: r.owned as number[] }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 10)
         );
@@ -1856,6 +1871,65 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
 // ============================================================
 //  COMMUNITY TAB — global rankings (figures, uploaders, collectors)
 // ============================================================
+// Franquicias con badge propio. El "cap" limita el total de referencia usado
+// para calcular el % (así Dragon Ball/One Piece no necesitan miles de figuras
+// para alcanzar el nivel máximo).
+// Umbrales ABSOLUTOS por franquicia (mínimo para alcanzar cada nivel), y nombre
+// temático de cada nivel. El campo "icon" es un emoji de MARCADOR TEMPORAL —
+// cuando tengas las imágenes propias, basta con poner aquí la URL de cada una
+// (el render ya detecta si es una URL http y muestra <img> en vez del emoji).
+const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; color:string; thresholds:number[]; tierNames:string[]; icons:string[] }[] = [
+  { key:"dbz", label:"Dragon Ball", match:n=>n.includes("Dragon Ball"), color:"#f59e0b",
+    thresholds:[1,50,150,300,500],
+    tierNames:["Guerrero Z","Super Saiyan","Super Saiyan 3","Super Saiyan 4","Super Saiyan God"],
+    icons:["🥋","⚡","💥","🔥","✨"] },
+  { key:"op", label:"One Piece", match:n=>n.includes("One Piece"), color:"#0174b0",
+    thresholds:[1,100,300,600,1000],
+    tierNames:["Novato","Supernova","Shichibukai","Yonkō","Rey Pirata"],
+    icons:["🏴‍☠️","⚡","⚔️","👑","💰"] },
+  { key:"naruto", label:"Naruto", match:n=>n.includes("Naruto"), color:"#f97316",
+    thresholds:[1,15,45,90,150],
+    tierNames:["Academia Ninja","Genin","Chūnin","Jōnin","Kage"],
+    icons:["🎓","🍥","🌀","⚡","🔥"] },
+  { key:"mha", label:"My Hero Academia", match:n=>n.includes("My Hero Academia"), color:"#dc2626",
+    thresholds:[1,5,15,30,50],
+    tierNames:["Estudiante","Héroe Novato","Héroe Pro","Top 10","Símbolo de Paz"],
+    icons:["🎒","🦸","💪","🏆","👑"] },
+  { key:"hxh", label:"Hunter x Hunter", match:n=>n.includes("Hunter"), color:"#059669",
+    thresholds:[1,10,30,60,100],
+    tierNames:["Aspirante","Hunter","Especialista","Zodiaco","Presidente"],
+    icons:["🪪","✳️","🔰","🐉","👑"] },
+  { key:"kny", label:"Kimetsu no Yaiba", match:n=>n.includes("Kimetsu"), color:"#7c3aed",
+    thresholds:[1,10,30,60,100],
+    tierNames:["Mizunoto","Kanoe","Tsuchinoe","Kinoe","Hashira"],
+    icons:["💧","⚒️","🌍","🌟","🗡️"] },
+  { key:"bleach", label:"Bleach", match:n=>n.includes("Bleach"), color:"#6366f1",
+    thresholds:[1,10,30,60,100],
+    tierNames:["Alma","Hollow","Shinigami","Arrancar","Espada"],
+    icons:["👤","💀","⚡","👹","🔢"] },
+];
+
+// Badge global (todas las series juntas, no una franquicia concreta)
+const GLOBAL_BADGE = {
+  color:"#94a3b8",
+  thresholds:[1,100,300,600,1000],
+  tierNames:["Coleccionista Bronce","Coleccionista Plata","Coleccionista Oro","Coleccionista Platino","Coleccionista Diamante"],
+  icons:["🥉","🥈","🥇","💎","👑"],
+};
+
+function tierForCount(count:number, thresholds:number[]): number {
+  let tier = 0;
+  for (let i=0;i<thresholds.length;i++) if (count >= thresholds[i]) tier = i+1;
+  return tier;
+}
+
+// Renderiza un icono de badge: emoji tal cual, o <img> si en su día pones una URL
+function BadgeIcon({ icon, size=12 }: { icon:string; size?:number }) {
+  if (/^https?:\/\//.test(icon)) return <img src={icon} alt="" style={{width:size,height:size,objectFit:"contain",verticalAlign:"middle"}} />;
+  return <span>{icon}</span>;
+}
+
+
 function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished }: {
   data: Series[]; communityUsers:number; communityTotal:number;
   topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
@@ -1863,6 +1937,41 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
   const { t } = useTr();
   const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
   const { topUploaders, topCollectors } = useCommunityLeaderboards();
+
+  // Mapa figureId -> clave de franquicia (para poder contar cuántas tiene cada usuario de cada una)
+  const figureFranchiseMap = useMemo(() => {
+    const map = new Map<number,string>();
+    for (const s of data) {
+      const franchise = FRANCHISES.find(f => f.match(s.name));
+      if (!franchise) continue;
+      const figs = [...s.sets, ...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures);
+      for (const f of figs) map.set(f.id, franchise.key);
+    }
+    return map;
+  }, [data]);
+
+  const getBadgesForUser = (ownedIds?: number[]) => {
+    if (!ownedIds || ownedIds.length === 0) return [];
+    const counts: Record<string,number> = {};
+    for (const id of ownedIds) {
+      const key = figureFranchiseMap.get(id);
+      if (key) counts[key] = (counts[key] ?? 0) + 1;
+    }
+    const badges = FRANCHISES.map(f => {
+      const count = counts[f.key] ?? 0;
+      const tier = tierForCount(count, f.thresholds);
+      if (tier === 0) return null;
+      return { key:f.key, icon:f.icons[tier-1], color:f.color, title:`${f.label}: ${count} — ${f.tierNames[tier-1]}` };
+    }).filter(Boolean) as {key:string;icon:string;color:string;title:string}[];
+
+    // Badge global, calculado sobre el total de figuras posee (todas las series)
+    const globalTier = tierForCount(ownedIds.length, GLOBAL_BADGE.thresholds);
+    if (globalTier > 0) {
+      badges.unshift({ key:"global", icon:GLOBAL_BADGE.icons[globalTier-1], color:GLOBAL_BADGE.color, title:`Total: ${ownedIds.length} — ${GLOBAL_BADGE.tierNames[globalTier-1]}` });
+    }
+    return badges;
+  };
+
 
   const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s,set:st}))));
   const findFig = (id:number) => allFigs.find(x=>x.figure.id===id);
@@ -1886,18 +1995,37 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
     );
   };
 
-  const UserRankRow = ({entry,i,color,unitLabel}:{entry:LeaderboardEntry;i:number;color:string;unitLabel:string}) => (
-    <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
-      <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
-      <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color}}>
-        {entry.name?.[0]?.toUpperCase() ?? "?"}
+  const AVATAR_PALETTE = ["#0174b0","#f59e0b","#10b981","#8b5cf6","#ec4899","#ef4444","#14b8a6","#6366f1"];
+  const colorForUser = (id: string) => {
+    let hash = 0;
+    for (let i=0;i<id.length;i++) hash = (hash*31 + id.charCodeAt(i)) >>> 0;
+    return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+  };
+
+  const UserRankRow = ({entry,i,rankColor,unitLabel,badges}:{entry:LeaderboardEntry;i:number;rankColor:string;unitLabel:string;badges?:{key:string;icon:string;color:string;title:string}[]}) => {
+    const avatarColor = colorForUser(entry.userId);
+    return (
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+        <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
+        <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:avatarColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff"}}>
+          {entry.name?.[0]?.toUpperCase() ?? "?"}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{entry.name}</div>
+          {badges && badges.length > 0 && (
+            <div style={{display:"flex",gap:3,marginTop:3,flexWrap:"wrap"}}>
+              {badges.map(b=>(
+                <span key={b.key} title={b.title} style={{fontSize:11,background:b.color+"22",border:`1px solid ${b.color}55`,borderRadius:6,padding:"2px 5px",display:"inline-flex",alignItems:"center",lineHeight:1}}>
+                  <BadgeIcon icon={b.icon} size={13} />
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{fontSize:11,fontWeight:700,color:rankColor}}>{entry.count} {unitLabel}</div>
       </div>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{entry.name}</div>
-      </div>
-      <div style={{fontSize:11,fontWeight:700,color}}>{entry.count} {unitLabel}</div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div>
@@ -1926,14 +2054,14 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 {t("topUploaders")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
             {topUploaders.length > 0
-              ? topUploaders.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} color="#8b5cf6" unitLabel={t("photosCount")} />)
+              ? topUploaders.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} rankColor="#8b5cf6" unitLabel={t("photosCount")} />)
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
           </div>
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📦 {t("topCollectors")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
             {topCollectors.length > 0
-              ? topCollectors.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} color="#10b981" unitLabel={t("figuresCount")} />)
+              ? topCollectors.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} rankColor="#10b981" unitLabel={t("figuresCount")} badges={getBadgesForUser(entry.ownedIds)} />)
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
           </div>
 
@@ -2716,6 +2844,7 @@ export default function App() {
   // Favourites — stored in localStorage
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
+  const { count: pendingPhotosCount, refresh: refreshPendingCount } = usePendingPhotosCount();
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -2861,7 +2990,16 @@ export default function App() {
         <button onClick={toggleDark} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
-        {isAdmin && <button onClick={()=>setShowModeration(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Photo moderation">📸</button>}
+        {isAdmin && (
+          <button onClick={()=>setShowModeration(true)} style={{position:"relative",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Photo moderation">
+            📸
+            {pendingPhotosCount > 0 && (
+              <span style={{position:"absolute",top:-5,right:-5,background:"#dc2626",color:"#fff",fontSize:9,fontWeight:700,borderRadius:9,minWidth:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",border:"1.5px solid var(--bg)",lineHeight:1}}>
+                {pendingPhotosCount > 99 ? "99+" : pendingPhotosCount}
+              </span>
+            )}
+          </button>
+        )}
         {!isInstalled && installPrompt && (
           <button onClick={()=>{ (installPrompt as any).prompt(); }}
             style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("installBtn")}>📲</button>
@@ -3322,7 +3460,7 @@ export default function App() {
       )}
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
-      {showModeration && <PhotoModerationPanel onClose={()=>setShowModeration(false)} data={data} />}
+      {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
       {showOnboarding && <OnboardingModal
