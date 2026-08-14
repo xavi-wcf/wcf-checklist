@@ -1916,11 +1916,11 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     icons:["🪪","✳️","🔰","🐉","👑"] },
   { key:"kny", label:"Kimetsu no Yaiba", match:n=>n.includes("Kimetsu"), color:"#7c3aed",
     thresholds:[1,10,30,60,100],
-    tierNames:["Mizunoto","Kanoe","Tsuchinoe","Kinoe","Hashira"],
+    tierNames:["Mizunoto","Cazademonios","Luna Superior","Hashira","Rey Demonio"],
     icons:["💧","⚒️","🌍","🌟","🗡️"] },
   { key:"bleach", label:"Bleach", match:n=>n.includes("Bleach"), color:"#6366f1",
     thresholds:[1,10,30,60,100],
-    tierNames:["Alma","Hollow","Shinigami","Arrancar","Espada"],
+    tierNames:["Sustituto","Bankai","Tercera Espada","Cuarta Espada","Dios de la Traición"],
     icons:["👤","💀","⚡","👹","🔢"] },
 ];
 
