@@ -1045,7 +1045,7 @@ function CropModal({ imageSrc, aspectRatio, onConfirm, onClose, format = "jpeg",
 // ============================================================
 //  IMAGE UPLOADER
 // ============================================================
-function ImageUploader({ apiKey, currentUrl, onUploaded, label, aspectRatio, format="jpeg", freeWidth=false, skipCrop=false }: {
+function ImageUploader({ apiKey: _apiKey, currentUrl, onUploaded, label, aspectRatio, format="jpeg", freeWidth=false, skipCrop=false }: {
   apiKey:string; currentUrl?:string; onUploaded:(url:string)=>void; label:string; aspectRatio:number|null; format?:"jpeg"|"png"; freeWidth?:boolean; skipCrop?:boolean;
 }) {
   const { t } = useTr();
