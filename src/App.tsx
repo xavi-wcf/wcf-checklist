@@ -363,6 +363,9 @@ const useTr = () => useContext(LangCtx);
 const AdminCtx = createContext(false);
 const useAdmin = () => useContext(AdminCtx);
 
+const UserEmailCtx = createContext<string|null>(null);
+const useUserEmail = () => useContext(UserEmailCtx);
+
 const SeriesDataCtx = createContext<Series[]>([]);
 const useSeriesData = () => useContext(SeriesDataCtx);
 
@@ -2122,7 +2125,7 @@ function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>v
 // ============================================================
 //  FIGURE DETAIL MODAL
 // ============================================================
-type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; };
+type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_email?: string|null; };
 
 function useFigurePhotos(figureId: number) {
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
@@ -2151,13 +2154,15 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   const [uploadDone, setUploadDone] = useState(false);
   const [uploadError, setUploadError] = useState<string|null>(null);
 
+  const uploaderEmail = useUserEmail();
+
   const handleUpload = async (file: File) => {
     if (!userId || !file) return;
     setUploading(true);
     setUploadError(null);
     try {
       const url = await uploadToR2(file);
-      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, approved: false });
+      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, approved: false });
       setUploadDone(true);
     } catch(e) {
       setUploadError("Network error while uploading. Try again.");
@@ -2358,8 +2363,11 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
             <div key={p.id} style={{marginBottom:16,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
               <img src={p.url} alt="figure" style={{width:"100%",maxHeight:280,objectFit:"contain",background:"var(--missing-bg)"}} />
               <div style={{padding:"10px 12px"}}>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:8}}>
+                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>
                   {figureNameMap[p.figure_id] ?? `Figure ID: ${p.figure_id}`}
+                </div>
+                <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>
+                  📧 {p.uploader_email ?? "Unknown (uploaded before tracking was added)"}
                 </div>
                 {tab === "pending" ? (
                   <div style={{display:"flex",gap:8}}>
@@ -3205,6 +3213,7 @@ export default function App() {
 
   return (
     <LangProvider value={langValue}>
+      <UserEmailCtx.Provider value={user?.email ?? null}>
       <AdminCtx.Provider value={isAdmin}>
         <SeriesDataCtx.Provider value={data}>
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
@@ -3213,6 +3222,7 @@ export default function App() {
           </DragCtx.Provider>
         </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
+      </UserEmailCtx.Provider>
     </LangProvider>
   );
 }
