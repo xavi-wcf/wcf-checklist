@@ -5,6 +5,17 @@ import { useState, useEffect, useRef, useCallback, useMemo, createContext, useCo
 // ============================================================
 const CHANGELOG = [
   {
+    id: 11,
+    date: "2025-08-14",
+    entries: [
+      "🌍 New Community tab: Top Photo Uploaders & Top Collections rankings",
+      "🎖️ New rank badges by franchise (Dragon Ball, One Piece, Naruto, MHA, Hunter x Hunter, Kimetsu no Yaiba, Bleach)",
+      "🏅 'My Badges' added to My Stats, based on your favourite series",
+      "📸 Community photos now show who uploaded them, with swipe navigation",
+      "⚡ Faster, more reliable image loading thanks to a hosting upgrade",
+    ]
+  },
+  {
     id: 10,
     date: "2025-08-12",
     entries: [
