@@ -1885,11 +1885,23 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
   { key:"dbz", label:"Dragon Ball", match:n=>n.includes("Dragon Ball"), color:"#f59e0b",
     thresholds:[1,50,150,300,500],
     tierNames:["Guerrero Z","Super Saiyan","Super Saiyan 3","Super Saiyan 4","Super Saiyan God"],
-    icons:["🥋","⚡","💥","🔥","✨"] },
+    icons:[
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/normal64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss1-64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss3-64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss4-64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ssg-64.png"
+    ] },
   { key:"op", label:"One Piece", match:n=>n.includes("One Piece"), color:"#0174b0",
     thresholds:[1,100,300,600,1000],
     tierNames:["Novato","Supernova","Shichibukai","Yonkō","Rey Pirata"],
-    icons:["🏴‍☠️","⚡","⚔️","👑","💰"] },
+    icons:[
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/luffy64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/law64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/shichibukai64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/yonko64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/king64.png"
+    ] },
   { key:"naruto", label:"Naruto", match:n=>n.includes("Naruto"), color:"#f97316",
     thresholds:[1,15,45,90,150],
     tierNames:["Academia Ninja","Genin","Chūnin","Jōnin","Kage"],
@@ -2111,7 +2123,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
           </div>
 
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
             📦 {t("topCollectors")}
             <span onClick={()=>setShowBadgeLegend(true)} title={t("badgeLegendTitle")} style={{cursor:"pointer",width:16,height:16,borderRadius:"50%",border:"1px solid var(--text4)",color:"var(--text4)",fontSize:10,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>?</span>
           </div>
