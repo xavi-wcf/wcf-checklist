@@ -325,6 +325,47 @@ const T = {
   badgeLegendTitle: { es: "¿Cómo funcionan las medallas?", en: "How do badges work?", th: "เหรียญตราทำงานอย่างไร" , fr: "Comment fonctionnent les badges ?" , vi: "Huy hiệu hoạt động thế nào?" , ja: "バッジの仕組み", zh: "徽章如何运作？" },
   badgeLegendDesc:  { es: "Cada serie tiene 5 niveles según cuántas figuras tengas de ella. También hay una medalla global según tu total de figuras.", en: "Each series has 5 levels based on how many figures you own from it. There's also a global badge based on your total figure count.", th: "แต่ละซีรีส์มี 5 ระดับตามจำนวนฟิกเกอร์ที่คุณมี นอกจากนี้ยังมีเหรียญรวมตามจำนวนฟิกเกอร์ทั้งหมดของคุณ" , fr: "Chaque série a 5 niveaux selon le nombre de figurines que tu possèdes. Il y a aussi un badge global basé sur ton total de figurines." , vi: "Mỗi series có 5 cấp độ dựa trên số mô hình bạn sở hữu. Cũng có huy hiệu toàn cầu dựa trên tổng số mô hình của bạn." , ja: "各シリーズには所持数に応じた5段階のレベルがあります。所持総数に応じたグローバルバッジもあります。", zh: "每个系列根据你拥有的手办数量分为5个等级。还有一个基于总手办数量的全局徽章。" },
   globalBadgeLabel: { es: "Total (todas las series)", en: "Total (all series)", th: "รวมทั้งหมด (ทุกซีรีส์)" , fr: "Total (toutes séries)" , vi: "Tổng (tất cả series)" , ja: "合計（全シリーズ）", zh: "总计（所有系列）" },
+  // ── Nombres de rango de badges (8 grupos × 5 niveles) ──
+  badgeTier_global_1: { es:"Bronce", en:"Bronze", th:"บรอนซ์", fr:"Bronze", vi:"Đồng", ja:"ブロンズ", zh:"青铜" },
+  badgeTier_global_2: { es:"Plata", en:"Silver", th:"เงิน", fr:"Argent", vi:"Bạc", ja:"シルバー", zh:"白银" },
+  badgeTier_global_3: { es:"Oro", en:"Gold", th:"ทอง", fr:"Or", vi:"Vàng", ja:"ゴールド", zh:"黄金" },
+  badgeTier_global_4: { es:"Platino", en:"Platinum", th:"แพลตินัม", fr:"Platine", vi:"Bạch kim", ja:"プラチナ", zh:"铂金" },
+  badgeTier_global_5: { es:"Diamante", en:"Diamond", th:"เพชร", fr:"Diamant", vi:"Kim cương", ja:"ダイヤモンド", zh:"钻石" },
+  badgeTier_dbz_1: { es:"Guerrero Z", en:"Z Fighter", th:"นักสู้ Z", fr:"Guerrier Z", vi:"Chiến Binh Z", ja:"Z戦士", zh:"Z战士" },
+  badgeTier_dbz_2: { es:"Super Saiyan", en:"Super Saiyan", th:"ซูเปอร์ไซย่า", fr:"Super Saiyan", vi:"Super Saiyan", ja:"スーパーサイヤ人", zh:"超级赛亚人" },
+  badgeTier_dbz_3: { es:"Super Saiyan 3", en:"Super Saiyan 3", th:"ซูเปอร์ไซย่า 3", fr:"Super Saiyan 3", vi:"Super Saiyan 3", ja:"スーパーサイヤ人3", zh:"超级赛亚人3" },
+  badgeTier_dbz_4: { es:"Super Saiyan 4", en:"Super Saiyan 4", th:"ซูเปอร์ไซย่า 4", fr:"Super Saiyan 4", vi:"Super Saiyan 4", ja:"スーパーサイヤ人4", zh:"超级赛亚人4" },
+  badgeTier_dbz_5: { es:"Super Saiyan God", en:"Super Saiyan God", th:"ซูเปอร์ไซย่าก็อด", fr:"Super Saiyan God", vi:"Super Saiyan God", ja:"スーパーサイヤ人ゴッド", zh:"超级赛亚人神" },
+  badgeTier_op_1: { es:"Novato", en:"Rookie", th:"มือใหม่", fr:"Novice", vi:"Tân Binh", ja:"新世代", zh:"新人" },
+  badgeTier_op_2: { es:"Supernova", en:"Supernova", th:"ซูเปอร์โนวา", fr:"Supernova", vi:"Siêu Tân Tinh", ja:"超新星", zh:"超新星" },
+  badgeTier_op_3: { es:"Shichibukai", en:"Warlord", th:"ชิจิบุไก", fr:"Shichibukai", vi:"Thất Vũ Hải", ja:"七武海", zh:"七武海" },
+  badgeTier_op_4: { es:"Yonkō", en:"Emperor", th:"ยงโค", fr:"Yonkō", vi:"Tứ Hoàng", ja:"四皇", zh:"四皇" },
+  badgeTier_op_5: { es:"Rey Pirata", en:"Pirate King", th:"ราชาโจรสลัด", fr:"Roi des Pirates", vi:"Vua Hải Tặc", ja:"海賊王", zh:"海贼王" },
+  badgeTier_naruto_1: { es:"Academia Ninja", en:"Ninja Academy", th:"โรงเรียนนินจา", fr:"Académie Ninja", vi:"Học Viện Ninja", ja:"忍者学校", zh:"忍者学校" },
+  badgeTier_naruto_2: { es:"Genin", en:"Genin", th:"เก็นนิน", fr:"Genin", vi:"Genin", ja:"下忍", zh:"下忍" },
+  badgeTier_naruto_3: { es:"Chūnin", en:"Chūnin", th:"จูนิน", fr:"Chūnin", vi:"Chūnin", ja:"中忍", zh:"中忍" },
+  badgeTier_naruto_4: { es:"Jōnin", en:"Jōnin", th:"โจนิน", fr:"Jōnin", vi:"Jōnin", ja:"上忍", zh:"上忍" },
+  badgeTier_naruto_5: { es:"Kage", en:"Kage", th:"คาเงะ", fr:"Kage", vi:"Kage", ja:"影", zh:"影" },
+  badgeTier_mha_1: { es:"Estudiante", en:"Student", th:"นักเรียน", fr:"Étudiant", vi:"Học Sinh", ja:"生徒", zh:"学生" },
+  badgeTier_mha_2: { es:"Héroe Novato", en:"Rookie Hero", th:"ฮีโร่มือใหม่", fr:"Héros Débutant", vi:"Anh Hùng Mới", ja:"新人ヒーロー", zh:"新人英雄" },
+  badgeTier_mha_3: { es:"Héroe Pro", en:"Pro Hero", th:"ฮีโร่มืออาชีพ", fr:"Héros Pro", vi:"Anh Hùng Chuyên Nghiệp", ja:"プロヒーロー", zh:"职业英雄" },
+  badgeTier_mha_4: { es:"Top 10", en:"Top 10", th:"ท็อป 10", fr:"Top 10", vi:"Top 10", ja:"トップ10", zh:"前十强" },
+  badgeTier_mha_5: { es:"Símbolo de Paz", en:"Symbol of Peace", th:"สัญลักษณ์แห่งสันติ", fr:"Symbole de la Paix", vi:"Biểu Tượng Hòa Bình", ja:"平和の象徴", zh:"和平的象征" },
+  badgeTier_hxh_1: { es:"Aspirante", en:"Applicant", th:"ผู้สมัคร", fr:"Candidat", vi:"Ứng Viên", ja:"受験者", zh:"考生" },
+  badgeTier_hxh_2: { es:"Hunter", en:"Hunter", th:"ฮันเตอร์", fr:"Hunter", vi:"Hunter", ja:"ハンター", zh:"猎人" },
+  badgeTier_hxh_3: { es:"Especialista", en:"Specialist", th:"ผู้เชี่ยวชาญ", fr:"Spécialiste", vi:"Chuyên Gia", ja:"特質系", zh:"特质系" },
+  badgeTier_hxh_4: { es:"Zodiaco", en:"Zodiac", th:"ราศี", fr:"Zodiaque", vi:"Hoàng Đạo", ja:"十二支ん", zh:"十二支阿" },
+  badgeTier_hxh_5: { es:"Presidente", en:"Chairman", th:"ประธาน", fr:"Président", vi:"Chủ Tịch", ja:"会長", zh:"会长" },
+  badgeTier_kny_1: { es:"Mizunoto", en:"Mizunoto", th:"มิซึโนโตะ", fr:"Mizunoto", vi:"Mizunoto", ja:"癸", zh:"癸" },
+  badgeTier_kny_2: { es:"Cazademonios", en:"Demon Slayer", th:"นักล่าปีศาจ", fr:"Pourfendeur de Démons", vi:"Diệt Quỷ", ja:"鬼殺隊士", zh:"鬼杀队士" },
+  badgeTier_kny_3: { es:"Luna Superior", en:"Upper Moon", th:"จันทร์ข้างขึ้นสูงสุด", fr:"Lune Supérieure", vi:"Thượng Huyền", ja:"上弦", zh:"上弦" },
+  badgeTier_kny_4: { es:"Hashira", en:"Hashira", th:"ฮาชิระ", fr:"Hashira", vi:"Trụ Cột", ja:"柱", zh:"柱" },
+  badgeTier_kny_5: { es:"Rey Demonio", en:"Demon King", th:"ราชาปีศาจ", fr:"Roi Démon", vi:"Quỷ Vương", ja:"鬼舞辻無惨", zh:"鬼王" },
+  badgeTier_bleach_1: { es:"Sustituto", en:"Substitute", th:"ตัวแทน", fr:"Remplaçant", vi:"Người Thay Thế", ja:"代行", zh:"代理" },
+  badgeTier_bleach_2: { es:"Shinigami", en:"Shinigami", th:"ชินิงามิ", fr:"Shinigami", vi:"Shinigami", ja:"死神", zh:"死神" },
+  badgeTier_bleach_3: { es:"Espada", en:"Espada", th:"เอสปาดา", fr:"Espada", vi:"Espada", ja:"エスパーダ", zh:"十刃" },
+  badgeTier_bleach_4: { es:"Resurrección", en:"Resurrección", th:"การคืนชีพ", fr:"Resurrección", vi:"Resurrección", ja:"レスレクシオン", zh:"卍解昇格" },
+  badgeTier_bleach_5: { es:"Dios de la Traición", en:"God of Betrayal", th:"เทพแห่งการทรยศ", fr:"Dieu de la Trahison", vi:"Thần Phản Bội", ja:"裏切りの神", zh:"背叛之神" },
   close:            { es: "Cerrar",                  en: "Close",                        th: "ปิด" , fr: "Fermer" , vi: "Đóng" , ja: "閉じる", zh: "关闭" },
   yourPosition:     { es: "Tu posición",              en: "Your position",                th: "อันดับของคุณ" , fr: "Ta position" , vi: "Vị trí của bạn" , ja: "あなたの順位", zh: "你的排名" },
   myBadges:         { es: "Mis medallas",             en: "My badges",                    th: "เหรียญตราของฉัน" , fr: "Mes badges" , vi: "Huy hiệu của tôi" , ja: "マイバッジ", zh: "我的徽章" },
@@ -1014,7 +1055,6 @@ function ImageUploader({ apiKey, currentUrl, onUploaded, label, aspectRatio, for
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
-    if (!apiKey) { setError(t("noApiKey")); return; }
     if (skipCrop) {
       setUploading(true); setError("");
       uploadToR2(file).then(url=>onUploaded(url)).catch(()=>setError(t("uploadError"))).finally(()=>setUploading(false));
@@ -1815,7 +1855,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
       return {
         key: f.key, label: f.label, color: f.color, count, tier,
         icon: tier > 0 ? f.icons[tier-1] : f.icons[0],
-        tierName: tier > 0 ? f.tierNames[tier-1] : null,
+        tierName: tier > 0 ? t(f.tierNames[tier-1] as TKey) : null,
         nextThreshold, remaining: nextThreshold !== null ? nextThreshold - count : 0,
       };
     });
@@ -1824,7 +1864,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
     const global = {
       key:"global", label: t("globalBadgeLabel"), color: GLOBAL_BADGE.color, count: ownedIdsArr.length, tier: globalTier,
       icon: globalTier > 0 ? GLOBAL_BADGE.icons[globalTier-1] : GLOBAL_BADGE.icons[0],
-      tierName: globalTier > 0 ? GLOBAL_BADGE.tierNames[globalTier-1] : null,
+      tierName: globalTier > 0 ? t(GLOBAL_BADGE.tierNames[globalTier-1] as TKey) : null,
       nextThreshold: globalNext, remaining: globalNext !== null ? globalNext - ownedIdsArr.length : 0,
     };
     return [global, ...rows];
@@ -1954,7 +1994,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
 const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; color:string; thresholds:number[]; tierNames:string[]; icons:string[] }[] = [
   { key:"dbz", label:"Dragon Ball", match:n=>n.includes("Dragon Ball"), color:"#f59e0b",
     thresholds:[1,50,150,300,500],
-    tierNames:["Guerrero Z","Super Saiyan","Super Saiyan 3","Super Saiyan 4","Super Saiyan God"],
+    tierNames:["badgeTier_dbz_1","badgeTier_dbz_2","badgeTier_dbz_3","badgeTier_dbz_4","badgeTier_dbz_5"],
     icons:[
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/normal64.png",
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss1-64.png",
@@ -1964,7 +2004,7 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     ] },
   { key:"op", label:"One Piece", match:n=>n.includes("One Piece"), color:"#0174b0",
     thresholds:[1,100,300,600,1000],
-    tierNames:["Novato","Supernova","Shichibukai","Yonkō","Rey Pirata"],
+    tierNames:["badgeTier_op_1","badgeTier_op_2","badgeTier_op_3","badgeTier_op_4","badgeTier_op_5"],
     icons:[
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/luffy64.png",
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/supernova64.png",
@@ -1974,7 +2014,7 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     ] },
   { key:"naruto", label:"Naruto", match:n=>n.includes("Naruto"), color:"#f97316",
     thresholds:[1,15,45,90,150],
-    tierNames:["Academia Ninja","Genin","Chūnin","Jōnin","Kage"],
+    tierNames:["badgeTier_naruto_1","badgeTier_naruto_2","badgeTier_naruto_3","badgeTier_naruto_4","badgeTier_naruto_5"],
     icons:[
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/konohamaru64.png",
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/naruto64.png",
@@ -1984,7 +2024,7 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     ] },
   { key:"mha", label:"My Hero Academia", match:n=>n.includes("My Hero Academia"), color:"#dc2626",
     thresholds:[1,5,15,30,50],
-    tierNames:["Estudiante","Héroe Novato","Héroe Pro","Top 10","Símbolo de Paz"],
+    tierNames:["badgeTier_mha_1","badgeTier_mha_2","badgeTier_mha_3","badgeTier_mha_4","badgeTier_mha_5"],
     icons:[
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/midoriya64.png",
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/mirio64.png",
@@ -1994,7 +2034,7 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     ] },
   { key:"hxh", label:"Hunter x Hunter", match:n=>n.includes("Hunter"), color:"#059669",
     thresholds:[1,10,30,60,100],
-    tierNames:["Aspirante","Hunter","Especialista","Zodiaco","Presidente"],
+    tierNames:["badgeTier_hxh_1","badgeTier_hxh_2","badgeTier_hxh_3","badgeTier_hxh_4","badgeTier_hxh_5"],
     icons:[
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/tonpa64.png",
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/gon64.png",
@@ -2004,7 +2044,7 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     ] },
   { key:"kny", label:"Kimetsu no Yaiba", match:n=>n.includes("Kimetsu"), color:"#7c3aed",
     thresholds:[1,10,30,60,100],
-    tierNames:["Mizunoto","Cazademonios","Luna Superior","Hashira","Rey Demonio"],
+    tierNames:["badgeTier_kny_1","badgeTier_kny_2","badgeTier_kny_3","badgeTier_kny_4","badgeTier_kny_5"],
     icons:[
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/inosuke64.png",
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/tanjiro64.png",
@@ -2014,7 +2054,7 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     ] },
   { key:"bleach", label:"Bleach", match:n=>n.includes("Bleach"), color:"#6366f1",
     thresholds:[1,10,30,60,100],
-    tierNames:["Sustituto","Shinigami","Espada","Resurreccion","Dios de la Traición"],
+    tierNames:["badgeTier_bleach_1","badgeTier_bleach_2","badgeTier_bleach_3","badgeTier_bleach_4","badgeTier_bleach_5"],
     icons:[
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/ichigo64.png",
       "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/rukia64.png",
@@ -2028,7 +2068,7 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
 const GLOBAL_BADGE = {
   color:"#94a3b8",
   thresholds:[1,100,300,600,1000],
-  tierNames:["Coleccionista Bronce","Coleccionista Plata","Coleccionista Oro","Coleccionista Platino","Coleccionista Diamante"],
+  tierNames:["badgeTier_global_1","badgeTier_global_2","badgeTier_global_3","badgeTier_global_4","badgeTier_global_5"],
   icons:["🥉","🥈","🥇","💎","👑"],
 };
 
@@ -2059,7 +2099,7 @@ function useFigureFranchiseMap(data: Series[]) {
   }, [data]);
 }
 
-function getBadgesForOwnedIds(ownedIds: number[]|undefined, figureFranchiseMap: Map<number,string>) {
+function getBadgesForOwnedIds(ownedIds: number[]|undefined, figureFranchiseMap: Map<number,string>, t: (key: TKey, ...args: unknown[]) => string) {
   if (!ownedIds || ownedIds.length === 0) return [];
   const counts: Record<string,number> = {};
   for (const id of ownedIds) {
@@ -2070,12 +2110,12 @@ function getBadgesForOwnedIds(ownedIds: number[]|undefined, figureFranchiseMap: 
     const count = counts[f.key] ?? 0;
     const tier = tierForCount(count, f.thresholds);
     if (tier === 0) return null;
-    return { key:f.key, icon:f.icons[tier-1], color:f.color, title:`${f.label}: ${count} — ${f.tierNames[tier-1]}` };
+    return { key:f.key, icon:f.icons[tier-1], color:f.color, title:`${f.label}: ${count} — ${t(f.tierNames[tier-1] as TKey)}` };
   }).filter(Boolean) as {key:string;icon:string;color:string;title:string}[];
 
   const globalTier = tierForCount(ownedIds.length, GLOBAL_BADGE.thresholds);
   if (globalTier > 0) {
-    badges.unshift({ key:"global", icon:GLOBAL_BADGE.icons[globalTier-1], color:GLOBAL_BADGE.color, title:`Total: ${ownedIds.length} — ${GLOBAL_BADGE.tierNames[globalTier-1]}` });
+    badges.unshift({ key:"global", icon:GLOBAL_BADGE.icons[globalTier-1], color:GLOBAL_BADGE.color, title:`${t("globalBadgeLabel")}: ${ownedIds.length} — ${t(GLOBAL_BADGE.tierNames[globalTier-1] as TKey)}` });
   }
   return badges;
 }
@@ -2090,7 +2130,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
   const { topUploaders, topCollectors, myUploaderRank, myCollectorRank } = useCommunityLeaderboards(currentUserId);
   const [showBadgeLegend, setShowBadgeLegend] = useState(false);
   const figureFranchiseMap = useFigureFranchiseMap(data);
-  const getBadgesForUser = (ownedIds?: number[]) => getBadgesForOwnedIds(ownedIds, figureFranchiseMap);
+  const getBadgesForUser = (ownedIds?: number[]) => getBadgesForOwnedIds(ownedIds, figureFranchiseMap, t);
 
 
   const allFigs = data.flatMap(s=>[...s.sets,...s.groups.flatMap(g=>g.sets)].flatMap(st=>st.figures.map(f=>({figure:f,series:s,set:st}))));
@@ -2178,7 +2218,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
                 {GLOBAL_BADGE.icons.map((icon,idx)=>(
                   <div key={idx} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:1}}>
                     <BadgeIcon icon={icon} size={26} />
-                    <div style={{fontSize:9,textAlign:"center",color:"var(--text4)"}}>{GLOBAL_BADGE.tierNames[idx]}</div>
+                    <div style={{fontSize:9,textAlign:"center",color:"var(--text4)"}}>{t(GLOBAL_BADGE.tierNames[idx] as TKey)}</div>
                     <div style={{fontSize:9,color:"var(--text4)",opacity:0.7}}>{GLOBAL_BADGE.thresholds[idx]}+</div>
                   </div>
                 ))}
@@ -2192,7 +2232,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
                   {f.icons.map((icon,idx)=>(
                     <div key={idx} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:1}}>
                       <BadgeIcon icon={icon} size={26} />
-                      <div style={{fontSize:9,textAlign:"center",color:"var(--text4)"}}>{f.tierNames[idx]}</div>
+                      <div style={{fontSize:9,textAlign:"center",color:"var(--text4)"}}>{t(f.tierNames[idx] as TKey)}</div>
                       <div style={{fontSize:9,color:"var(--text4)",opacity:0.7}}>{f.thresholds[idx]}+</div>
                     </div>
                   ))}
