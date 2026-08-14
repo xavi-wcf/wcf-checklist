@@ -672,9 +672,8 @@ function useCommunityStats() {
 
 type LeaderboardEntry = { userId: string; name: string; count: number; ownedIds?: number[] };
 
-function usePendingPhotosCount() {
+function usePendingPhotosCount(isAdmin: boolean) {
   const [count, setCount] = useState(0);
-  const isAdmin = useAdmin();
   const load = useCallback(() => {
     supabase.from("wcf_photos").select("id", { count: "exact", head: true }).eq("approved", false)
       .then(({ count: c }) => setCount(c ?? 0));
@@ -2844,7 +2843,7 @@ export default function App() {
   // Favourites — stored in localStorage
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
-  const { count: pendingPhotosCount, refresh: refreshPendingCount } = usePendingPhotosCount();
+  const { count: pendingPhotosCount, refresh: refreshPendingCount } = usePendingPhotosCount(isAdmin);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
