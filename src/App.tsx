@@ -320,6 +320,8 @@ const T = {
   photosCount:    { es: "fotos",                   en: "photos",                       th: "รูปภาพ" , fr: "photos" , vi: "ảnh" , ja: "枚", zh: "张照片" },
   figuresCount:   { es: "figuras",                 en: "figures",                      th: "ฟิกเกอร์" , fr: "figurines" , vi: "mô hình" , ja: "体", zh: "个手办" },
   noLeaderboardData: { es: "Todavía no hay datos suficientes", en: "Not enough data yet", th: "ยังไม่มีข้อมูลเพียงพอ" , fr: "Pas encore assez de données" , vi: "Chưa đủ dữ liệu" , ja: "まだデータがありません", zh: "暂无足够数据" },
+  mostCollected:  { es: "Top más coleccionadas",   en: "Top most collected",           th: "Top ที่สะสมมากที่สุด" , fr: "Top les plus collectionnées" , vi: "Top được sưu tầm nhiều nhất" , ja: "Top 最も集められた", zh: "Top 收藏最多" },
+  mostWished:     { es: "Top más deseadas",        en: "Top most wished",              th: "Top ที่ต้องการมากที่สุด" , fr: "Top les plus désirées" , vi: "Top được mong muốn nhiều nhất" , ja: "Top 最も欲しい", zh: "Top 最想要" },
   favSeries:      { es: "⭐ Series favoritas",    en: "⭐ Favourite series",          th: "⭐ ซีรีส์โปรด" , fr: "⭐ Séries favorites" , vi: "⭐ Series yêu thích" , ja: "⭐ お気に入りシリーズ", zh: "⭐ 喜爱系列" },
   noFavSeries:    { es: "Selecciona tus series favoritas para ver tus estadísticas.", en: "Select your favourite series to see your stats.", th: "เลือกซีรีส์โปรดเพื่อดูสถิติ" , fr: "Sélectionne tes séries favorites pour voir tes statistiques." , vi: "Chọn series yêu thích để xem thống kê." , ja: "お気に入りシリーズを選んで統計を確認しましょう。", zh: "选择您喜爱的系列以查看统计数据。" },
   statsTotalOwned:{ es: "Figuras obtenidas",      en: "Figures owned",               th: "ตัวเลขที่มี" , fr: "Figurines obtenues" , vi: "Nhân vật đã có" , ja: "所持フィギュア数", zh: "已拥有人偶" },
@@ -1921,16 +1923,6 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
             </div>
           </div>
 
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 Most collected</div>
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
-            {topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0174b0" />)}
-          </div>
-
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>💛 Most wished</div>
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
-            {topWished.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#f59e0b" />)}
-          </div>
-
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 {t("topUploaders")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
             {topUploaders.length > 0
@@ -1939,10 +1931,20 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
           </div>
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📦 {t("topCollectors")}</div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
             {topCollectors.length > 0
               ? topCollectors.map((entry,i)=><UserRankRow key={entry.userId} entry={entry} i={i} color="#10b981" unitLabel={t("figuresCount")} />)
               : <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"12px 0"}}>{t("noLeaderboardData")}</div>}
+          </div>
+
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>🏆 {t("mostCollected")}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
+            {topOwned.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#0174b0" />)}
+          </div>
+
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>💛 {t("mostWished")}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {topWished.map((item,i)=><RankRow key={item.id} item={item} i={i} color="#f59e0b" />)}
           </div>
         </>
       ) : (
@@ -2263,7 +2265,10 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${months[parseInt(m)-1]} ${y}`; };
   const { photos } = useFigurePhotos(figure.id);
   const [uploading, setUploading] = useState(false);
-  const [zoomPhoto, setZoomPhoto] = useState<UserPhoto|null>(null);
+  const [zoomPhotoIndex, setZoomPhotoIndex] = useState<number|null>(null);
+  const zoomPhoto = zoomPhotoIndex !== null ? photos[zoomPhotoIndex] : null;
+  const zoomPrev = () => setZoomPhotoIndex(i => i===null ? null : (i - 1 + photos.length) % photos.length);
+  const zoomNext = () => setZoomPhotoIndex(i => i===null ? null : (i + 1) % photos.length);
   const [uploadDone, setUploadDone] = useState(false);
   const [uploadError, setUploadError] = useState<string|null>(null);
 
@@ -2287,9 +2292,18 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
       {zoomPhoto && (
-        <div onClick={e=>{e.stopPropagation();setZoomPhoto(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-          <div style={{position:"relative",maxWidth:"100%",maxHeight:"90vh"}}>
+        <div onClick={e=>{e.stopPropagation();setZoomPhotoIndex(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{position:"relative",maxWidth:"100%",maxHeight:"90vh"}} onClick={e=>e.stopPropagation()}>
             <img src={zoomPhoto.url} alt="zoom" style={{display:"block",maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
+            {photos.length > 1 && (
+              <>
+                <button onClick={zoomPrev} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+                <button onClick={zoomNext} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+                <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.5)",color:"#fff",fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20}}>
+                  {(zoomPhotoIndex??0)+1} / {photos.length}
+                </div>
+              </>
+            )}
             <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:8,maxWidth:"80%",textAlign:"right"}}>
               {t("uploadedBy")} {zoomPhoto.uploader_name ?? zoomPhoto.uploader_email ?? t("communityMember")}
             </div>
@@ -2340,8 +2354,8 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 Community photos ({photos.length})</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-                {photos.map(p=>(
-                  <div key={p.id} onClick={()=>setZoomPhoto(p)} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",cursor:"zoom-in",background:"var(--missing-bg)"}}>
+                {photos.map((p,i)=>(
+                  <div key={p.id} onClick={()=>setZoomPhotoIndex(i)} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",cursor:"zoom-in",background:"var(--missing-bg)"}}>
                     <img src={p.url} alt="community" style={{width:"100%",height:"100%",objectFit:"cover"}} />
                   </div>
                 ))}
