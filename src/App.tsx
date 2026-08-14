@@ -1836,7 +1836,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
         <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:10}}>🎖️ {t("myBadges")}</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           {myBadgeProgress.map(b => (
-            <div key={b.key} style={{borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center",opacity:b.tier>0?1:0.5}}>
+            <div key={b.key} style={{minWidth:0,borderRadius:12,padding:"12px 10px",background:"var(--bg2)",border:"1px solid var(--border)",textAlign:"center",opacity:b.tier>0?1:0.5}}>
               <div style={{display:"flex",justifyContent:"center",marginBottom:6}}>
                 <BadgeIcon icon={b.icon} size={28} />
               </div>
