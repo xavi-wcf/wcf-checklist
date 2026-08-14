@@ -1891,7 +1891,13 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
   { key:"op", label:"One Piece", match:n=>n.includes("One Piece"), color:"#0174b0",
     thresholds:[1,100,300,600,1000],
     tierNames:["Novato","Supernova","Shichibukai","Yonkō","Rey Pirata"],
-    icons:["🏴‍☠️","⚡","⚔️","👑","💰"] },
+    icons:[
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/luffy64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/law64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/shichibukai64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/yonko64.png",
+      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/king64.png"
+    ] },
   { key:"naruto", label:"Naruto", match:n=>n.includes("Naruto"), color:"#f97316",
     thresholds:[1,15,45,90,150],
     tierNames:["Academia Ninja","Genin","Chūnin","Jōnin","Kage"],
