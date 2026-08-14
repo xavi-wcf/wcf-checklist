@@ -2003,25 +2003,33 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
 
   const UserRankRow = ({entry,i,rankColor,unitLabel,badges}:{entry:LeaderboardEntry;i:number;rankColor:string;unitLabel:string;badges?:{key:string;icon:string;color:string;title:string}[]}) => {
     const avatarColor = colorForUser(entry.userId);
+    const [activeBadge, setActiveBadge] = useState<string|null>(null);
     return (
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
-        <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:avatarColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff"}}>
-          {entry.name?.[0]?.toUpperCase() ?? "?"}
+      <div style={{padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
+          <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:avatarColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff"}}>
+            {entry.name?.[0]?.toUpperCase() ?? "?"}
+          </div>
+          <div style={{flex:1,minWidth:0,fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{entry.name}</div>
+          <div style={{fontSize:11,fontWeight:700,color:rankColor}}>{entry.count} {unitLabel}</div>
         </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{entry.name}</div>
-          {badges && badges.length > 0 && (
-            <div style={{display:"flex",gap:3,marginTop:3,flexWrap:"wrap"}}>
+        {badges && badges.length > 0 && (
+          <>
+            <div style={{display:"flex",gap:8,marginTop:6,justifyContent:"center",flexWrap:"wrap"}}>
               {badges.map(b=>(
-                <span key={b.key} title={b.title} style={{fontSize:11,background:b.color+"22",border:`1px solid ${b.color}55`,borderRadius:6,padding:"2px 5px",display:"inline-flex",alignItems:"center",lineHeight:1}}>
-                  <BadgeIcon icon={b.icon} size={13} />
+                <span key={b.key} title={b.title} onClick={()=>setActiveBadge(prev=>prev===b.key?null:b.key)} style={{cursor:"pointer",display:"inline-flex",alignItems:"center"}}>
+                  <BadgeIcon icon={b.icon} size={20} />
                 </span>
               ))}
             </div>
-          )}
-        </div>
-        <div style={{fontSize:11,fontWeight:700,color:rankColor}}>{entry.count} {unitLabel}</div>
+            {activeBadge && (
+              <div style={{fontSize:10,color:"var(--text4)",textAlign:"center",marginTop:4}}>
+                {badges.find(b=>b.key===activeBadge)?.title}
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
   };
