@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wcf-checklist-v94';
+const CACHE_NAME = 'wcf-checklist-v96';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -23,8 +23,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('supabase.co') ||
       event.request.url.includes('imgbb.com') ||
+      event.request.url.includes('ibb.com') ||
       event.request.url.includes('ibb.co') ||
-      event.request.url.includes('google.com')) {
+      event.request.url.includes('google.com') ||
+      event.request.url.includes('r2.dev') ||
+      event.request.url.includes('r2.cloudflarestorage.com') ||
+      event.request.url.includes('/api/') ||
+      event.request.method !== 'GET') {
     return;
   }
   event.respondWith(
