@@ -577,28 +577,63 @@ const EMOJIS = ["⭐","🔥","💥","🎯","🐉","☠️","🗡️","💜","�
 let _idCounter = Date.now();
 function newId() { return ++_idCounter; }
 
+// Convierte un Blob/File a un string base64 puro (sin el prefijo "data:...;base64,")
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.includes(",") ? result.split(",")[1] : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function uploadToR2(blob: Blob | File): Promise<string> {
   const contentType = (blob as File).type || "image/jpeg";
+  const imageBase64 = await blobToBase64(blob);
 
-  // 1. Pedimos al backend (función serverless) una URL firmada de subida.
-  //    El secret de R2 nunca sale del servidor, solo vive en Vercel.
-  const signRes = await fetch("/api/upload", {
+  // Subimos la imagen a través de nuestro propio backend (Vercel),
+  // que la reenvía a Cloudflare R2 desde el servidor. Así el navegador
+  // del usuario nunca tiene que hablar directamente con el dominio
+  // genérico de R2 (r2.cloudflarestorage.com), que puede ser inestable
+  // o estar bloqueado en algunos países (igual que pasaba con *.vercel.app).
+  const res = await fetch("/api/upload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contentType }),
+    body: JSON.stringify({ contentType, imageBase64 }),
   });
-  if (!signRes.ok) throw new Error("Error obteniendo URL de subida");
-  const { uploadUrl, publicUrl } = await signRes.json();
-
-  // 2. Subimos el archivo directamente a Cloudflare R2 (sin pasar por Vercel)
-  const putRes = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
-  if (!putRes.ok) throw new Error("Error subiendo la imagen a R2");
-
+  if (!res.ok) throw new Error("Error subiendo la imagen");
+  const { publicUrl } = await res.json();
   return publicUrl as string;
+}
+
+// Redimensiona/comprime una imagen antes de subirla, para que las fotos
+// que la gente sube desde la cámara del móvil (que pueden pesar varios MB)
+// no se acerquen al límite de la función serverless ni tarden de más en subir.
+function compressImageForUpload(file: File, maxDimension = 1600, quality = 0.82): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        const scale = maxDimension / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("No canvas context")); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error("toBlob failed")), "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Error loading image")); };
+    img.src = url;
+  });
 }
 
 // ImgBB key from environment variable (set in Vercel dashboard)
@@ -2713,7 +2748,8 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
     setUploading(true);
     setUploadError(null);
     try {
-      const url = await uploadToR2(file);
+      const compressed = await compressImageForUpload(file);
+      const url = await uploadToR2(compressed);
       await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, uploader_name: uploaderName, approved: false });
       setUploadDone(true);
     } catch(e) {
