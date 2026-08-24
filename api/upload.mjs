@@ -26,6 +26,15 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "crypto";
 
+// Por defecto, Vercel corta las funciones serverless a los pocos segundos.
+// Con usuarios en países con conexión más lenta/inestable hacia servidores
+// internacionales (ej. China), una subida de imagen puede tardar más de eso
+// y cortarse a medias. Ampliamos el margen a 60s (máximo permitido en el
+// plan Hobby) para darle tiempo de sobra a esas conexiones más lentas.
+export const config = {
+  maxDuration: 60,
+};
+
 const s3 = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,

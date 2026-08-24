@@ -612,7 +612,7 @@ async function uploadToR2(blob: Blob | File): Promise<string> {
 // Redimensiona/comprime una imagen antes de subirla, para que las fotos
 // que la gente sube desde la cámara del móvil (que pueden pesar varios MB)
 // no se acerquen al límite de la función serverless ni tarden de más en subir.
-function compressImageForUpload(file: File, maxDimension = 1600, quality = 0.82): Promise<Blob> {
+function compressImageForUpload(file: File, maxDimension = 1280, quality = 0.75): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -2749,7 +2749,15 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
     setUploadError(null);
     try {
       const compressed = await compressImageForUpload(file);
-      const url = await uploadToR2(compressed);
+      let url: string;
+      try {
+        url = await uploadToR2(compressed);
+      } catch {
+        // Reintento automático: en conexiones lentas/inestables (ej. redes
+        // internacionales desde algunos países), un fallo puntual de red no
+        // significa que la subida no vaya a funcionar en un segundo intento.
+        url = await uploadToR2(compressed);
+      }
       await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, uploader_name: uploaderName, approved: false });
       setUploadDone(true);
     } catch(e) {
