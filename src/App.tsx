@@ -2771,6 +2771,11 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
       {zoomPhoto && (
         <div onClick={e=>{e.stopPropagation();setZoomPhotoIndex(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <button onClick={e=>{e.stopPropagation();setZoomPhotoIndex(null);}}
+            style={{position:"absolute",top:16,right:16,zIndex:401,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:40,height:40,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}
+            aria-label="Close">
+            ✕
+          </button>
           <div style={{position:"relative",maxWidth:"100%",maxHeight:"90vh"}} onClick={e=>e.stopPropagation()}>
             <img src={zoomPhoto.url} alt="zoom" style={{display:"block",maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
             {photos.length > 1 && (
