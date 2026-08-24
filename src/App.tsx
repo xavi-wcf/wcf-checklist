@@ -450,6 +450,7 @@ const T = {
   namePlaceholder:     { es: "Tu nombre o apodo", en: "Your name or nickname", th: "ชื่อหรือชื่อเล่นของคุณ", fr: "Ton nom ou pseudo", vi: "Tên hoặc biệt danh của bạn", ja: "名前またはニックネーム", zh: "你的名字或昵称" },
   saveName:            { es: "Continuar", en: "Continue", th: "ดำเนินการต่อ", fr: "Continuer", vi: "Tiếp tục", ja: "続ける", zh: "继续" },
   nameRequired:        { es: "Escribe un nombre para continuar", en: "Enter a name to continue", th: "กรอกชื่อเพื่อดำเนินการต่อ", fr: "Entre un nom pour continuer", vi: "Nhập tên để tiếp tục", ja: "続けるには名前を入力してください", zh: "请输入名字以继续" },
+  checkSpamNote:       { es: "¿No lo ves? Revisa también la carpeta de spam / no deseado.", en: "Don't see it? Check your spam / junk folder too.", th: "ไม่เห็นอีเมล? ลองตรวจสอบโฟลเดอร์สแปมด้วย", fr: "Tu ne le vois pas ? Vérifie aussi ton dossier spam.", vi: "Không thấy email? Hãy kiểm tra cả thư mục spam.", ja: "届かない場合は迷惑メールフォルダもご確認ください。", zh: "没收到？也请检查一下垃圾邮件文件夹。" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -2655,6 +2656,7 @@ function OnboardingModal({ onLogin, onEmailLogin, onGuest }: { onLogin:()=>void;
         {status === "sent" ? (
           <div style={{fontSize:12,color:"#0196e3",background:"var(--bg2)",borderRadius:10,padding:"12px 10px",marginBottom:12}}>
             {t("magicLinkSent")}
+            <div style={{fontSize:10,color:"var(--text4)",marginTop:6}}>{t("checkSpamNote")}</div>
           </div>
         ) : (
           <>
@@ -3007,6 +3009,7 @@ function LoginModal({ onClose, onGoogle, onEmailLogin }: { onClose:()=>void; onG
         {status === "sent" ? (
           <div style={{fontSize:12,color:"#0196e3",background:"var(--bg2)",borderRadius:10,padding:"12px 10px"}}>
             {t("magicLinkSent")}
+            <div style={{fontSize:10,color:"var(--text4)",marginTop:6}}>{t("checkSpamNote")}</div>
           </div>
         ) : (
           <>
