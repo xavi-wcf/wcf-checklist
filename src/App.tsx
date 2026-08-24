@@ -2613,8 +2613,19 @@ function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:o
 // ============================================================
 //  ONBOARDING MODAL
 // ============================================================
-function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>void }) {
+function OnboardingModal({ onLogin, onEmailLogin, onGuest }: { onLogin:()=>void; onEmailLogin:(email:string)=>Promise<{error:unknown}>; onGuest:()=>void }) {
   const { t } = useTr();
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
+
+  const handleSendLink = async () => {
+    if (!email.includes("@") || !email.includes(".")) { setStatus("error"); return; }
+    setStatus("sending");
+    const { error } = await onEmailLogin(email);
+    if (!error) localStorage.setItem("wcf_onboarded","1");
+    setStatus(error ? "error" : "sent");
+  };
+
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"var(--bg)",borderRadius:20,padding:28,width:"100%",maxWidth:360,boxShadow:"0 12px 40px rgba(0,0,0,0.3)",textAlign:"center"}}>
@@ -2630,10 +2641,40 @@ function OnboardingModal({ onLogin, onGuest }: { onLogin:()=>void; onGuest:()=>v
           </div>
         )}
         <button onClick={onLogin}
-          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:10}}>
+          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
           {t("onboardLogin")}
         </button>
+
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+          <div style={{flex:1,height:1,background:"var(--border)"}} />
+          <div style={{fontSize:11,color:"var(--text4)"}}>{t("orContinueWithEmail")}</div>
+          <div style={{flex:1,height:1,background:"var(--border)"}} />
+        </div>
+
+        {status === "sent" ? (
+          <div style={{fontSize:12,color:"#0196e3",background:"var(--bg2)",borderRadius:10,padding:"12px 10px",marginBottom:12}}>
+            {t("magicLinkSent")}
+          </div>
+        ) : (
+          <>
+            <input
+              type="email"
+              value={email}
+              onChange={e=>{ setEmail(e.target.value); if(status==="error") setStatus("idle"); }}
+              placeholder={t("emailPlaceholder")}
+              style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:8,boxSizing:"border-box"}}
+            />
+            {status === "error" && (
+              <div style={{fontSize:11,color:"#dc2626",marginBottom:8}}>{t("invalidEmail")}</div>
+            )}
+            <button onClick={handleSendLink} disabled={status==="sending"}
+              style={{width:"100%",padding:"11px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",cursor:status==="sending"?"default":"pointer",fontSize:13,fontWeight:700,marginBottom:16,opacity:status==="sending"?0.7:1}}>
+              {status==="sending" ? t("sendingLink") : t("sendMagicLink")}
+            </button>
+          </>
+        )}
+
         <button onClick={onGuest}
           style={{width:"100%",padding:"11px",borderRadius:12,border:"1px solid var(--border)",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
           {t("onboardGuest")}
@@ -3827,6 +3868,7 @@ export default function App() {
       {user && !user.name && <ChooseNameModal onSave={updateName} />}
       {showOnboarding && <OnboardingModal
         onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
+        onEmailLogin={signInWithEmail}
         onGuest={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); }}
       />}
       {detailFigureCol && (
