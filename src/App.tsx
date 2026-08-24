@@ -419,6 +419,26 @@ const T = {
   signOut:        { es: "Cerrar sesión",          en: "Sign out",                    th: "ออกจากระบบ" , fr: "Se déconnecter" , vi: "Đăng xuất" , ja: "ログアウト", zh: "退出登录" },
   signInToMark:   { es: "Inicia sesión para marcar figuras", en: "Sign in to mark figures", th: "เข้าสู่ระบบเพื่อทำเครื่องหมาย" , fr: "Connecte-toi pour marquer des figurines" , vi: "Đăng nhập để đánh dấu nhân vật" , ja: "フィギュアにチェックするにはログインしてください", zh: "请登录以标记人偶" },
   guestMode:      { es: "Modo invitado",          en: "Guest mode",                  th: "โหมดผู้เยี่ยมชม" , fr: "Mode invité" , vi: "Chế độ khách" , ja: "ゲストモード", zh: "访客模式" },
+  communityOwnLabel:   { es: "coleccionistas la tienen", en: "collectors own this", th: "นักสะสมมีตัวนี้", fr: "collectionneurs l'ont", vi: "nhà sưu tầm sở hữu", ja: "コレクターが所持", zh: "收藏家拥有" },
+  communityWishLabel:  { es: "en wishlists", en: "on wishlists", th: "ในรายการปรารถนา", fr: "en liste de souhaits", vi: "trong danh sách yêu thích", ja: "ウィッシュリストに登録", zh: "在愿望清单中" },
+  figureOwnedBtn:      { es: "✓ Obtenida", en: "✓ Owned", th: "✓ มีแล้ว", fr: "✓ Possédée", vi: "✓ Đã có", ja: "✓ 所持済み", zh: "✓ 已拥有" },
+  figureMarkOwnedBtn:  { es: "Marcar como obtenida", en: "Mark as owned", th: "ทำเครื่องหมายว่ามีแล้ว", fr: "Marquer comme possédée", vi: "Đánh dấu đã có", ja: "所持済みにする", zh: "标记为已拥有" },
+  communityPhotosHeader: {
+    es: (n: number) => `📸 Fotos de la comunidad (${n})`,
+    en: (n: number) => `📸 Community photos (${n})`,
+    th: (n: number) => `📸 รูปภาพจากชุมชน (${n})`,
+    fr: (n: number) => `📸 Photos de la communauté (${n})`,
+    vi: (n: number) => `📸 Ảnh từ cộng đồng (${n})`,
+    ja: (n: number) => `📸 コミュニティの写真 (${n})`,
+    zh: (n: number) => `📸 社区照片 (${n})`,
+  },
+  photoSubmitted:      { es: "✅ ¡Foto enviada! Aparecerá tras revisarla.", en: "✅ Photo submitted! It will appear after review.", th: "✅ ส่งรูปภาพแล้ว! จะปรากฏหลังตรวจสอบ", fr: "✅ Photo envoyée ! Elle apparaîtra après validation.", vi: "✅ Đã gửi ảnh! Ảnh sẽ hiện sau khi được duyệt.", ja: "✅ 写真を送信しました！審査後に表示されます。", zh: "✅ 照片已提交！审核后将会显示。" },
+  sharePhotoPrompt:    { es: "Comparte tu foto de esta figura:", en: "Share your photo of this figure:", th: "แชร์รูปตัวเลขนี้ของคุณ:", fr: "Partage ta photo de cette figurine :", vi: "Chia sẻ ảnh của nhân vật này:", ja: "このフィギュアの写真をシェア：", zh: "分享你这个人偶的照片：" },
+  galleryBtn:          { es: "🖼️ Galería", en: "🖼️ Gallery", th: "🖼️ แกลเลอรี", fr: "🖼️ Galerie", vi: "🖼️ Thư viện", ja: "🖼️ ギャラリー", zh: "🖼️ 相册" },
+  cameraBtn:           { es: "📷 Cámara", en: "📷 Camera", th: "📷 กล้อง", fr: "📷 Appareil photo", vi: "📷 Máy ảnh", ja: "📷 カメラ", zh: "📷 相机" },
+  photosReviewedNote:  { es: "Las fotos se revisan antes de publicarse", en: "Photos are reviewed before appearing", th: "รูปภาพจะถูกตรวจสอบก่อนแสดง", fr: "Les photos sont vérifiées avant publication", vi: "Ảnh sẽ được duyệt trước khi hiển thị", ja: "写真は表示前に審査されます", zh: "照片在显示前会经过审核" },
+  uploadNetworkError:  { es: "Error de red al subir. Inténtalo de nuevo.", en: "Network error while uploading. Try again.", th: "เกิดข้อผิดพลาดเครือข่ายขณะอัปโหลด ลองใหม่อีกครั้ง", fr: "Erreur réseau lors de l'envoi. Réessaie.", vi: "Lỗi mạng khi tải lên. Vui lòng thử lại.", ja: "アップロード中にネットワークエラーが発生しました。再試行してください。", zh: "上传时发生网络错误，请重试。" },
+  loginToSharePhoto:   { es: "Inicia sesión para compartir tu foto de esta figura", en: "Log in to share your photo of this figure", th: "เข้าสู่ระบบเพื่อแชร์รูปตัวเลขนี้", fr: "Connecte-toi pour partager ta photo de cette figurine", vi: "Đăng nhập để chia sẻ ảnh của nhân vật này", ja: "ログインしてこのフィギュアの写真をシェア", zh: "登录以分享你这个人偶的照片" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -2011,71 +2031,71 @@ const FRANCHISES: { key:string; label:string; match:(name:string)=>boolean; colo
     thresholds:[1,50,150,300,500],
     tierNames:["badgeTier_dbz_1","badgeTier_dbz_2","badgeTier_dbz_3","badgeTier_dbz_4","badgeTier_dbz_5"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/normal64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss1-64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss3-64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ss4-64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/ssg-64.png"
+      "https://img.wcfchecklist.com/badges/normal64.png",
+      "https://img.wcfchecklist.com/badges/ss1-64.png",
+      "https://img.wcfchecklist.com/badges/ss3-64.png",
+      "https://img.wcfchecklist.com/badges/ss4-64.png",
+      "https://img.wcfchecklist.com/badges/ssg-64.png"
     ] },
   { key:"op", label:"One Piece", match:n=>n.includes("One Piece"), color:"#0174b0",
     thresholds:[1,100,300,600,1000],
     tierNames:["badgeTier_op_1","badgeTier_op_2","badgeTier_op_3","badgeTier_op_4","badgeTier_op_5"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/luffy64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/supernova64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/shichibukai64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/yonko64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/One%20Piece/king64.png"
+      "https://img.wcfchecklist.com/badges/One%20Piece/luffy64.png",
+      "https://img.wcfchecklist.com/badges/One%20Piece/supernova64.png",
+      "https://img.wcfchecklist.com/badges/One%20Piece/shichibukai64.png",
+      "https://img.wcfchecklist.com/badges/One%20Piece/yonko64.png",
+      "https://img.wcfchecklist.com/badges/One%20Piece/king64.png"
     ] },
   { key:"naruto", label:"Naruto", match:n=>n.includes("Naruto"), color:"#f97316",
     thresholds:[1,15,45,90,150],
     tierNames:["badgeTier_naruto_1","badgeTier_naruto_2","badgeTier_naruto_3","badgeTier_naruto_4","badgeTier_naruto_5"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/konohamaru64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/naruto64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/rocklee64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/kakashi64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Naruto/hokage64.png"
+      "https://img.wcfchecklist.com/badges/Naruto/konohamaru64.png",
+      "https://img.wcfchecklist.com/badges/Naruto/naruto64.png",
+      "https://img.wcfchecklist.com/badges/Naruto/rocklee64.png",
+      "https://img.wcfchecklist.com/badges/Naruto/kakashi64.png",
+      "https://img.wcfchecklist.com/badges/Naruto/hokage64.png"
     ] },
   { key:"mha", label:"My Hero Academia", match:n=>n.includes("My Hero Academia"), color:"#dc2626",
     thresholds:[1,5,15,30,50],
     tierNames:["badgeTier_mha_1","badgeTier_mha_2","badgeTier_mha_3","badgeTier_mha_4","badgeTier_mha_5"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/midoriya64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/mirio64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/mount64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/hawks64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/My%20Hero%20Academia/allmight64.png"
+      "https://img.wcfchecklist.com/badges/My%20Hero%20Academia/midoriya64.png",
+      "https://img.wcfchecklist.com/badges/My%20Hero%20Academia/mirio64.png",
+      "https://img.wcfchecklist.com/badges/My%20Hero%20Academia/mount64.png",
+      "https://img.wcfchecklist.com/badges/My%20Hero%20Academia/hawks64.png",
+      "https://img.wcfchecklist.com/badges/My%20Hero%20Academia/allmight64.png"
     ] },
   { key:"hxh", label:"Hunter x Hunter", match:n=>n.includes("Hunter"), color:"#059669",
     thresholds:[1,10,30,60,100],
     tierNames:["badgeTier_hxh_1","badgeTier_hxh_2","badgeTier_hxh_3","badgeTier_hxh_4","badgeTier_hxh_5"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/tonpa64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/gon64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/hisoka64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/ging64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Hunter/netero64.png"
+      "https://img.wcfchecklist.com/badges/Hunter/tonpa64.png",
+      "https://img.wcfchecklist.com/badges/Hunter/gon64.png",
+      "https://img.wcfchecklist.com/badges/Hunter/hisoka64.png",
+      "https://img.wcfchecklist.com/badges/Hunter/ging64.png",
+      "https://img.wcfchecklist.com/badges/Hunter/netero64.png"
     ] },
   { key:"kny", label:"Kimetsu no Yaiba", match:n=>n.includes("Kimetsu"), color:"#7c3aed",
     thresholds:[1,10,30,60,100],
     tierNames:["badgeTier_kny_1","badgeTier_kny_2","badgeTier_kny_3","badgeTier_kny_4","badgeTier_kny_5"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/inosuke64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/tanjiro64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/akaza64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/rengoku64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Kimetsu%20no%20Yaiba/muzan64.png"
+      "https://img.wcfchecklist.com/badges/Kimetsu%20no%20Yaiba/inosuke64.png",
+      "https://img.wcfchecklist.com/badges/Kimetsu%20no%20Yaiba/tanjiro64.png",
+      "https://img.wcfchecklist.com/badges/Kimetsu%20no%20Yaiba/akaza64.png",
+      "https://img.wcfchecklist.com/badges/Kimetsu%20no%20Yaiba/rengoku64.png",
+      "https://img.wcfchecklist.com/badges/Kimetsu%20no%20Yaiba/muzan64.png"
     ] },
   { key:"bleach", label:"Bleach", match:n=>n.includes("Bleach"), color:"#6366f1",
     thresholds:[1,10,30,60,100],
     tierNames:["badgeTier_bleach_1","badgeTier_bleach_2","badgeTier_bleach_3","badgeTier_bleach_4","badgeTier_bleach_5"],
     icons:[
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/ichigo64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/rukia64.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/nelliel.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/ulquiorra.png",
-      "https://pub-03ac1038a560492aa3ebc74e67fa254b.r2.dev/badges/Bleach/aizen64.png"
+      "https://img.wcfchecklist.com/badges/Bleach/ichigo64.png",
+      "https://img.wcfchecklist.com/badges/Bleach/rukia64.png",
+      "https://img.wcfchecklist.com/badges/Bleach/nelliel.png",
+      "https://img.wcfchecklist.com/badges/Bleach/ulquiorra.png",
+      "https://img.wcfchecklist.com/badges/Bleach/aizen64.png"
     ] },
 ];
 
@@ -2628,8 +2648,8 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   communityOwned: number; communityWished: number;
   userId?: string;
 }) {
-  const { t } = useTr();
-  const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${months[parseInt(m)-1]} ${y}`; };
+  const { t, lang } = useTr();
+  const formatDate = (d?: string) => { if(!d) return null; const [y,m]=d.split("-"); return `${T.months[lang][parseInt(m)-1]} ${y}`; };
   const { photos } = useFigurePhotos(figure.id);
   const [uploading, setUploading] = useState(false);
   const [zoomPhotoIndex, setZoomPhotoIndex] = useState<number|null>(null);
@@ -2650,7 +2670,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
       await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, uploader_name: uploaderName, approved: false });
       setUploadDone(true);
     } catch(e) {
-      setUploadError("Network error while uploading. Try again.");
+      setUploadError(t("uploadNetworkError"));
       console.error(e);
     }
     setUploading(false);
@@ -2693,23 +2713,23 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
           <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>{series.name} — {set.name}</div>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
             {set.releaseDate && <span style={{fontSize:11,color:"var(--text4)"}}>📅 {formatDate(set.releaseDate)}</span>}
-            <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:5,background:series.category==="oficial"?"#e6f4fd":"#ede9fe",color:series.category==="oficial"?"#0174b0":"#7c3aed"}}>{series.category==="oficial"?"Official":"Resin"}</span>
+            <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:5,background:series.category==="oficial"?"#e6f4fd":"#ede9fe",color:series.category==="oficial"?"#0174b0":"#7c3aed"}}>{series.category==="oficial"?t("officialBadge"):t("resinBadge")}</span>
           </div>
           {/* Community stats */}
           <div style={{display:"flex",gap:8,marginBottom:14}}>
             <div style={{flex:1,background:"var(--bg2)",borderRadius:8,padding:"8px 10px",textAlign:"center",border:"1px solid var(--border)"}}>
               <div style={{fontSize:16,fontWeight:700,color:"#0196e3"}}>{communityOwned}</div>
-              <div style={{fontSize:10,color:"var(--text4)"}}>collectors own this</div>
+              <div style={{fontSize:10,color:"var(--text4)"}}>{t("communityOwnLabel")}</div>
             </div>
             <div style={{flex:1,background:"var(--bg2)",borderRadius:8,padding:"8px 10px",textAlign:"center",border:"1px solid var(--border)"}}>
               <div style={{fontSize:16,fontWeight:700,color:"#f59e0b"}}>{communityWished}</div>
-              <div style={{fontSize:10,color:"var(--text4)"}}>on wishlists</div>
+              <div style={{fontSize:10,color:"var(--text4)"}}>{t("communityWishLabel")}</div>
             </div>
           </div>
           {/* Actions */}
           <div style={{display:"flex",gap:8,marginBottom:14}}>
             <button onClick={onToggle} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:isOwned?series.color:"#0196e3",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700}}>
-              {isOwned ? "✓ Owned" : "Mark as owned"}
+              {isOwned ? t("figureOwnedBtn") : t("figureMarkOwnedBtn")}
             </button>
             <button onClick={onToggleWish} style={{padding:"10px 14px",borderRadius:10,border:`1px solid ${isWished?"#f59e0b":"var(--border)"}`,background:isWished?"#fef3c7":"var(--bg2)",cursor:"pointer",fontSize:16}}>
               {isWished ? "💛" : "🤍"}
@@ -2719,7 +2739,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
           {/* Community photos */}
           {photos.length > 0 && (
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 Community photos ({photos.length})</div>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:8}}>{t("communityPhotosHeader", photos.length)}</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
                 {photos.map((p,i)=>(
                   <div key={p.id} onClick={()=>setZoomPhotoIndex(i)} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",cursor:"zoom-in",background:"var(--missing-bg)"}}>
@@ -2735,24 +2755,24 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
             <div style={{borderTop:"1px solid var(--border)",paddingTop:12}}>
               {uploadDone ? (
                 <div style={{fontSize:12,color:"#0196e3",textAlign:"center",padding:"8px 0"}}>
-                  ✅ Photo submitted! It will appear after review.
+                  {t("photoSubmitted")}
                 </div>
               ) : (
                 <>
-                  <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>Share your photo of this figure:</div>
+                  <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>{t("sharePhotoPrompt")}</div>
                   <div style={{display:"flex",gap:8}}>
                     <label style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"10px",borderRadius:10,border:"1px dashed var(--border)",cursor:"pointer",fontSize:12,color:"var(--text3)",background:"var(--bg2)"}}>
-                      {uploading ? "⏳" : "🖼️ Gallery"}
+                      {uploading ? "⏳" : t("galleryBtn")}
                       <input type="file" accept="image/*" style={{display:"none"}} disabled={uploading}
                         onChange={e=>{ const f=e.target.files?.[0]; if(f) handleUpload(f); }} />
                     </label>
                     <label style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"10px",borderRadius:10,border:"1px dashed var(--border)",cursor:"pointer",fontSize:12,color:"var(--text3)",background:"var(--bg2)"}}>
-                      {uploading ? "⏳" : "📷 Camera"}
+                      {uploading ? "⏳" : t("cameraBtn")}
                       <input type="file" accept="image/*" capture="environment" style={{display:"none"}} disabled={uploading}
                         onChange={e=>{ const f=e.target.files?.[0]; if(f) handleUpload(f); }} />
                     </label>
                   </div>
-                  <div style={{fontSize:10,color:"var(--text4)",marginTop:6,textAlign:"center"}}>Photos are reviewed before appearing</div>
+                  <div style={{fontSize:10,color:"var(--text4)",marginTop:6,textAlign:"center"}}>{t("photosReviewedNote")}</div>
                   {uploadError && (
                     <div style={{fontSize:11,color:"#dc2626",marginTop:8,textAlign:"center",background:"#fee2e2",borderRadius:8,padding:"6px 8px"}}>
                       ⚠️ {uploadError}
@@ -2764,7 +2784,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
           )}
           {!userId && (
             <div style={{borderTop:"1px solid var(--border)",paddingTop:12,fontSize:11,color:"var(--text4)",textAlign:"center"}}>
-              Log in to share your photo of this figure
+              {t("loginToSharePhoto")}
             </div>
           )}
         </div>
