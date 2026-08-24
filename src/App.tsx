@@ -439,6 +439,17 @@ const T = {
   photosReviewedNote:  { es: "Las fotos se revisan antes de publicarse", en: "Photos are reviewed before appearing", th: "รูปภาพจะถูกตรวจสอบก่อนแสดง", fr: "Les photos sont vérifiées avant publication", vi: "Ảnh sẽ được duyệt trước khi hiển thị", ja: "写真は表示前に審査されます", zh: "照片在显示前会经过审核" },
   uploadNetworkError:  { es: "Error de red al subir. Inténtalo de nuevo.", en: "Network error while uploading. Try again.", th: "เกิดข้อผิดพลาดเครือข่ายขณะอัปโหลด ลองใหม่อีกครั้ง", fr: "Erreur réseau lors de l'envoi. Réessaie.", vi: "Lỗi mạng khi tải lên. Vui lòng thử lại.", ja: "アップロード中にネットワークエラーが発生しました。再試行してください。", zh: "上传时发生网络错误，请重试。" },
   loginToSharePhoto:   { es: "Inicia sesión para compartir tu foto de esta figura", en: "Log in to share your photo of this figure", th: "เข้าสู่ระบบเพื่อแชร์รูปตัวเลขนี้", fr: "Connecte-toi pour partager ta photo de cette figurine", vi: "Đăng nhập để chia sẻ ảnh của nhân vật này", ja: "ログインしてこのフィギュアの写真をシェア", zh: "登录以分享你这个人偶的照片" },
+  orContinueWithEmail: { es: "o continúa con tu email", en: "or continue with email", th: "หรือดำเนินการต่อด้วยอีเมล", fr: "ou continue avec ton email", vi: "hoặc tiếp tục bằng email", ja: "またはメールで続ける", zh: "或使用邮箱继续" },
+  emailPlaceholder:    { es: "Tu dirección de email", en: "Your email address", th: "ที่อยู่อีเมลของคุณ", fr: "Ton adresse email", vi: "Địa chỉ email của bạn", ja: "メールアドレス", zh: "你的邮箱地址" },
+  sendMagicLink:       { es: "Enviar enlace de acceso", en: "Send login link", th: "ส่งลิงก์เข้าสู่ระบบ", fr: "Envoyer le lien de connexion", vi: "Gửi liên kết đăng nhập", ja: "ログインリンクを送信", zh: "发送登录链接" },
+  sendingLink:         { es: "Enviando...", en: "Sending...", th: "กำลังส่ง...", fr: "Envoi...", vi: "Đang gửi...", ja: "送信中...", zh: "发送中..." },
+  magicLinkSent:       { es: "✅ Revisa tu correo: te hemos enviado un enlace para entrar.", en: "✅ Check your email: we've sent you a login link.", th: "✅ ตรวจสอบอีเมลของคุณ: เราได้ส่งลิงก์เข้าสู่ระบบให้แล้ว", fr: "✅ Vérifie tes emails : on t'a envoyé un lien de connexion.", vi: "✅ Kiểm tra email của bạn: chúng tôi đã gửi liên kết đăng nhập.", ja: "✅ メールをご確認ください：ログインリンクを送信しました。", zh: "✅ 请查收邮箱：我们已发送登录链接。" },
+  invalidEmail:        { es: "Introduce un email válido", en: "Enter a valid email", th: "กรุณากรอกอีเมลที่ถูกต้อง", fr: "Entre un email valide", vi: "Nhập email hợp lệ", ja: "有効なメールアドレスを入力してください", zh: "请输入有效邮箱" },
+  chooseNameTitle:     { es: "Elige un nombre público", en: "Choose a display name", th: "เลือกชื่อที่แสดงต่อสาธารณะ", fr: "Choisis un nom public", vi: "Chọn tên hiển thị", ja: "表示名を選んでください", zh: "选择一个公开显示的名字" },
+  chooseNameDesc:      { es: "Se mostrará en las fotos que compartas y en los rankings, en vez de tu email.", en: "This will show on photos you share and on rankings, instead of your email.", th: "จะแสดงบนรูปภาพที่คุณแชร์และในการจัดอันดับ แทนอีเมลของคุณ", fr: "Il apparaîtra sur les photos que tu partages et dans les classements, à la place de ton email.", vi: "Tên này sẽ hiển thị trên ảnh bạn chia sẻ và trong bảng xếp hạng, thay vì email của bạn.", ja: "共有した写真やランキングにメールアドレスの代わりに表示されます。", zh: "将显示在你分享的照片和排行榜上，而不是你的邮箱。" },
+  namePlaceholder:     { es: "Tu nombre o apodo", en: "Your name or nickname", th: "ชื่อหรือชื่อเล่นของคุณ", fr: "Ton nom ou pseudo", vi: "Tên hoặc biệt danh của bạn", ja: "名前またはニックネーム", zh: "你的名字或昵称" },
+  saveName:            { es: "Continuar", en: "Continue", th: "ดำเนินการต่อ", fr: "Continuer", vi: "Tiếp tục", ja: "続ける", zh: "继续" },
+  nameRequired:        { es: "Escribe un nombre para continuar", en: "Enter a name to continue", th: "กรอกชื่อเพื่อดำเนินการต่อ", fr: "Entre un nom pour continuer", vi: "Nhập tên để tiếp tục", ja: "続けるには名前を入力してください", zh: "请输入名字以继续" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -630,9 +641,18 @@ function useAuth() {
     provider: "google",
     options: { redirectTo: window.location.origin }
   });
+  const signInWithEmail = (email: string) => supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin }
+  });
+  const updateName = async (name: string) => {
+    const { error } = await supabase.auth.updateUser({ data: { full_name: name } });
+    if (!error) setUser(u => u ? { ...u, name } : u);
+    return { error };
+  };
   const signOut = () => supabase.auth.signOut();
 
-  return { user, authReady, signInWithGoogle, signOut };
+  return { user, authReady, signInWithGoogle, signInWithEmail, updateName, signOut };
 }
 
 function useOwned(userId: string|null, userName?: string|null, userEmail?: string|null) {
@@ -2913,8 +2933,18 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
 // ============================================================
 //  LOGIN MODAL
 // ============================================================
-function LoginModal({ onClose, onGoogle }: { onClose:()=>void; onGoogle:()=>void }) {
+function LoginModal({ onClose, onGoogle, onEmailLogin }: { onClose:()=>void; onGoogle:()=>void; onEmailLogin:(email:string)=>Promise<{error:unknown}> }) {
   const { t } = useTr();
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
+
+  const handleSendLink = async () => {
+    if (!email.includes("@") || !email.includes(".")) { setStatus("error"); return; }
+    setStatus("sending");
+    const { error } = await onEmailLogin(email);
+    setStatus(error ? "error" : "sent");
+  };
+
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"var(--bg)",borderRadius:16,padding:28,width:"100%",maxWidth:340,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}}>
@@ -2922,13 +2952,85 @@ function LoginModal({ onClose, onGoogle }: { onClose:()=>void; onGoogle:()=>void
         <div style={{fontWeight:700,fontSize:18,marginBottom:8}}>WCF Checklist</div>
         <div style={{fontSize:13,color:"var(--text3)",marginBottom:24}}>{t("signInToMark")}</div>
         <button onClick={onGoogle}
-          style={{width:"100%",padding:"12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:12}}>
+          style={{width:"100%",padding:"12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
           {t("signInGoogle")}
         </button>
+
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+          <div style={{flex:1,height:1,background:"var(--border)"}} />
+          <div style={{fontSize:11,color:"var(--text4)"}}>{t("orContinueWithEmail")}</div>
+          <div style={{flex:1,height:1,background:"var(--border)"}} />
+        </div>
+
+        {status === "sent" ? (
+          <div style={{fontSize:12,color:"#0196e3",background:"var(--bg2)",borderRadius:10,padding:"12px 10px"}}>
+            {t("magicLinkSent")}
+          </div>
+        ) : (
+          <>
+            <input
+              type="email"
+              value={email}
+              onChange={e=>{ setEmail(e.target.value); if(status==="error") setStatus("idle"); }}
+              placeholder={t("emailPlaceholder")}
+              style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:8,boxSizing:"border-box"}}
+            />
+            {status === "error" && (
+              <div style={{fontSize:11,color:"#dc2626",marginBottom:8}}>{t("invalidEmail")}</div>
+            )}
+            <button onClick={handleSendLink} disabled={status==="sending"}
+              style={{width:"100%",padding:"11px",borderRadius:10,border:"none",background:"#0196e3",color:"#fff",cursor:status==="sending"?"default":"pointer",fontSize:13,fontWeight:700,marginBottom:12,opacity:status==="sending"?0.7:1}}>
+              {status==="sending" ? t("sendingLink") : t("sendMagicLink")}
+            </button>
+          </>
+        )}
+
         <button onClick={onClose}
           style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
           {t("guestMode")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  CHOOSE NAME MODAL — shown once when a user has no display name yet
+// ============================================================
+function ChooseNameModal({ onSave }: { onSave:(name:string)=>Promise<{error:unknown}> }) {
+  const { t } = useTr();
+  const [name, setName] = useState("");
+  const [error, setError] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) { setError(true); return; }
+    setSaving(true);
+    await onSave(trimmed);
+    setSaving(false);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:350,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:28,width:"100%",maxWidth:340,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:10}}>👋</div>
+        <div style={{fontWeight:700,fontSize:16,marginBottom:8}}>{t("chooseNameTitle")}</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:18}}>{t("chooseNameDesc")}</div>
+        <input
+          type="text"
+          value={name}
+          onChange={e=>{ setName(e.target.value); if(error) setError(false); }}
+          onKeyDown={e=>{ if(e.key==="Enter") handleSave(); }}
+          placeholder={t("namePlaceholder")}
+          autoFocus
+          style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:14,marginBottom:8,boxSizing:"border-box",textAlign:"center"}}
+        />
+        {error && <div style={{fontSize:11,color:"#dc2626",marginBottom:8}}>{t("nameRequired")}</div>}
+        <button onClick={handleSave} disabled={saving}
+          style={{width:"100%",padding:"12px",borderRadius:10,border:"none",background:"#0196e3",color:"#fff",cursor:saving?"default":"pointer",fontSize:14,fontWeight:700,opacity:saving?0.7:1}}>
+          {t("saveName")}
         </button>
       </div>
     </div>
@@ -2945,7 +3047,7 @@ const ADMIN_EMAILS = [
 
 
 export default function App() {
-  const { user, authReady, signInWithGoogle, signOut } = useAuth();
+  const { user, authReady, signInWithGoogle, signInWithEmail, updateName, signOut } = useAuth();
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
@@ -3721,7 +3823,8 @@ export default function App() {
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
-      {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} />}
+      {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} onEmailLogin={signInWithEmail} />}
+      {user && !user.name && <ChooseNameModal onSave={updateName} />}
       {showOnboarding && <OnboardingModal
         onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
         onGuest={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); }}
