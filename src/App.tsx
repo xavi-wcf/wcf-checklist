@@ -451,6 +451,14 @@ const T = {
   saveName:            { es: "Continuar", en: "Continue", th: "ดำเนินการต่อ", fr: "Continuer", vi: "Tiếp tục", ja: "続ける", zh: "继续" },
   nameRequired:        { es: "Escribe un nombre para continuar", en: "Enter a name to continue", th: "กรอกชื่อเพื่อดำเนินการต่อ", fr: "Entre un nom pour continuer", vi: "Nhập tên để tiếp tục", ja: "続けるには名前を入力してください", zh: "请输入名字以继续" },
   checkSpamNote:       { es: "¿No lo ves? Revisa también la carpeta de spam / no deseado.", en: "Don't see it? Check your spam / junk folder too.", th: "ไม่เห็นอีเมล? ลองตรวจสอบโฟลเดอร์สแปมด้วย", fr: "Tu ne le vois pas ? Vérifie aussi ton dossier spam.", vi: "Không thấy email? Hãy kiểm tra cả thư mục spam.", ja: "届かない場合は迷惑メールフォルダもご確認ください。", zh: "没收到？也请检查一下垃圾邮件文件夹。" },
+  enterCodeTitle:      { es: "Introduce el código", en: "Enter the code", th: "กรอกรหัส", fr: "Entre le code", vi: "Nhập mã", ja: "コードを入力", zh: "输入验证码" },
+  enterCodeDesc:       { es: (email: string) => `Hemos enviado un código de 6 dígitos a ${email}`, en: (email: string) => `We've sent a 6-digit code to ${email}`, th: (email: string) => `เราได้ส่งรหัส 6 หลักไปที่ ${email}`, fr: (email: string) => `On a envoyé un code à 6 chiffres à ${email}`, vi: (email: string) => `Chúng tôi đã gửi mã 6 chữ số đến ${email}`, ja: (email: string) => `${email} に6桁のコードを送信しました`, zh: (email: string) => `我们已向 ${email} 发送了6位数验证码` },
+  codePlaceholder:     { es: "123456", en: "123456", th: "123456", fr: "123456", vi: "123456", ja: "123456", zh: "123456" },
+  verifyCode:          { es: "Verificar código", en: "Verify code", th: "ยืนยันรหัส", fr: "Vérifier le code", vi: "Xác nhận mã", ja: "コードを確認", zh: "验证代码" },
+  verifyingCode:       { es: "Verificando...", en: "Verifying...", th: "กำลังยืนยัน...", fr: "Vérification...", vi: "Đang xác nhận...", ja: "確認中...", zh: "验证中..." },
+  invalidCode:         { es: "Código incorrecto o caducado. Inténtalo de nuevo.", en: "Incorrect or expired code. Try again.", th: "รหัสไม่ถูกต้องหรือหมดอายุ ลองใหม่อีกครั้ง", fr: "Code incorrect ou expiré. Réessaie.", vi: "Mã không đúng hoặc đã hết hạn. Vui lòng thử lại.", ja: "コードが正しくないか期限切れです。もう一度お試しください。", zh: "验证码错误或已过期，请重试。" },
+  backToEmail:         { es: "← Usar otro email", en: "← Use a different email", th: "← ใช้อีเมลอื่น", fr: "← Utiliser un autre email", vi: "← Dùng email khác", ja: "← 別のメールを使う", zh: "← 使用其他邮箱" },
+  resendCode:          { es: "Reenviar código", en: "Resend code", th: "ส่งรหัสอีกครั้ง", fr: "Renvoyer le code", vi: "Gửi lại mã", ja: "コードを再送信", zh: "重新发送验证码" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -644,7 +652,10 @@ function useAuth() {
   });
   const signInWithEmail = (email: string) => supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin }
+    options: { shouldCreateUser: true }
+  });
+  const verifyEmailCode = (email: string, token: string) => supabase.auth.verifyOtp({
+    email, token, type: "email"
   });
   const updateName = async (name: string) => {
     const { error } = await supabase.auth.updateUser({ data: { full_name: name } });
@@ -653,7 +664,7 @@ function useAuth() {
   };
   const signOut = () => supabase.auth.signOut();
 
-  return { user, authReady, signInWithGoogle, signInWithEmail, updateName, signOut };
+  return { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, signOut };
 }
 
 function useOwned(userId: string|null, userName?: string|null, userEmail?: string|null) {
@@ -2614,18 +2625,8 @@ function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:o
 // ============================================================
 //  ONBOARDING MODAL
 // ============================================================
-function OnboardingModal({ onLogin, onEmailLogin, onGuest }: { onLogin:()=>void; onEmailLogin:(email:string)=>Promise<{error:unknown}>; onGuest:()=>void }) {
+function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, onGuest }: { onLogin:()=>void; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}>; onEmailSuccess:()=>void; onGuest:()=>void }) {
   const { t } = useTr();
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
-
-  const handleSendLink = async () => {
-    if (!email.includes("@") || !email.includes(".")) { setStatus("error"); return; }
-    setStatus("sending");
-    const { error } = await onEmailLogin(email);
-    if (!error) localStorage.setItem("wcf_onboarded","1");
-    setStatus(error ? "error" : "sent");
-  };
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -2653,29 +2654,12 @@ function OnboardingModal({ onLogin, onEmailLogin, onGuest }: { onLogin:()=>void;
           <div style={{flex:1,height:1,background:"var(--border)"}} />
         </div>
 
-        {status === "sent" ? (
-          <div style={{fontSize:12,color:"#0196e3",background:"var(--bg2)",borderRadius:10,padding:"12px 10px",marginBottom:12}}>
-            {t("magicLinkSent")}
-            <div style={{fontSize:10,color:"var(--text4)",marginTop:6}}>{t("checkSpamNote")}</div>
-          </div>
-        ) : (
-          <>
-            <input
-              type="email"
-              value={email}
-              onChange={e=>{ setEmail(e.target.value); if(status==="error") setStatus("idle"); }}
-              placeholder={t("emailPlaceholder")}
-              style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:8,boxSizing:"border-box"}}
-            />
-            {status === "error" && (
-              <div style={{fontSize:11,color:"#dc2626",marginBottom:8}}>{t("invalidEmail")}</div>
-            )}
-            <button onClick={handleSendLink} disabled={status==="sending"}
-              style={{width:"100%",padding:"11px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",cursor:status==="sending"?"default":"pointer",fontSize:13,fontWeight:700,marginBottom:16,opacity:status==="sending"?0.7:1}}>
-              {status==="sending" ? t("sendingLink") : t("sendMagicLink")}
-            </button>
-          </>
-        )}
+        <EmailCodeLogin
+          onSendCode={onSendCode}
+          onVerifyCode={onVerifyCode}
+          onSuccess={()=>{ localStorage.setItem("wcf_onboarded","1"); onEmailSuccess(); }}
+          buttonStyle={{width:"100%",padding:"11px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer",fontSize:13,fontWeight:700,marginBottom:16}}
+        />
 
         <button onClick={onGuest}
           style={{width:"100%",padding:"11px",borderRadius:12,border:"1px solid var(--border)",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
@@ -2976,18 +2960,100 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
 // ============================================================
 //  LOGIN MODAL
 // ============================================================
-function LoginModal({ onClose, onGoogle, onEmailLogin }: { onClose:()=>void; onGoogle:()=>void; onEmailLogin:(email:string)=>Promise<{error:unknown}> }) {
+// ============================================================
+//  EMAIL + CODE LOGIN — reusable across LoginModal and OnboardingModal
+// ============================================================
+function EmailCodeLogin({ onSendCode, onVerifyCode, onSuccess, buttonStyle }: {
+  onSendCode:(email:string)=>Promise<{error:unknown}>;
+  onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}>;
+  onSuccess:()=>void;
+  buttonStyle?: React.CSSProperties;
+}) {
   const { t } = useTr();
+  const [step, setStep] = useState<"email"|"code">("email");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<"idle"|"loading"|"error">("idle");
 
-  const handleSendLink = async () => {
+  const handleSendCode = async () => {
     if (!email.includes("@") || !email.includes(".")) { setStatus("error"); return; }
-    setStatus("sending");
-    const { error } = await onEmailLogin(email);
-    setStatus(error ? "error" : "sent");
+    setStatus("loading");
+    const { error } = await onSendCode(email);
+    if (error) { setStatus("error"); return; }
+    setStatus("idle");
+    setStep("code");
   };
 
+  const handleVerify = async () => {
+    if (code.trim().length < 6) { setStatus("error"); return; }
+    setStatus("loading");
+    const { error } = await onVerifyCode(email, code.trim());
+    if (error) { setStatus("error"); return; }
+    onSuccess();
+  };
+
+  const defaultBtnStyle: React.CSSProperties = {width:"100%",padding:"11px",borderRadius:10,border:"none",background:"#0196e3",color:"#fff",cursor:status==="loading"?"default":"pointer",fontSize:13,fontWeight:700,marginBottom:12,opacity:status==="loading"?0.7:1};
+
+  if (step === "code") {
+    return (
+      <>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>{t("enterCodeTitle")}</div>
+        <div style={{fontSize:11,color:"var(--text4)",marginBottom:12}}>{t("enterCodeDesc", email)}</div>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={code}
+          onChange={e=>{ setCode(e.target.value.replace(/\D/g,"")); if(status==="error") setStatus("idle"); }}
+          onKeyDown={e=>{ if(e.key==="Enter") handleVerify(); }}
+          placeholder={t("codePlaceholder")}
+          autoFocus
+          style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:20,letterSpacing:6,textAlign:"center",marginBottom:8,boxSizing:"border-box"}}
+        />
+        {status === "error" && (
+          <div style={{fontSize:11,color:"#dc2626",marginBottom:8}}>{t("invalidCode")}</div>
+        )}
+        <button onClick={handleVerify} disabled={status==="loading"}
+          style={buttonStyle ?? defaultBtnStyle}>
+          {status==="loading" ? t("verifyingCode") : t("verifyCode")}
+        </button>
+        <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:12}}>
+          <button onClick={()=>{ setStep("email"); setCode(""); setStatus("idle"); }}
+            style={{background:"none",border:"none",fontSize:11,color:"var(--text4)",cursor:"pointer",padding:0}}>
+            {t("backToEmail")}
+          </button>
+          <button onClick={handleSendCode} disabled={status==="loading"}
+            style={{background:"none",border:"none",fontSize:11,color:"#0196e3",cursor:"pointer",padding:0}}>
+            {t("resendCode")}
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <input
+        type="email"
+        value={email}
+        onChange={e=>{ setEmail(e.target.value); if(status==="error") setStatus("idle"); }}
+        onKeyDown={e=>{ if(e.key==="Enter") handleSendCode(); }}
+        placeholder={t("emailPlaceholder")}
+        style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:8,boxSizing:"border-box"}}
+      />
+      {status === "error" && (
+        <div style={{fontSize:11,color:"#dc2626",marginBottom:8}}>{t("invalidEmail")}</div>
+      )}
+      <button onClick={handleSendCode} disabled={status==="loading"}
+        style={buttonStyle ?? defaultBtnStyle}>
+        {status==="loading" ? t("sendingLink") : t("sendMagicLink")}
+      </button>
+    </>
+  );
+}
+
+function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:()=>void; onGoogle:()=>void; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}> }) {
+  const { t } = useTr();
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"var(--bg)",borderRadius:16,padding:28,width:"100%",maxWidth:340,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}}>
@@ -3006,29 +3072,7 @@ function LoginModal({ onClose, onGoogle, onEmailLogin }: { onClose:()=>void; onG
           <div style={{flex:1,height:1,background:"var(--border)"}} />
         </div>
 
-        {status === "sent" ? (
-          <div style={{fontSize:12,color:"#0196e3",background:"var(--bg2)",borderRadius:10,padding:"12px 10px"}}>
-            {t("magicLinkSent")}
-            <div style={{fontSize:10,color:"var(--text4)",marginTop:6}}>{t("checkSpamNote")}</div>
-          </div>
-        ) : (
-          <>
-            <input
-              type="email"
-              value={email}
-              onChange={e=>{ setEmail(e.target.value); if(status==="error") setStatus("idle"); }}
-              placeholder={t("emailPlaceholder")}
-              style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:8,boxSizing:"border-box"}}
-            />
-            {status === "error" && (
-              <div style={{fontSize:11,color:"#dc2626",marginBottom:8}}>{t("invalidEmail")}</div>
-            )}
-            <button onClick={handleSendLink} disabled={status==="sending"}
-              style={{width:"100%",padding:"11px",borderRadius:10,border:"none",background:"#0196e3",color:"#fff",cursor:status==="sending"?"default":"pointer",fontSize:13,fontWeight:700,marginBottom:12,opacity:status==="sending"?0.7:1}}>
-              {status==="sending" ? t("sendingLink") : t("sendMagicLink")}
-            </button>
-          </>
-        )}
+        <EmailCodeLogin onSendCode={onSendCode} onVerifyCode={onVerifyCode} onSuccess={onClose} />
 
         <button onClick={onClose}
           style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
@@ -3091,7 +3135,7 @@ const ADMIN_EMAILS = [
 
 
 export default function App() {
-  const { user, authReady, signInWithGoogle, signInWithEmail, updateName, signOut } = useAuth();
+  const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, signOut } = useAuth();
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
@@ -3867,11 +3911,13 @@ export default function App() {
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
-      {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} onEmailLogin={signInWithEmail} />}
+      {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} onSendCode={signInWithEmail} onVerifyCode={verifyEmailCode} />}
       {user && !user.name && <ChooseNameModal onSave={updateName} />}
       {showOnboarding && <OnboardingModal
         onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
-        onEmailLogin={signInWithEmail}
+        onSendCode={signInWithEmail}
+        onVerifyCode={verifyEmailCode}
+        onEmailSuccess={()=>setShowOnboarding(false)}
         onGuest={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); }}
       />}
       {detailFigureCol && (
