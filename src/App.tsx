@@ -1506,18 +1506,16 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5,display:"flex",alignItems:"center",gap:4}}>
-          <span>{figure.name}</span>
-          {(figure.altImages?.length ?? 0) > 0 && (
-            <span style={{display:"flex",gap:3,flexShrink:0}}>
-              {["A", ...(figure.altImages ?? []).map((_,i)=>["B","C"][i])].map(letter => (
-                <span key={letter} style={{fontSize:9,fontWeight:700,color:"#fff",background:"#22c55e",borderRadius:"50%",width:15,height:15,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
-                  {letter}
-                </span>
-              ))}
-            </span>
-          )}
-        </div>
+        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:(figure.altImages?.length ?? 0) > 0 ? 4 : 5}}>{figure.name}</div>
+        {(figure.altImages?.length ?? 0) > 0 && (
+          <div style={{display:"flex",gap:3,marginBottom:5}}>
+            {["A", ...(figure.altImages ?? []).map((_,i)=>["B","C"][i])].map(letter => (
+              <span key={letter} style={{fontSize:9,fontWeight:700,color:"#fff",background:"#22c55e",borderRadius:"50%",width:15,height:15,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
+                {letter}
+              </span>
+            ))}
+          </div>
+        )}
         <div onClick={handleToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:statusColor,fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:dotColor,flexShrink:0}} />{statusText}
         </div>
