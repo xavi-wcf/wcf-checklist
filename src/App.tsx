@@ -1506,11 +1506,15 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5,display:"flex",alignItems:"center",gap:5}}>
+        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5,display:"flex",alignItems:"center",gap:4}}>
           <span>{figure.name}</span>
           {(figure.altImages?.length ?? 0) > 0 && (
-            <span style={{fontSize:9,fontWeight:700,color:"var(--text4)",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:5,padding:"1px 4px",letterSpacing:0.5,flexShrink:0}}>
-              {["A", ...(figure.altImages ?? []).map((_,i)=>["B","C"][i])].join("·")}
+            <span style={{display:"flex",gap:3,flexShrink:0}}>
+              {["A", ...(figure.altImages ?? []).map((_,i)=>["B","C"][i])].map(letter => (
+                <span key={letter} style={{fontSize:9,fontWeight:700,color:"#fff",background:"#22c55e",borderRadius:"50%",width:15,height:15,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
+                  {letter}
+                </span>
+              ))}
             </span>
           )}
         </div>
