@@ -459,6 +459,10 @@ const T = {
   invalidCode:         { es: "Código incorrecto o caducado. Inténtalo de nuevo.", en: "Incorrect or expired code. Try again.", th: "รหัสไม่ถูกต้องหรือหมดอายุ ลองใหม่อีกครั้ง", fr: "Code incorrect ou expiré. Réessaie.", vi: "Mã không đúng hoặc đã hết hạn. Vui lòng thử lại.", ja: "コードが正しくないか期限切れです。もう一度お試しください。", zh: "验证码错误或已过期，请重试。" },
   backToEmail:         { es: "← Usar otro email", en: "← Use a different email", th: "← ใช้อีเมลอื่น", fr: "← Utiliser un autre email", vi: "← Dùng email khác", ja: "← 別のメールを使う", zh: "← 使用其他邮箱" },
   resendCode:          { es: "Reenviar código", en: "Resend code", th: "ส่งรหัสอีกครั้ง", fr: "Renvoyer le code", vi: "Gửi lại mã", ja: "コードを再送信", zh: "重新发送验证码" },
+  altVersionsLabel:    { es: "Otras versiones (opcional)", en: "Other versions (optional)", th: "เวอร์ชันอื่น (ไม่บังคับ)", fr: "Autres versions (facultatif)", vi: "Phiên bản khác (không bắt buộc)", ja: "他のバージョン（任意）", zh: "其他版本（可选）" },
+  versionLabel:        { es: "Versión", en: "Version", th: "เวอร์ชัน", fr: "Version", vi: "Phiên bản", ja: "バージョン", zh: "版本" },
+  addVersionBtn:       { es: "Añadir versión", en: "Add version", th: "เพิ่มเวอร์ชัน", fr: "Ajouter une version", vi: "Thêm phiên bản", ja: "バージョンを追加", zh: "添加版本" },
+  altVersionsHint:     { es: "Para figuras con piezas intercambiables (ej. 2 cabezas). Aparecerán como botones A/B/C en la ficha.", en: "For figures with interchangeable parts (e.g. 2 heads). They'll appear as A/B/C buttons on the figure page.", th: "สำหรับฟิกเกอร์ที่มีชิ้นส่วนสลับได้ (เช่น 2 หัว) จะแสดงเป็นปุ่ม A/B/C ในหน้ารายละเอียด", fr: "Pour les figurines avec pièces interchangeables (ex. 2 têtes). Elles apparaîtront comme boutons A/B/C sur la fiche.", vi: "Dành cho mô hình có bộ phận thay thế (ví dụ 2 đầu). Sẽ hiện thành nút A/B/C trên trang chi tiết.", ja: "パーツ交換可能なフィギュア用（例：頭2種）。詳細ページにA/B/Cボタンとして表示されます。", zh: "适用于可更换部件的人偶（例如2个头）。将在详情页显示为A/B/C按钮。" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -504,7 +508,7 @@ function useLang() {
 //  TYPES
 // ============================================================
 type CategoryType = "oficial" | "resina";
-interface Figure { id: number; name: string; emoji: string; image?: string; tags?: string; }
+interface Figure { id: number; name: string; emoji: string; image?: string; tags?: string; altImages?: string[]; }
 interface FigureSet { id: number; name: string; releaseDate?: string; seriesLogo?: string; figures: Figure[]; }
 interface FigureGroup { id: number; name: string; logo?: string; sets: FigureSet[]; }
 interface Series { id: number; name: string; emoji: string; logo?: string; logoHeader?: string; bgImage?: string; color: string; category: CategoryType; sets: FigureSet[]; groups: FigureGroup[]; }
@@ -1251,12 +1255,37 @@ function EmojiPicker({ value, onChange }: { value:string; onChange:(e:string)=>v
 // ============================================================
 //  MODALS
 // ============================================================
+function AltImagesEditor({ altImages, onChange, apiKey }: { altImages: string[]; onChange:(imgs:string[])=>void; apiKey:string }) {
+  const { t } = useTr();
+  const letters = ["B","C"]; // "A" is the main image, handled outside this component
+  const updateAt = (i:number, url:string) => { const next=[...altImages]; next[i]=url; onChange(next); };
+  const removeAt = (i:number) => onChange(altImages.filter((_,idx)=>idx!==i));
+
+  return (
+    <Field label={t("altVersionsLabel")}>
+      {altImages.map((img,i) => (
+        <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
+          <div style={{flex:1}}>
+            <ImageUploader apiKey={apiKey} currentUrl={img} onUploaded={(url)=>updateAt(i,url)} label={`${t("versionLabel")} ${letters[i] ?? "?"}`} aspectRatio={1} />
+          </div>
+          <button onClick={()=>removeAt(i)} style={{marginTop:22,background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:8,padding:"6px 8px",fontSize:12,cursor:"pointer",color:"#dc2626"}}>🗑</button>
+        </div>
+      ))}
+      {altImages.length < letters.length && (
+        <ImageUploader apiKey={apiKey} currentUrl="" onUploaded={(url)=>onChange([...altImages, url])} label={`+ ${t("addVersionBtn")} ${letters[altImages.length]}`} aspectRatio={1} />
+      )}
+      <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("altVersionsHint")}</div>
+    </Field>
+  );
+}
+
 function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string; initial?:Partial<Figure>; apiKey:string; onSave:(f:Omit<Figure,"id">)=>void; onClose:()=>void }) {
   const { t } = useTr();
   const seriesList = useSeriesData();
   const [name, setName] = useState(initial?.name??"");
   const [emoji, setEmoji] = useState(initial?.emoji??"⭐");
   const [image, setImage] = useState(initial?.image??"");
+  const [altImages, setAltImages] = useState<string[]>(initial?.altImages??[]);
   // Parse existing tags into selected series ids and free text
   const parseTags = (tags?: string) => {
     if (!tags) return { seriesIds: [] as number[], freeText: "" };
@@ -1291,6 +1320,7 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
       <Field label={t("nameLabel")}><Input value={name} onChange={setName} placeholder="Ej: Goku SSJ" /></Field>
       <Field label={t("emojiLabel")}><EmojiPicker value={emoji} onChange={setEmoji} /></Field>
       <ImageUploader apiKey={apiKey} currentUrl={image} onUploaded={setImage} label={t("figureImage")} aspectRatio={1} />
+      <AltImagesEditor altImages={altImages} onChange={setAltImages} apiKey={apiKey} />
       <Field label="También pertenece a... (opcional)">
         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
           {uniqSeries.map(s=>{
@@ -1308,7 +1338,7 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
       </Field>
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:buildTags()});onClose();}}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:buildTags(),altImages:altImages.filter(Boolean)});onClose();}}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1476,7 +1506,14 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5}}>{figure.name}</div>
+        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:5,display:"flex",alignItems:"center",gap:5}}>
+          <span>{figure.name}</span>
+          {(figure.altImages?.length ?? 0) > 0 && (
+            <span style={{fontSize:9,fontWeight:700,color:"var(--text4)",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:5,padding:"1px 4px",letterSpacing:0.5,flexShrink:0}}>
+              {["A", ...(figure.altImages ?? []).map((_,i)=>["B","C"][i])].join("·")}
+            </span>
+          )}
+        </div>
         <div onClick={handleToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:statusColor,fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:dotColor,flexShrink:0}} />{statusText}
         </div>
@@ -2741,6 +2778,14 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   const [uploadDone, setUploadDone] = useState(false);
   const [uploadError, setUploadError] = useState<string|null>(null);
 
+  // Variantes A/B/C (piezas intercambiables, ej. figuras con 2 cabezas).
+  // "A" es siempre la imagen principal (figure.image); B, C... vienen de altImages.
+  const variantImages = [figure.image, ...(figure.altImages ?? [])].filter(Boolean) as string[];
+  const variantLetters = ["A","B","C"];
+  const [activeVariant, setActiveVariant] = useState(0);
+  useEffect(() => { setActiveVariant(0); }, [figure.id]);
+  const displayedImage = variantImages[activeVariant] ?? figure.image;
+
   const { email: uploaderEmail, name: uploaderName } = useUserInfo();
 
   const handleUpload = async (file: File) => {
@@ -2796,13 +2841,24 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
       <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:340,overflow:"hidden",boxShadow:"0 12px 40px rgba(0,0,0,0.4)",marginTop:"auto",marginBottom:"auto"}}>
         {/* Image */}
         <div style={{width:"100%",aspectRatio:"1",background:isOwned?series.color+"30":isWished?"#fef9c3":"var(--missing-bg)",position:"relative",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
-          {figure.image
-            ? <img src={figure.image} alt={figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+          {displayedImage
+            ? <img src={displayedImage} alt={figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />
             : <div style={{fontSize:64}}>{figure.emoji}</div>}
           {onPrev && <button onClick={onPrev} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>}
           {onNext && <button onClick={onNext} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>}
           <button onClick={onClose} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,0.4)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
+        {/* Variant selector A/B/C — only shown when the figure has alternate images */}
+        {variantImages.length > 1 && (
+          <div style={{display:"flex",justifyContent:"center",gap:6,padding:"10px 0 0"}}>
+            {variantImages.map((_,i) => (
+              <button key={i} onClick={()=>setActiveVariant(i)}
+                style={{width:30,height:30,borderRadius:"50%",border:`1.5px solid ${activeVariant===i?series.color:"var(--border)"}`,background:activeVariant===i?series.color:"var(--bg2)",color:activeVariant===i?"#fff":"var(--text3)",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                {variantLetters[i]}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Info */}
         <div style={{padding:"14px 16px 16px"}}>
           <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{figure.name}</div>
