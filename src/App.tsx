@@ -2505,7 +2505,24 @@ function UserCollectionView({ userId, name, onBack }: { userId:string; name:stri
   );
 }
 
-function CollectionsSection() {
+function CollectionsEntryButton({ onOpenMyCollection }: { onOpenMyCollection:()=>void }) {
+  const { t } = useTr();
+  const [showDirectory, setShowDirectory] = useState(false);
+  return (
+    <>
+      <button onClick={()=>setShowDirectory(true)}
+        style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",marginBottom:24}}>
+        <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{t("collectionsTitle")}</span>
+        <span style={{fontSize:14,color:"var(--text4)"}}>›</span>
+      </button>
+      {showDirectory && (
+        <CollectionsDirectoryModal onClose={()=>setShowDirectory(false)} onOpenMyCollection={onOpenMyCollection} />
+      )}
+    </>
+  );
+}
+
+function CollectionsDirectoryModal({ onClose, onOpenMyCollection }: { onClose:()=>void; onOpenMyCollection:()=>void }) {
   const { t } = useTr();
   const { entries, loading } = useCollectionsDirectory();
   const [viewing, setViewing] = useState<{ userId:string; name:string }|null>(null);
@@ -2516,41 +2533,57 @@ function CollectionsSection() {
     return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
   };
 
-  if (viewing) return <UserCollectionView userId={viewing.userId} name={viewing.name} onBack={()=>setViewing(null)} />;
-
   return (
-    <div style={{marginBottom:24}}>
-      <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>{t("collectionsTitle")}</div>
-      {loading ? (
-        <div style={{textAlign:"center",padding:"12px 0",color:"var(--text4)",fontSize:12}}>...</div>
-      ) : entries.length === 0 ? (
-        <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"16px 0"}}>{t("noCollectionsYet")}</div>
-      ) : (
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {entries.map(e => (
-            <div key={e.userId} onClick={()=>setViewing({userId:e.userId,name:e.name})}
-              style={{borderRadius:12,overflow:"hidden",border:"1px solid var(--border)",cursor:"pointer",background:"var(--bg2)"}}>
-              <div style={{aspectRatio:"1.4",background:colorForUser(e.userId),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
-                {e.coverUrl
-                  ? <img src={e.coverUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                  : <div style={{fontSize:28,fontWeight:700,color:"#fff"}}>{e.name[0]?.toUpperCase() ?? "?"}</div>}
-              </div>
-              <div style={{padding:"8px 10px"}}>
-                <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t("collectionOf", e.name)}</div>
-                <div style={{fontSize:10,color:"var(--text4)"}}>{e.count} {t("photosCount")}</div>
-              </div>
-            </div>
-          ))}
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:440,maxHeight:"85vh",overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 12px 40px rgba(0,0,0,0.4)"}}>
+        <div style={{padding:"16px 16px 12px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div style={{fontSize:15,fontWeight:700}}>{t("collectionsTitle")}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
         </div>
-      )}
+        <div style={{overflowY:"auto",flex:1,padding:16}}>
+          {viewing ? (
+            <UserCollectionView userId={viewing.userId} name={viewing.name} onBack={()=>setViewing(null)} />
+          ) : (
+            <>
+              <button onClick={onOpenMyCollection}
+                style={{width:"100%",fontSize:12,fontWeight:700,color:"#0196e3",background:"var(--bg2)",border:"1px solid #0196e3",borderRadius:10,padding:"9px 10px",cursor:"pointer",marginBottom:16}}>
+                {t("myCollectionMenuItem")}
+              </button>
+              {loading ? (
+                <div style={{textAlign:"center",padding:"12px 0",color:"var(--text4)",fontSize:12}}>...</div>
+              ) : entries.length === 0 ? (
+                <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"16px 0"}}>{t("noCollectionsYet")}</div>
+              ) : (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  {entries.map(e => (
+                    <div key={e.userId} onClick={()=>setViewing({userId:e.userId,name:e.name})}
+                      style={{borderRadius:12,overflow:"hidden",border:"1px solid var(--border)",cursor:"pointer",background:"var(--bg2)"}}>
+                      <div style={{aspectRatio:"1.4",background:colorForUser(e.userId),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+                        {e.coverUrl
+                          ? <img src={e.coverUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          : <div style={{fontSize:28,fontWeight:700,color:"#fff"}}>{e.name[0]?.toUpperCase() ?? "?"}</div>}
+                      </div>
+                      <div style={{padding:"8px 10px"}}>
+                        <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t("collectionOf", e.name)}</div>
+                        <div style={{fontSize:10,color:"var(--text4)"}}>{e.count} {t("photosCount")}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished, currentUserId }: {
+function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished, currentUserId, onOpenMyCollection }: {
   data: Series[]; communityUsers:number; communityTotal:number;
   topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
   currentUserId?: string|null;
+  onOpenMyCollection:()=>void;
 }) {
   const { t } = useTr();
   const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
@@ -2687,7 +2720,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
             </div>
           </div>
 
-          <CollectionsSection />
+          <CollectionsEntryButton onOpenMyCollection={onOpenMyCollection} />
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 {t("topUploaders")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
@@ -4370,6 +4403,7 @@ export default function App() {
         {activeTab==="community" && <CommunityTab
           data={data} communityUsers={communityUsers} communityTotal={communityTotal}
           topOwned={topOwned} topWished={topWished} currentUserId={user?.id ?? null}
+          onOpenMyCollection={user ? ()=>setShowMyCollection(true) : ()=>setShowLogin(true)}
         />}
         {/* ── STATS TAB ── */}
         {activeTab==="stats" && <StatsTab
