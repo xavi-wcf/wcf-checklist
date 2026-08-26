@@ -3918,7 +3918,7 @@ const ADMIN_EMAILS = [
 //  PUBLIC COLLECTION PAGE — /c/<userId>, sin necesitar cuenta ni login
 // ============================================================
 function PublicCollectionPage({ userId }: { userId: string }) {
-  const { lang, setLang, t } = useLang();
+  const { lang, t } = useLang();
   const langValue = useMemo(() => ({ t, lang }), [t, lang]);
   const { photos, loading } = useUserCollectionGallery(userId);
   const [zoomIndex, setZoomIndex] = useState<number|null>(null);
