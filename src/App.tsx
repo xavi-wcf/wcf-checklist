@@ -482,6 +482,14 @@ const T = {
   collectionOf:        { es: (name:string)=>`La colección de ${name}`, en: (name:string)=>`${name}'s collection`, th: (name:string)=>`คอลเลกชันของ ${name}`, fr: (name:string)=>`La collection de ${name}`, vi: (name:string)=>`Bộ sưu tập của ${name}`, ja: (name:string)=>`${name}のコレクション`, zh: (name:string)=>`${name}的收藏` },
   myCollectionMenuItem:{ es: "🖼️ Mi colección", en: "🖼️ My collection", th: "🖼️ คอลเลกชันของฉัน", fr: "🖼️ Ma collection", vi: "🖼️ Bộ sưu tập của tôi", ja: "🖼️ マイコレクション", zh: "🖼️ 我的收藏" },
   deleteBtn:           { es: "Borrar", en: "Delete", th: "ลบ", fr: "Supprimer", vi: "Xóa", ja: "削除", zh: "删除" },
+  settingsMenuItem:    { es: "⚙️ Ajustes", en: "⚙️ Settings", th: "⚙️ ตั้งค่า", fr: "⚙️ Paramètres", vi: "⚙️ Cài đặt", ja: "⚙️ 設定", zh: "⚙️ 设置" },
+  settingsTitle:       { es: "Ajustes de perfil", en: "Profile settings", th: "การตั้งค่าโปรไฟล์", fr: "Paramètres du profil", vi: "Cài đặt hồ sơ", ja: "プロフィール設定", zh: "个人资料设置" },
+  displayNameLabel:    { es: "Nombre público", en: "Display name", th: "ชื่อที่แสดง", fr: "Nom public", vi: "Tên hiển thị", ja: "表示名", zh: "显示名称" },
+  avatarLabel:         { es: "Foto de perfil", en: "Profile photo", th: "รูปโปรไฟล์", fr: "Photo de profil", vi: "Ảnh đại diện", ja: "プロフィール写真", zh: "头像" },
+  changeAvatarBtn:     { es: "Cambiar foto", en: "Change photo", th: "เปลี่ยนรูป", fr: "Changer la photo", vi: "Đổi ảnh", ja: "写真を変更", zh: "更换照片" },
+  removeAvatarBtn:     { es: "Quitar foto", en: "Remove photo", th: "ลบรูป", fr: "Retirer la photo", vi: "Xóa ảnh", ja: "写真を削除", zh: "移除照片" },
+  saveSettings:        { es: "Guardar cambios", en: "Save changes", th: "บันทึกการเปลี่ยนแปลง", fr: "Enregistrer", vi: "Lưu thay đổi", ja: "変更を保存", zh: "保存更改" },
+  settingsSaved:       { es: "✅ Cambios guardados", en: "✅ Changes saved", th: "✅ บันทึกการเปลี่ยนแปลงแล้ว", fr: "✅ Modifications enregistrées", vi: "✅ Đã lưu thay đổi", ja: "✅ 変更を保存しました", zh: "✅ 更改已保存" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -496,7 +504,7 @@ const useTr = () => useContext(LangCtx);
 const AdminCtx = createContext(false);
 const useAdmin = () => useContext(AdminCtx);
 
-const UserInfoCtx = createContext<{email:string|null; name:string|null}>({email:null, name:null});
+const UserInfoCtx = createContext<{email:string|null; name:string|null; avatar:string|null}>({email:null, name:null, avatar:null});
 const useUserInfo = () => useContext(UserInfoCtx);
 
 const SeriesDataCtx = createContext<Series[]>([]);
@@ -720,12 +728,17 @@ function useAuth() {
     if (!error) setUser(u => u ? { ...u, name } : u);
     return { error };
   };
+  const updateAvatar = async (avatarUrl: string | null) => {
+    const { error } = await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+    if (!error) setUser(u => u ? { ...u, avatar: avatarUrl ?? undefined } : u);
+    return { error };
+  };
   const signOut = () => supabase.auth.signOut();
 
-  return { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, signOut };
+  return { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut };
 }
 
-function useOwned(userId: string|null, userName?: string|null, userEmail?: string|null) {
+function useOwned(userId: string|null, userName?: string|null, userEmail?: string|null, userAvatar?: string|null) {
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [favourites, setFavourites] = useState<Set<number>>(new Set());
@@ -748,7 +761,7 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
               if (o.length > 0 || w.length > 0) {
                 supabase.from("wcf_progress").upsert({
                   user_id: userId, owned: o, wishlist: w,
-                  owner_name: userName ?? null, owner_email: userEmail ?? null,
+                  owner_name: userName ?? null, owner_email: userEmail ?? null, owner_avatar: userAvatar ?? null,
                   updated_at: new Date().toISOString()
                 }, { onConflict: "user_id", ignoreDuplicates: false });
               }
@@ -775,6 +788,7 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
           wishlist: [...w],
           owner_name: userName ?? null,
           owner_email: userEmail ?? null,
+          owner_avatar: userAvatar ?? null,
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id", ignoreDuplicates: false })
         .then(({ error }) => { if (error) console.error("Save error:", error); });
@@ -782,7 +796,7 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
     // Always save to localStorage as fallback
     localStorage.setItem("wcf_owned", JSON.stringify([...o]));
     localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
-  }, [userId, userName, userEmail]);
+  }, [userId, userName, userEmail, userAvatar]);
 
   const toggle = (id: number) => setOwned(prev => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id);
@@ -840,7 +854,7 @@ function useCommunityStats() {
   return { figureOwned, figureWished, users, totalOwned, topOwned, topWished };
 }
 
-type LeaderboardEntry = { userId: string; name: string; count: number; ownedIds?: number[] };
+type LeaderboardEntry = { userId: string; name: string; count: number; ownedIds?: number[]; avatar?: string|null };
 
 function usePendingPhotosCount(isAdmin: boolean) {
   const [count, setCount] = useState(0);
@@ -870,20 +884,21 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
   const [myCollectorEntry, setMyCollectorEntry] = useState<LeaderboardEntry|null>(null);
 
   useEffect(() => {
-    supabase.from("wcf_photos").select("user_id,uploader_name,uploader_email").eq("approved", true)
+    supabase.from("wcf_photos").select("user_id,uploader_name,uploader_email,uploader_avatar").eq("approved", true)
       .then(({ data: rows, error }) => {
         if (error || !rows) return;
-        const counts: Record<string, { name: string; count: number }> = {};
+        const counts: Record<string, { name: string; count: number; avatar: string|null }> = {};
         for (const r of rows) {
           if (!r.user_id) continue;
-          if (!counts[r.user_id]) counts[r.user_id] = { name: r.uploader_name || r.uploader_email || "Anonymous", count: 0 };
+          if (!counts[r.user_id]) counts[r.user_id] = { name: r.uploader_name || r.uploader_email || "Anonymous", count: 0, avatar: r.uploader_avatar ?? null };
           counts[r.user_id].count++;
           if (!counts[r.user_id].name || counts[r.user_id].name === "Anonymous") {
             counts[r.user_id].name = r.uploader_name || r.uploader_email || "Anonymous";
           }
+          if (r.uploader_avatar) counts[r.user_id].avatar = r.uploader_avatar;
         }
         const full = Object.entries(counts)
-          .map(([userId, v]) => ({ userId, name: v.name, count: v.count }))
+          .map(([userId, v]) => ({ userId, name: v.name, count: v.count, avatar: v.avatar }))
           .sort((a, b) => b.count - a.count);
         setTopUploaders(full.slice(0, 10));
         if (currentUserId) {
@@ -893,12 +908,12 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
         }
       });
 
-    supabase.from("wcf_progress").select("user_id,owned,owner_name,owner_email")
+    supabase.from("wcf_progress").select("user_id,owned,owner_name,owner_email,owner_avatar")
       .then(({ data: rows, error }) => {
         if (error || !rows) return;
         const full = rows
           .filter(r => r.user_id && Array.isArray(r.owned) && r.owned.length > 0)
-          .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length, ownedIds: r.owned as number[] }))
+          .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length, ownedIds: r.owned as number[], avatar: (r.owner_avatar ?? null) as string|null }))
           .sort((a, b) => b.count - a.count);
         setTopCollectors(full.slice(0, 10));
         if (currentUserId) {
@@ -2346,7 +2361,7 @@ function getBadgesForOwnedIds(ownedIds: number[]|undefined, figureFranchiseMap: 
 // ============================================================
 //  MY COLLECTION — manage own collection photos (upload, delete, set cover)
 // ============================================================
-function MyCollectionPanel({ userId, uploaderName, onClose }: { userId:string; uploaderName:string; onClose:()=>void }) {
+function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { userId:string; uploaderName:string; uploaderAvatar?:string|null; onClose:()=>void }) {
   const { t } = useTr();
   const { photos, coverId, loading, reload } = useMyCollectionPhotos(userId);
   const [uploading, setUploading] = useState(false);
@@ -2365,7 +2380,7 @@ function MyCollectionPanel({ userId, uploaderName, onClose }: { userId:string; u
       let url: string;
       try { url = await uploadToR2(compressed); }
       catch { url = await uploadToR2(compressed); } // reintento automático
-      await supabase.from("wcf_collection_photos").insert({ user_id: userId, url, uploader_name: uploaderName, approved: false });
+      await supabase.from("wcf_collection_photos").insert({ user_id: userId, url, uploader_name: uploaderName, uploader_avatar: uploaderAvatar ?? null, approved: false });
       reload();
     } catch (e) {
       setError(t("uploadNetworkError"));
@@ -2659,8 +2674,10 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
       <div style={{padding:"8px 10px",borderRadius:10,background:"var(--bg2)",border:highlight?`1.5px solid ${rankColor}`:"1px solid var(--border)"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
-          <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:avatarColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff"}}>
-            {entry.name?.[0]?.toUpperCase() ?? "?"}
+          <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:avatarColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",overflow:"hidden"}}>
+            {entry.avatar
+              ? <img src={entry.avatar} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+              : (entry.name?.[0]?.toUpperCase() ?? "?")}
           </div>
           <div style={{flex:1,minWidth:0,fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{entry.name}</div>
           <div style={{fontSize:11,fontWeight:700,color:rankColor}}>{entry.count} {unitLabel}</div>
@@ -3098,8 +3115,8 @@ function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, on
 // ============================================================
 //  FIGURE DETAIL MODAL
 // ============================================================
-type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_email?: string|null; uploader_name?: string|null; };
-type CollectionPhoto = { id: string; user_id: string; url: string; approved: boolean; created_at: string; uploader_name?: string|null; };
+type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_email?: string|null; uploader_name?: string|null; uploader_avatar?: string|null; };
+type CollectionPhoto = { id: string; user_id: string; url: string; approved: boolean; created_at: string; uploader_name?: string|null; uploader_avatar?: string|null; };
 
 function useFigurePhotos(figureId: number) {
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
@@ -3205,7 +3222,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   useEffect(() => { setActiveVariant(0); }, [figure.id]);
   const displayedImage = variantImages[activeVariant] ?? figure.image;
 
-  const { email: uploaderEmail, name: uploaderName } = useUserInfo();
+  const { email: uploaderEmail, name: uploaderName, avatar: uploaderAvatar } = useUserInfo();
 
   const handleUpload = async (file: File) => {
     if (!userId || !file) return;
@@ -3222,7 +3239,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
         // significa que la subida no vaya a funcionar en un segundo intento.
         url = await uploadToR2(compressed);
       }
-      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, uploader_name: uploaderName, approved: false });
+      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, uploader_name: uploaderName, uploader_avatar: uploaderAvatar, approved: false });
       setUploadDone(true);
     } catch(e) {
       setUploadError(t("uploadNetworkError"));
@@ -3626,6 +3643,101 @@ function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:(
 // ============================================================
 //  CHOOSE NAME MODAL — shown once when a user has no display name yet
 // ============================================================
+function SettingsModal({ currentName, currentAvatar, onSaveName, onSaveAvatar, onClose }: {
+  currentName: string;
+  currentAvatar?: string|null;
+  onSaveName:(name:string)=>Promise<{error:unknown}>;
+  onSaveAvatar:(url:string|null)=>Promise<{error:unknown}>;
+  onClose:()=>void;
+}) {
+  const { t } = useTr();
+  const [name, setName] = useState(currentName);
+  const [avatarPreview, setAvatarPreview] = useState<string|null|undefined>(currentAvatar);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string|null>(null);
+
+  const handleAvatarFile = async (file: File) => {
+    setUploadingAvatar(true);
+    setError(null);
+    try {
+      const compressed = await compressImageForUpload(file, 400, 0.85);
+      const url = await uploadToR2(compressed);
+      setAvatarPreview(url);
+    } catch {
+      setError(t("uploadNetworkError"));
+    }
+    setUploadingAvatar(false);
+  };
+
+  const handleSave = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) { setError(t("nameRequired")); return; }
+    setSaving(true);
+    setError(null);
+    const [nameRes, avatarRes] = await Promise.all([
+      trimmed !== currentName ? onSaveName(trimmed) : Promise.resolve({ error: null }),
+      avatarPreview !== currentAvatar ? onSaveAvatar(avatarPreview ?? null) : Promise.resolve({ error: null }),
+    ]);
+    setSaving(false);
+    if (nameRes.error || avatarRes.error) { setError(t("uploadNetworkError")); return; }
+    setSaved(true);
+    setTimeout(onClose, 900);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:24,width:"100%",maxWidth:340,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontWeight:700,fontSize:16,marginBottom:18}}>{t("settingsTitle")}</div>
+
+        <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
+          <div style={{position:"relative",width:76,height:76}}>
+            <div style={{width:76,height:76,borderRadius:"50%",overflow:"hidden",background:"#0196e3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:"#fff"}}>
+              {uploadingAvatar ? "⏳" : avatarPreview
+                ? <img src={avatarPreview} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                : (name[0]?.toUpperCase() ?? "?")}
+            </div>
+            <label style={{position:"absolute",bottom:-2,right:-2,width:26,height:26,borderRadius:"50%",background:"var(--bg)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,cursor:"pointer"}}>
+              ✏️
+              <input type="file" accept="image/*" style={{display:"none"}} disabled={uploadingAvatar}
+                onChange={e=>{ const f=e.target.files?.[0]; if(f) handleAvatarFile(f); }} />
+            </label>
+          </div>
+        </div>
+        {avatarPreview && (
+          <button onClick={()=>setAvatarPreview(null)} style={{background:"none",border:"none",color:"#dc2626",fontSize:11,cursor:"pointer",marginBottom:16}}>
+            {t("removeAvatarBtn")}
+          </button>
+        )}
+        {!avatarPreview && <div style={{marginBottom:16}} />}
+
+        <div style={{textAlign:"left",marginBottom:8}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:6}}>{t("displayNameLabel")}</div>
+          <input
+            type="text"
+            value={name}
+            onChange={e=>{ setName(e.target.value); setError(null); }}
+            style={{width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box"}}
+          />
+        </div>
+
+        {error && <div style={{fontSize:11,color:"#dc2626",marginTop:8,textAlign:"center"}}>{error}</div>}
+        {saved && <div style={{fontSize:12,color:"#0196e3",marginTop:10,textAlign:"center"}}>{t("settingsSaved")}</div>}
+
+        <button onClick={handleSave} disabled={saving || uploadingAvatar}
+          style={{width:"100%",padding:"12px",borderRadius:10,border:"none",background:"#0196e3",color:"#fff",cursor:saving?"default":"pointer",fontSize:14,fontWeight:700,marginTop:16,opacity:saving||uploadingAvatar?0.7:1}}>
+          {t("saveSettings")}
+        </button>
+        <button onClick={onClose} style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)",marginTop:4}}>
+          {t("cancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 function ChooseNameModal({ onSave }: { onSave:(name:string)=>Promise<{error:unknown}> }) {
   const { t } = useTr();
   const [name, setName] = useState("");
@@ -3675,8 +3787,8 @@ const ADMIN_EMAILS = [
 
 
 export default function App() {
-  const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, signOut } = useAuth();
-  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null);
+  const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut } = useAuth();
+  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null, user?.avatar ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
@@ -3835,6 +3947,7 @@ export default function App() {
   const [showModeration, setShowModeration] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMyCollection, setShowMyCollection] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { count: pendingPhotosCount, refresh: refreshPendingCount } = usePendingPhotosCount(isAdmin);
 
   useEffect(() => {
@@ -4038,6 +4151,12 @@ export default function App() {
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   {t("myCollectionMenuItem")}
+                </div>
+                <div onClick={()=>{setShowUserMenu(false);setShowSettings(true);}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  {t("settingsMenuItem")}
                 </div>
                 <div onClick={()=>{setShowUserMenu(false);signOut();}}
                   style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
@@ -4499,7 +4618,16 @@ export default function App() {
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
       {showMyCollection && user && (
-        <MyCollectionPanel userId={user.id} uploaderName={user.name ?? user.email ?? "?"} onClose={()=>setShowMyCollection(false)} />
+        <MyCollectionPanel userId={user.id} uploaderName={user.name ?? user.email ?? "?"} uploaderAvatar={user.avatar} onClose={()=>setShowMyCollection(false)} />
+      )}
+      {showSettings && user && (
+        <SettingsModal
+          currentName={user.name ?? user.email ?? "?"}
+          currentAvatar={user.avatar}
+          onSaveName={updateName}
+          onSaveAvatar={updateAvatar}
+          onClose={()=>setShowSettings(false)}
+        />
       )}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} onSendCode={signInWithEmail} onVerifyCode={verifyEmailCode} />}
@@ -4530,7 +4658,7 @@ export default function App() {
 
   return (
     <LangProvider value={langValue}>
-      <UserInfoCtx.Provider value={{email: user?.email ?? null, name: user?.name ?? null}}>
+      <UserInfoCtx.Provider value={{email: user?.email ?? null, name: user?.name ?? null, avatar: user?.avatar ?? null}}>
       <AdminCtx.Provider value={isAdmin}>
         <SeriesDataCtx.Provider value={data}>
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
