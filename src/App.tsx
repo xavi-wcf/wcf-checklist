@@ -2378,7 +2378,7 @@ function getBadgesForOwnedIds(ownedIds: number[]|undefined, figureFranchiseMap: 
 // ============================================================
 function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { userId:string; uploaderName:string; uploaderAvatar?:string|null; onClose:()=>void }) {
   const { t } = useTr();
-  const { photos, coverId, loading, reload } = useMyCollectionPhotos(userId);
+  const { photos, coverId, shareCode, loading, reload } = useMyCollectionPhotos(userId);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string|null>(null);
@@ -2436,7 +2436,18 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
   };
 
   const handleShare = async () => {
-    const url = `${CANONICAL_ORIGIN}/c/${userId}`;
+    let code = shareCode;
+    if (!code) {
+      // Primera vez que comparte: generamos un código corto y lo guardamos.
+      // Reintentamos por si hubiera una colisión rarísima con otro usuario.
+      for (let attempt = 0; attempt < 3 && !code; attempt++) {
+        const candidate = generateShareCode();
+        const { error } = await supabase.from("wcf_collection_settings").upsert({ user_id: userId, share_code: candidate }, { onConflict: "user_id" });
+        if (!error) code = candidate;
+      }
+      if (!code) code = userId; // fallback improbable: usamos el id largo si algo falla
+    }
+    const url = `${CANONICAL_ORIGIN}/c/${code}`;
     if (navigator.share) {
       try { await navigator.share({ url, title: t("collectionOf", uploaderName), text: t("shareCollectionText", uploaderName) }); return; } catch { /* cancelado, seguimos con el fallback */ }
     }
@@ -3219,21 +3230,31 @@ function useFigurePhotos(figureId: number) {
 function useMyCollectionPhotos(userId?: string) {
   const [photos, setPhotos] = useState<CollectionPhoto[]>([]);
   const [coverId, setCoverId] = useState<string|null>(null);
+  const [shareCode, setShareCode] = useState<string|null>(null);
   const [loading, setLoading] = useState(true);
   const reload = useCallback(() => {
     if (!userId) { setPhotos([]); setLoading(false); return; }
     setLoading(true);
     Promise.all([
       supabase.from("wcf_collection_photos").select("*").eq("user_id", userId).order("sort_order", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
-      supabase.from("wcf_collection_settings").select("cover_photo_id").eq("user_id", userId).maybeSingle(),
+      supabase.from("wcf_collection_settings").select("cover_photo_id,share_code").eq("user_id", userId).maybeSingle(),
     ]).then(([photosRes, settingsRes]) => {
       setPhotos(photosRes.data ?? []);
       setCoverId(settingsRes.data?.cover_photo_id ?? null);
+      setShareCode(settingsRes.data?.share_code ?? null);
       setLoading(false);
     });
   }, [userId]);
   useEffect(() => { reload(); }, [reload]);
-  return { photos, coverId, loading, reload };
+  return { photos, coverId, shareCode, loading, reload };
+}
+
+// Genera un código corto y legible para enlaces de colección (sin 0/O/1/l/I, que se confunden)
+function generateShareCode(length = 7): string {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  const arr = new Uint32Array(length);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, n => chars[n % chars.length]).join("");
 }
 
 // Likes de un conjunto de fotos de colección: cuenta por foto + cuáles ha dado like el usuario actual
@@ -3927,12 +3948,19 @@ const ADMIN_EMAILS = [
 // ============================================================
 //  PUBLIC COLLECTION PAGE — /c/<userId>, sin necesitar cuenta ni login
 // ============================================================
-function PublicCollectionPage({ userId }: { userId: string }) {
+function PublicCollectionPage({ code }: { code: string }) {
   const { lang, t } = useLang();
   const langValue = useMemo(() => ({ t, lang }), [t, lang]);
-  const { photos, loading } = useUserCollectionGallery(userId);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null | undefined>(undefined); // undefined = resolviendo, null = no encontrado
+  useEffect(() => {
+    supabase.from("wcf_collection_settings").select("user_id").eq("share_code", code).maybeSingle()
+      .then(({ data }) => setResolvedUserId(data?.user_id ?? null));
+  }, [code]);
+  const { photos, loading: photosLoading } = useUserCollectionGallery(resolvedUserId ?? "");
+  const loading = resolvedUserId === undefined || (resolvedUserId !== null && photosLoading);
   const [zoomIndex, setZoomIndex] = useState<number|null>(null);
   const name = photos[0]?.uploader_name ?? "?";
+  const notFound = resolvedUserId === null || (!loading && photos.length === 0);
 
   return (
     <LangProvider value={langValue}>
@@ -3945,9 +3973,10 @@ function PublicCollectionPage({ userId }: { userId: string }) {
 
           {loading ? (
             <div style={{textAlign:"center",padding:"48px 0",color:"var(--text4)",fontSize:13}}>...</div>
-          ) : photos.length === 0 ? (
+          ) : notFound ? (
             <div style={{textAlign:"center",padding:"48px 16px"}}>
               <div style={{fontSize:40,marginBottom:12}}>🖼️</div>
+
               <div style={{fontSize:13,color:"var(--text3)",marginBottom:20}}>{t("publicCollectionNotFound")}</div>
               <a href={CANONICAL_ORIGIN} style={{display:"inline-block",padding:"10px 20px",borderRadius:10,background:"#0196e3",color:"#fff",textDecoration:"none",fontWeight:700,fontSize:13}}>
                 {t("goToApp")}
@@ -4874,13 +4903,13 @@ function MainApp() {
 }
 
 // ============================================================
-//  ROOT — decide si mostrar una colección pública (/c/<userId>) o la app entera
+//  ROOT — decide si mostrar una colección pública (/c/<código>) o la app entera
 // ============================================================
 export default function App() {
-  const [publicUserId] = useState<string | null>(() => {
+  const [publicShareCode] = useState<string | null>(() => {
     const match = window.location.pathname.match(/^\/c\/([a-zA-Z0-9-]+)\/?$/);
     return match ? match[1] : null;
   });
-  if (publicUserId) return <PublicCollectionPage userId={publicUserId} />;
+  if (publicShareCode) return <PublicCollectionPage code={publicShareCode} />;
   return <MainApp />;
 }
