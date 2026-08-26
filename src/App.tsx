@@ -467,6 +467,20 @@ const T = {
   moveFigureTitle:     { es: "Mover figura a...", en: "Move figure to...", th: "ย้ายฟิกเกอร์ไปที่...", fr: "Déplacer la figurine vers...", vi: "Chuyển mô hình đến...", ja: "フィギュアを移動...", zh: "将人偶移动到..." },
   moveFigureUngrouped: { es: "Sin grupo", en: "Ungrouped", th: "ไม่มีกลุ่ม", fr: "Sans groupe", vi: "Không nhóm", ja: "グループなし", zh: "未分组" },
   moveFigureDone:      { es: "Figura movida correctamente", en: "Figure moved successfully", th: "ย้ายฟิกเกอร์เรียบร้อยแล้ว", fr: "Figurine déplacée avec succès", vi: "Đã chuyển mô hình thành công", ja: "フィギュアを移動しました", zh: "人偶已成功移动" },
+  myCollectionTitle:   { es: "Mi colección", en: "My collection", th: "คอลเลกชันของฉัน", fr: "Ma collection", vi: "Bộ sưu tập của tôi", ja: "マイコレクション", zh: "我的收藏" },
+  myCollectionDesc:    { es: "Sube fotos de tu vitrina o tu colección para que otros coleccionistas las vean.", en: "Upload photos of your display case or collection for other collectors to see.", th: "อัปโหลดรูปตู้โชว์หรือคอลเลกชันของคุณให้นักสะสมคนอื่นเห็น", fr: "Ajoute des photos de ta vitrine ou de ta collection pour que les autres collectionneurs les voient.", vi: "Tải lên ảnh tủ trưng bày hoặc bộ sưu tập của bạn để người khác xem.", ja: "コレクションケースやコレクションの写真をアップロードして他のコレクターに見てもらいましょう。", zh: "上传你的展示柜或收藏照片，让其他收藏家看到。" },
+  addCollectionPhoto:  { es: "+ Añadir foto", en: "+ Add photo", th: "+ เพิ่มรูปภาพ", fr: "+ Ajouter une photo", vi: "+ Thêm ảnh", ja: "+ 写真を追加", zh: "+ 添加照片" },
+  collectionPhotoLimit:{ es: (n:number)=>`${n}/15 fotos`, en: (n:number)=>`${n}/15 photos`, th: (n:number)=>`${n}/15 รูป`, fr: (n:number)=>`${n}/15 photos`, vi: (n:number)=>`${n}/15 ảnh`, ja: (n:number)=>`${n}/15枚`, zh: (n:number)=>`${n}/15 张照片` },
+  collectionLimitReached:{ es: "Has alcanzado el límite de 15 fotos. Borra alguna para subir otra.", en: "You've reached the 15-photo limit. Delete one to upload another.", th: "คุณถึงขีดจำกัด 15 รูปแล้ว ลบรูปใดรูปหนึ่งเพื่ออัปโหลดเพิ่ม", fr: "Tu as atteint la limite de 15 photos. Supprime-en une pour en ajouter une autre.", vi: "Bạn đã đạt giới hạn 15 ảnh. Xóa một ảnh để tải lên ảnh khác.", ja: "15枚の上限に達しました。追加するには削除してください。", zh: "已达到15张照片上限，请先删除一张再上传。" },
+  pendingReviewLabel:  { es: "En revisión", en: "Under review", th: "กำลังตรวจสอบ", fr: "En cours de vérification", vi: "Đang chờ duyệt", ja: "審査中", zh: "审核中" },
+  setAsCover:          { es: "Portada", en: "Cover", th: "ภาพปก", fr: "Couverture", vi: "Ảnh bìa", ja: "カバー", zh: "封面" },
+  isCoverLabel:         { es: "✓ Portada", en: "✓ Cover", th: "✓ ภาพปก", fr: "✓ Couverture", vi: "✓ Ảnh bìa", ja: "✓ カバー", zh: "✓ 封面" },
+  removePhotoConfirm:  { es: "¿Borrar esta foto?", en: "Delete this photo?", th: "ลบรูปนี้หรือไม่?", fr: "Supprimer cette photo ?", vi: "Xóa ảnh này?", ja: "この写真を削除しますか？", zh: "删除这张照片？" },
+  collectionsTitle:    { es: "🖼️ Colecciones de la comunidad", en: "🖼️ Community collections", th: "🖼️ คอลเลกชันของชุมชน", fr: "🖼️ Collections de la communauté", vi: "🖼️ Bộ sưu tập cộng đồng", ja: "🖼️ コミュニティのコレクション", zh: "🖼️ 社区收藏" },
+  noCollectionsYet:    { es: "Aún no hay colecciones compartidas. ¡Sé el primero!", en: "No shared collections yet. Be the first!", th: "ยังไม่มีคอลเลกชันที่แชร์ มาเป็นคนแรกสิ!", fr: "Pas encore de collections partagées. Sois le premier !", vi: "Chưa có bộ sưu tập nào được chia sẻ. Hãy là người đầu tiên!", ja: "まだ共有されたコレクションはありません。最初の投稿者になりましょう！", zh: "还没有人分享收藏，快来当第一个吧！" },
+  backToCollections:   { es: "← Colecciones", en: "← Collections", th: "← คอลเลกชัน", fr: "← Collections", vi: "← Bộ sưu tập", ja: "← コレクション", zh: "← 收藏" },
+  collectionOf:        { es: (name:string)=>`La colección de ${name}`, en: (name:string)=>`${name}'s collection`, th: (name:string)=>`คอลเลกชันของ ${name}`, fr: (name:string)=>`La collection de ${name}`, vi: (name:string)=>`Bộ sưu tập của ${name}`, ja: (name:string)=>`${name}のコレクション`, zh: (name:string)=>`${name}的收藏` },
+  myCollectionMenuItem:{ es: "🖼️ Mi colección", en: "🖼️ My collection", th: "🖼️ คอลเลกชันของฉัน", fr: "🖼️ Ma collection", vi: "🖼️ Bộ sưu tập của tôi", ja: "🖼️ マイコレクション", zh: "🖼️ 我的收藏" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -830,8 +844,12 @@ type LeaderboardEntry = { userId: string; name: string; count: number; ownedIds?
 function usePendingPhotosCount(isAdmin: boolean) {
   const [count, setCount] = useState(0);
   const load = useCallback(() => {
-    supabase.from("wcf_photos").select("id", { count: "exact", head: true }).eq("approved", false)
-      .then(({ count: c }) => setCount(c ?? 0));
+    Promise.all([
+      supabase.from("wcf_photos").select("id", { count: "exact", head: true }).eq("approved", false),
+      supabase.from("wcf_collection_photos").select("id", { count: "exact", head: true }).eq("approved", false),
+    ]).then(([figuresRes, collectionsRes]) => {
+      setCount((figuresRes.count ?? 0) + (collectionsRes.count ?? 0));
+    });
   }, []);
   useEffect(() => {
     if (!isAdmin) return;
@@ -2324,6 +2342,210 @@ function getBadgesForOwnedIds(ownedIds: number[]|undefined, figureFranchiseMap: 
   return badges;
 }
 
+// ============================================================
+//  MY COLLECTION — manage own collection photos (upload, delete, set cover)
+// ============================================================
+function MyCollectionPanel({ userId, uploaderName, onClose }: { userId:string; uploaderName:string; onClose:()=>void }) {
+  const { t } = useTr();
+  const { photos, coverId, loading, reload } = useMyCollectionPhotos(userId);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string|null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string|null>(null);
+
+  const approvedCount = photos.length; // pending also counts toward the limit to prevent gaming it
+  const canAddMore = approvedCount < 15;
+
+  const handleFile = async (file: File) => {
+    if (!canAddMore) { setError(t("collectionLimitReached")); return; }
+    setUploading(true);
+    setError(null);
+    try {
+      const compressed = await compressImageForUpload(file);
+      let url: string;
+      try { url = await uploadToR2(compressed); }
+      catch { url = await uploadToR2(compressed); } // reintento automático
+      await supabase.from("wcf_collection_photos").insert({ user_id: userId, url, uploader_name: uploaderName, approved: false });
+      reload();
+    } catch (e) {
+      setError(t("uploadNetworkError"));
+      console.error(e);
+    }
+    setUploading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.from("wcf_collection_photos").delete().eq("id", id);
+    if (coverId === id) await supabase.from("wcf_collection_settings").delete().eq("user_id", userId);
+    setConfirmDeleteId(null);
+    reload();
+  };
+
+  const handleSetCover = async (id: string) => {
+    await supabase.from("wcf_collection_settings").upsert({ user_id: userId, cover_photo_id: id });
+    reload();
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+          <div style={{fontWeight:700,fontSize:16}}>🖼️ {t("myCollectionTitle")}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--text3)",lineHeight:1}}>✕</button>
+        </div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:6}}>{t("myCollectionDesc")}</div>
+        <div style={{fontSize:11,color:"var(--text4)",fontWeight:600,marginBottom:16}}>{t("collectionPhotoLimit", approvedCount)}</div>
+
+        {loading ? (
+          <div style={{textAlign:"center",padding:"24px 0",color:"var(--text4)",fontSize:12}}>...</div>
+        ) : (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+            {photos.map(p => (
+              <div key={p.id} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:"var(--bg2)"}}>
+                <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:p.approved?1:0.5}} />
+                {!p.approved && (
+                  <div style={{position:"absolute",top:4,left:4,background:"rgba(0,0,0,0.7)",color:"#fff",fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:6}}>
+                    {t("pendingReviewLabel")}
+                  </div>
+                )}
+                {p.approved && (
+                  <button onClick={()=>handleSetCover(p.id)}
+                    style={{position:"absolute",bottom:4,left:4,right:24,background:coverId===p.id?"#0196e3":"rgba(0,0,0,0.6)",color:"#fff",border:"none",borderRadius:6,fontSize:9,fontWeight:700,padding:"3px 4px",cursor:"pointer"}}>
+                    {coverId===p.id ? t("isCoverLabel") : t("setAsCover")}
+                  </button>
+                )}
+                <button onClick={()=>setConfirmDeleteId(p.id)}
+                  style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",border:"none",borderRadius:"50%",width:20,height:20,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            {canAddMore && (
+              <label style={{aspectRatio:"1",borderRadius:10,border:"1.5px dashed var(--border)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:11,color:"var(--text4)",background:"var(--bg2)",textAlign:"center",flexDirection:"column",gap:4}}>
+                {uploading ? "⏳" : <>➕<span>{t("addCollectionPhoto")}</span></>}
+                <input type="file" accept="image/*" style={{display:"none"}} disabled={uploading}
+                  onChange={e=>{ const f=e.target.files?.[0]; if(f) handleFile(f); }} />
+              </label>
+            )}
+          </div>
+        )}
+
+        {error && <div style={{fontSize:11,color:"#dc2626",marginBottom:12,textAlign:"center"}}>{error}</div>}
+
+        {confirmDeleteId && (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:310,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setConfirmDeleteId(null)}>
+            <div style={{background:"var(--bg)",borderRadius:14,padding:20,maxWidth:300,width:"100%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:13,marginBottom:16}}>{t("removePhotoConfirm")}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setConfirmDeleteId(null)} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:12}}>{t("cancel")}</button>
+                <button onClick={()=>handleDelete(confirmDeleteId)} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:600}}>{t("delete")}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  COLLECTIONS DIRECTORY + individual gallery — inside Community tab
+// ============================================================
+function CollectionPhotoZoom({ photos, index, onClose, onNav }: { photos: CollectionPhoto[]; index: number; onClose:()=>void; onNav:(i:number)=>void }) {
+  const { t } = useTr();
+  const photo = photos[index];
+  if (!photo) return null;
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:420,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <button onClick={e=>{e.stopPropagation();onClose();}}
+        style={{position:"absolute",top:16,right:16,zIndex:421,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:40,height:40,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
+        ✕
+      </button>
+      <div style={{position:"relative",maxWidth:"100%",maxHeight:"90vh"}} onClick={e=>e.stopPropagation()}>
+        <img src={photo.url} alt="" style={{display:"block",maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
+        {photos.length > 1 && (
+          <>
+            <button onClick={()=>onNav((index-1+photos.length)%photos.length)} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+            <button onClick={()=>onNav((index+1)%photos.length)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+          </>
+        )}
+        <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:8}}>
+          {t("uploadedBy")} {photo.uploader_name ?? t("communityMember")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserCollectionView({ userId, name, onBack }: { userId:string; name:string; onBack:()=>void }) {
+  const { t } = useTr();
+  const { photos, loading } = useUserCollectionGallery(userId);
+  const [zoomIndex, setZoomIndex] = useState<number|null>(null);
+  return (
+    <div>
+      <button onClick={onBack} style={{background:"none",border:"none",fontSize:12,color:"#0196e3",cursor:"pointer",padding:0,marginBottom:12}}>
+        {t("backToCollections")}
+      </button>
+      <div style={{fontSize:14,fontWeight:700,marginBottom:12}}>{t("collectionOf", name)}</div>
+      {loading ? (
+        <div style={{textAlign:"center",padding:"24px 0",color:"var(--text4)",fontSize:12}}>...</div>
+      ) : (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+          {photos.map((p,i) => (
+            <div key={p.id} onClick={()=>setZoomIndex(i)} style={{aspectRatio:"1",borderRadius:10,overflow:"hidden",cursor:"pointer",background:"var(--bg2)"}}>
+              <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+            </div>
+          ))}
+        </div>
+      )}
+      {zoomIndex !== null && (
+        <CollectionPhotoZoom photos={photos} index={zoomIndex} onClose={()=>setZoomIndex(null)} onNav={setZoomIndex} />
+      )}
+    </div>
+  );
+}
+
+function CollectionsSection() {
+  const { t } = useTr();
+  const { entries, loading } = useCollectionsDirectory();
+  const [viewing, setViewing] = useState<{ userId:string; name:string }|null>(null);
+  const AVATAR_PALETTE = ["#0174b0","#f59e0b","#10b981","#8b5cf6","#ec4899","#ef4444","#14b8a6","#6366f1"];
+  const colorForUser = (id: string) => {
+    let hash = 0;
+    for (let i=0;i<id.length;i++) hash = (hash*31 + id.charCodeAt(i)) >>> 0;
+    return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+  };
+
+  if (viewing) return <UserCollectionView userId={viewing.userId} name={viewing.name} onBack={()=>setViewing(null)} />;
+
+  return (
+    <div style={{marginBottom:24}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>{t("collectionsTitle")}</div>
+      {loading ? (
+        <div style={{textAlign:"center",padding:"12px 0",color:"var(--text4)",fontSize:12}}>...</div>
+      ) : entries.length === 0 ? (
+        <div style={{fontSize:12,color:"var(--text4)",textAlign:"center",padding:"16px 0"}}>{t("noCollectionsYet")}</div>
+      ) : (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {entries.map(e => (
+            <div key={e.userId} onClick={()=>setViewing({userId:e.userId,name:e.name})}
+              style={{borderRadius:12,overflow:"hidden",border:"1px solid var(--border)",cursor:"pointer",background:"var(--bg2)"}}>
+              <div style={{aspectRatio:"1.4",background:colorForUser(e.userId),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+                {e.coverUrl
+                  ? <img src={e.coverUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                  : <div style={{fontSize:28,fontWeight:700,color:"#fff"}}>{e.name[0]?.toUpperCase() ?? "?"}</div>}
+              </div>
+              <div style={{padding:"8px 10px"}}>
+                <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t("collectionOf", e.name)}</div>
+                <div style={{fontSize:10,color:"var(--text4)"}}>{e.count} {t("photosCount")}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished, currentUserId }: {
   data: Series[]; communityUsers:number; communityTotal:number;
   topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
@@ -2463,6 +2685,8 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
               <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>{t("communityFigs")}</div>
             </div>
           </div>
+
+          <CollectionsSection />
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 {t("topUploaders")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
@@ -2811,6 +3035,7 @@ function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, on
 //  FIGURE DETAIL MODAL
 // ============================================================
 type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_email?: string|null; uploader_name?: string|null; };
+type CollectionPhoto = { id: string; user_id: string; url: string; approved: boolean; created_at: string; uploader_name?: string|null; };
 
 function useFigurePhotos(figureId: number) {
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
@@ -2822,6 +3047,70 @@ function useFigurePhotos(figureId: number) {
       .then(({ data }) => { setPhotos(data ?? []); setLoading(false); });
   }, [figureId]);
   return { photos, setPhotos, loading };
+}
+
+// Fotos de "mi colección" del propio usuario (incluye pendientes de aprobar)
+function useMyCollectionPhotos(userId?: string) {
+  const [photos, setPhotos] = useState<CollectionPhoto[]>([]);
+  const [coverId, setCoverId] = useState<string|null>(null);
+  const [loading, setLoading] = useState(true);
+  const reload = useCallback(() => {
+    if (!userId) { setPhotos([]); setLoading(false); return; }
+    setLoading(true);
+    Promise.all([
+      supabase.from("wcf_collection_photos").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      supabase.from("wcf_collection_settings").select("cover_photo_id").eq("user_id", userId).maybeSingle(),
+    ]).then(([photosRes, settingsRes]) => {
+      setPhotos(photosRes.data ?? []);
+      setCoverId(settingsRes.data?.cover_photo_id ?? null);
+      setLoading(false);
+    });
+  }, [userId]);
+  useEffect(() => { reload(); }, [reload]);
+  return { photos, coverId, loading, reload };
+}
+
+// Directorio de todos los usuarios con al menos una foto de colección aprobada
+function useCollectionsDirectory() {
+  const [entries, setEntries] = useState<{ userId:string; name:string; count:number; coverUrl:string|null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      supabase.from("wcf_collection_photos").select("id,user_id,url,uploader_name").eq("approved", true),
+      supabase.from("wcf_collection_settings").select("user_id,cover_photo_id"),
+    ]).then(([photosRes, settingsRes]) => {
+      const photos = photosRes.data ?? [];
+      const coverMap = new Map((settingsRes.data ?? []).map((s:any) => [s.user_id, s.cover_photo_id]));
+      const byUser = new Map<string, { name:string; photos: typeof photos }>();
+      for (const p of photos) {
+        const entry = byUser.get(p.user_id) ?? { name: p.uploader_name ?? "?", photos: [] };
+        entry.photos.push(p);
+        byUser.set(p.user_id, entry);
+      }
+      const result = Array.from(byUser.entries()).map(([userId, { name, photos }]) => {
+        const coverId = coverMap.get(userId);
+        const cover = photos.find(p => p.id === coverId) ?? photos[0];
+        return { userId, name, count: photos.length, coverUrl: cover?.url ?? null };
+      }).sort((a,b) => b.count - a.count);
+      setEntries(result);
+      setLoading(false);
+    });
+  }, []);
+  return { entries, loading };
+}
+
+// Galería pública (solo aprobadas) de un usuario concreto
+function useUserCollectionGallery(userId: string) {
+  const [photos, setPhotos] = useState<CollectionPhoto[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    supabase.from("wcf_collection_photos").select("*").eq("user_id", userId).eq("approved", true)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { setPhotos(data ?? []); setLoading(false); });
+  }, [userId]);
+  return { photos, loading };
 }
 
 function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, onToggleWish, onClose, onPrev, onNext, communityOwned, communityWished, userId }: {
@@ -3030,43 +3319,49 @@ function buildFigureNameMap(data: Series[]): Record<number, string> {
 }
 
 function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Series[] }) {
+  const [source, setSource] = useState<"figures"|"collections">("figures");
   const [tab, setTab] = useState<"pending"|"approved">("pending");
-  const [pending, setPending] = useState<UserPhoto[]>([]);
-  const [approved, setApproved] = useState<UserPhoto[]>([]);
+  const [pending, setPending] = useState<(UserPhoto|CollectionPhoto)[]>([]);
+  const [approved, setApproved] = useState<(UserPhoto|CollectionPhoto)[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string|null>(null);
 
   const figureNameMap = useMemo(() => buildFigureNameMap(data), [data]);
+  const tableName = source === "figures" ? "wcf_photos" : "wcf_collection_photos";
 
   const loadPending = () => {
     setLoading(true);
-    supabase.from("wcf_photos").select("*").eq("approved", false).order("created_at", { ascending: true })
+    supabase.from(tableName).select("*").eq("approved", false).order("created_at", { ascending: true })
       .then(({ data }) => { setPending(data ?? []); setLoading(false); });
   };
 
   const loadApproved = () => {
     setLoading(true);
-    supabase.from("wcf_photos").select("*").eq("approved", true).order("created_at", { ascending: false })
+    supabase.from(tableName).select("*").eq("approved", true).order("created_at", { ascending: false })
       .then(({ data }) => { setApproved(data ?? []); setLoading(false); });
   };
 
   useEffect(() => {
     if (tab === "pending") loadPending();
     else loadApproved();
-  }, [tab]);
+  }, [tab, source]);
 
   const approve = async (id: string) => {
-    await supabase.from("wcf_photos").update({ approved: true }).eq("id", id);
+    await supabase.from(tableName).update({ approved: true }).eq("id", id);
     setPending(p => p.filter(x => x.id !== id));
   };
 
   const reject = async (id: string) => {
-    await supabase.from("wcf_photos").delete().eq("id", id);
+    await supabase.from(tableName).delete().eq("id", id);
     setPending(p => p.filter(x => x.id !== id));
   };
 
   const deleteApproved = async (id: string) => {
-    await supabase.from("wcf_photos").delete().eq("id", id);
+    await supabase.from(tableName).delete().eq("id", id);
+    if (source === "collections") {
+      // Si esa foto era la portada de alguien, hay que limpiar la referencia
+      await supabase.from("wcf_collection_settings").delete().eq("cover_photo_id", id);
+    }
     setApproved(p => p.filter(x => x.id !== id));
     setConfirmDeleteId(null);
   };
@@ -3079,6 +3374,14 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
         <div style={{padding:"16px 16px 12px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:15,fontWeight:700}}>📸 Photo moderation</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
+        </div>
+        <div style={{display:"flex",borderBottom:"1px solid var(--border)",padding:"8px 12px 0",gap:6}}>
+          <button onClick={()=>{setSource("figures");setTab("pending");}} style={{flex:1,padding:"7px",borderRadius:"8px 8px 0 0",border:"none",background:source==="figures"?"var(--bg2)":"transparent",cursor:"pointer",fontWeight:700,fontSize:11,color:source==="figures"?"var(--text)":"var(--text4)"}}>
+            🧩 Figures
+          </button>
+          <button onClick={()=>{setSource("collections");setTab("pending");}} style={{flex:1,padding:"7px",borderRadius:"8px 8px 0 0",border:"none",background:source==="collections"?"var(--bg2)":"transparent",cursor:"pointer",fontWeight:700,fontSize:11,color:source==="collections"?"var(--text)":"var(--text4)"}}>
+            🖼️ Collections
+          </button>
         </div>
         <div style={{display:"flex",borderBottom:"1px solid var(--border)"}}>
           <button onClick={()=>setTab("pending")} style={{flex:1,padding:"10px",border:"none",background:tab==="pending"?"var(--bg2)":"transparent",cursor:"pointer",fontWeight:700,fontSize:12,color:tab==="pending"?"var(--text)":"var(--text4)",borderBottom:tab==="pending"?"2px solid #0196e3":"2px solid transparent"}}>
@@ -3099,11 +3402,13 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
             <div key={p.id} style={{marginBottom:16,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
               <img src={p.url} alt="figure" style={{width:"100%",maxHeight:280,objectFit:"contain",background:"var(--missing-bg)"}} />
               <div style={{padding:"10px 12px"}}>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>
-                  {figureNameMap[p.figure_id] ?? `Figure ID: ${p.figure_id}`}
-                </div>
+                {source === "figures" && (
+                  <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>
+                    {figureNameMap[(p as UserPhoto).figure_id] ?? `Figure ID: ${(p as UserPhoto).figure_id}`}
+                  </div>
+                )}
                 <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>
-                  👤 {p.uploader_name ?? p.uploader_email ?? "Unknown (uploaded before tracking was added)"}
+                  👤 {p.uploader_name ?? (p as UserPhoto).uploader_email ?? "Unknown (uploaded before tracking was added)"}
                 </div>
                 {tab === "pending" ? (
                   <div style={{display:"flex",gap:8}}>
@@ -3463,6 +3768,8 @@ export default function App() {
   // Favourites — stored in localStorage
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMyCollection, setShowMyCollection] = useState(false);
   const { count: pendingPhotosCount, refresh: refreshPendingCount } = usePendingPhotosCount(isAdmin);
 
   useEffect(() => {
@@ -3651,13 +3958,31 @@ export default function App() {
         <button onClick={()=>window.open("https://ko-fi.com/wcf_checklist","_blank")}
           style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Support WCF Checklist">☕</button>
         {user ? (
-          <button onClick={signOut} title={t("signOut")}
-            style={{background:"none",border:"none",cursor:"pointer",padding:0,borderRadius:"50%",overflow:"hidden",width:28,height:28,flexShrink:0}}>
-            {user.avatar
-              ? <img src={user.avatar} alt={user.name} style={{width:28,height:28,borderRadius:"50%",objectFit:"cover"}} />
-              : <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff"}}>{user.name?.[0]??user.email?.[0]??"?"}</div>
-            }
-          </button>
+          <div style={{position:"relative"}}>
+            <button onClick={()=>setShowUserMenu(m=>!m)} title={user.name ?? user.email ?? ""}
+              style={{background:"none",border:"none",cursor:"pointer",padding:0,borderRadius:"50%",overflow:"hidden",width:28,height:28,flexShrink:0}}>
+              {user.avatar
+                ? <img src={user.avatar} alt={user.name} style={{width:28,height:28,borderRadius:"50%",objectFit:"cover"}} />
+                : <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff"}}>{user.name?.[0]??user.email?.[0]??"?"}</div>
+              }
+            </button>
+            {showUserMenu && (
+              <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 4px 16px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:170}}>
+                <div onClick={()=>{setShowUserMenu(false);setShowMyCollection(true);}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  {t("myCollectionMenuItem")}
+                </div>
+                <div onClick={()=>{setShowUserMenu(false);signOut();}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  🚪 {t("signOut")}
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <button onClick={()=>setShowLogin(true)}
             style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:14}} title={t("signIn")}>
@@ -4107,6 +4432,9 @@ export default function App() {
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
+      {showMyCollection && user && (
+        <MyCollectionPanel userId={user.id} uploaderName={user.name ?? user.email ?? "?"} onClose={()=>setShowMyCollection(false)} />
+      )}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} onSendCode={signInWithEmail} onVerifyCode={verifyEmailCode} />}
       {user && !user.name && <ChooseNameModal onSave={updateName} />}
