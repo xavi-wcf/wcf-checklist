@@ -2507,12 +2507,21 @@ function UserCollectionView({ userId, name, onBack }: { userId:string; name:stri
 
 // Vista previa ligera: solo trae unas pocas portadas recientes para decorar
 // el botón de entrada, sin cargar el directorio completo hasta que se abra.
+// Vista previa ligera: trae un grupo de portadas aprobadas y elige 4 al azar
+// cada vez que se carga, para decorar el botón de entrada.
 function useCollectionsPreviewCovers() {
   const [covers, setCovers] = useState<string[]>([]);
   useEffect(() => {
-    supabase.from("wcf_collection_photos").select("url").eq("approved", true)
-      .order("created_at", { ascending: false }).limit(4)
-      .then(({ data }) => setCovers((data ?? []).map((d:any) => d.url)));
+    supabase.from("wcf_collection_photos").select("url").eq("approved", true).limit(100)
+      .then(({ data }) => {
+        const urls = (data ?? []).map((d:any) => d.url);
+        // Fisher-Yates shuffle
+        for (let i = urls.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [urls[i], urls[j]] = [urls[j], urls[i]];
+        }
+        setCovers(urls.slice(0, 4));
+      });
   }, []);
   return covers;
 }
