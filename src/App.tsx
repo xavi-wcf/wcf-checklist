@@ -481,6 +481,7 @@ const T = {
   backToCollections:   { es: "← Colecciones", en: "← Collections", th: "← คอลเลกชัน", fr: "← Collections", vi: "← Bộ sưu tập", ja: "← コレクション", zh: "← 收藏" },
   collectionOf:        { es: (name:string)=>`La colección de ${name}`, en: (name:string)=>`${name}'s collection`, th: (name:string)=>`คอลเลกชันของ ${name}`, fr: (name:string)=>`La collection de ${name}`, vi: (name:string)=>`Bộ sưu tập của ${name}`, ja: (name:string)=>`${name}のコレクション`, zh: (name:string)=>`${name}的收藏` },
   myCollectionMenuItem:{ es: "🖼️ Mi colección", en: "🖼️ My collection", th: "🖼️ คอลเลกชันของฉัน", fr: "🖼️ Ma collection", vi: "🖼️ Bộ sưu tập của tôi", ja: "🖼️ マイコレクション", zh: "🖼️ 我的收藏" },
+  deleteBtn:           { es: "Borrar", en: "Delete", th: "ลบ", fr: "Supprimer", vi: "Xóa", ja: "削除", zh: "删除" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -2437,7 +2438,7 @@ function MyCollectionPanel({ userId, uploaderName, onClose }: { userId:string; u
               <div style={{fontSize:13,marginBottom:16}}>{t("removePhotoConfirm")}</div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setConfirmDeleteId(null)} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:12}}>{t("cancel")}</button>
-                <button onClick={()=>handleDelete(confirmDeleteId)} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:600}}>{t("delete")}</button>
+                <button onClick={()=>handleDelete(confirmDeleteId)} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:600}}>{t("deleteBtn")}</button>
               </div>
             </div>
           </div>
@@ -3076,15 +3077,16 @@ function useCollectionsDirectory() {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     setLoading(true);
+    type DirPhoto = { id:string; user_id:string; url:string; uploader_name:string|null };
     Promise.all([
       supabase.from("wcf_collection_photos").select("id,user_id,url,uploader_name").eq("approved", true),
       supabase.from("wcf_collection_settings").select("user_id,cover_photo_id"),
     ]).then(([photosRes, settingsRes]) => {
-      const photos = photosRes.data ?? [];
-      const coverMap = new Map((settingsRes.data ?? []).map((s:any) => [s.user_id, s.cover_photo_id]));
-      const byUser = new Map<string, { name:string; photos: typeof photos }>();
+      const photos = (photosRes.data ?? []) as DirPhoto[];
+      const coverMap = new Map<string, string|null>((settingsRes.data ?? []).map((s:any) => [s.user_id, s.cover_photo_id]));
+      const byUser = new Map<string, { name:string; photos: DirPhoto[] }>();
       for (const p of photos) {
-        const entry = byUser.get(p.user_id) ?? { name: p.uploader_name ?? "?", photos: [] };
+        const entry = byUser.get(p.user_id) ?? { name: p.uploader_name ?? "?", photos: [] as DirPhoto[] };
         entry.photos.push(p);
         byUser.set(p.user_id, entry);
       }
