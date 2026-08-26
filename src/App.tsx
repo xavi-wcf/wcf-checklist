@@ -176,6 +176,15 @@ style.textContent = `.search-input::placeholder { color: rgba(255,255,255,0.75);
 document.head.appendChild(style);
 const SUPABASE_KEY = "sb_publishable_AQN2HtfIBlrI8cmQYDZOuw_vaUyOL8u";
 
+// Dominio fijo para enlaces que se comparten fuera de la app (no depende
+// de si el visitante está en wcfchecklist.com o en el .vercel.app viejo)
+const CANONICAL_ORIGIN = "https://www.wcfchecklist.com";
+
+// Imagen 1x1 transparente para ocultar la miniatura fantasma que el
+// navegador dibuja por defecto al arrastrar (drag-and-drop más limpio)
+const TRANSPARENT_DRAG_IMG = new Image();
+TRANSPARENT_DRAG_IMG.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
+
 async function sbGet(table: string) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
@@ -2426,7 +2435,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/c/${userId}`;
+    const url = `${CANONICAL_ORIGIN}/c/${userId}`;
     if (navigator.share) {
       try { await navigator.share({ url, title: t("collectionOf", uploaderName) }); return; } catch { /* cancelado, seguimos con el fallback */ }
     }
@@ -2459,7 +2468,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
             {photos.map((p) => (
               <div key={p.id}
                 draggable
-                onDragStart={()=>setDragPhotoId(p.id)}
+                onDragStart={e=>{ e.dataTransfer.setDragImage(TRANSPARENT_DRAG_IMG, 0, 0); setDragPhotoId(p.id); }}
                 onDragOver={e=>e.preventDefault()}
                 onDrop={e=>{e.preventDefault();handleDropReorder(p.id);}}
                 onDragEnd={()=>setDragPhotoId(null)}
@@ -3939,7 +3948,7 @@ function PublicCollectionPage({ userId }: { userId: string }) {
             <div style={{textAlign:"center",padding:"48px 16px"}}>
               <div style={{fontSize:40,marginBottom:12}}>🖼️</div>
               <div style={{fontSize:13,color:"var(--text3)",marginBottom:20}}>{t("publicCollectionNotFound")}</div>
-              <a href="/" style={{display:"inline-block",padding:"10px 20px",borderRadius:10,background:"#0196e3",color:"#fff",textDecoration:"none",fontWeight:700,fontSize:13}}>
+              <a href={CANONICAL_ORIGIN} style={{display:"inline-block",padding:"10px 20px",borderRadius:10,background:"#0196e3",color:"#fff",textDecoration:"none",fontWeight:700,fontSize:13}}>
                 {t("goToApp")}
               </a>
             </div>
@@ -3954,7 +3963,7 @@ function PublicCollectionPage({ userId }: { userId: string }) {
                 ))}
               </div>
               <div style={{textAlign:"center"}}>
-                <a href="/" style={{display:"inline-block",padding:"10px 20px",borderRadius:10,background:"#0196e3",color:"#fff",textDecoration:"none",fontWeight:700,fontSize:13}}>
+                <a href={CANONICAL_ORIGIN} style={{display:"inline-block",padding:"10px 20px",borderRadius:10,background:"#0196e3",color:"#fff",textDecoration:"none",fontWeight:700,fontSize:13}}>
                   {t("goToApp")}
                 </a>
               </div>
