@@ -2402,7 +2402,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
   };
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:520,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
       <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
           <div style={{fontWeight:700,fontSize:16}}>🖼️ {t("myCollectionTitle")}</div>
@@ -2448,7 +2448,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
         {error && <div style={{fontSize:11,color:"#dc2626",marginBottom:12,textAlign:"center"}}>{error}</div>}
 
         {confirmDeleteId && (
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:310,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setConfirmDeleteId(null)}>
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:530,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setConfirmDeleteId(null)}>
             <div style={{background:"var(--bg)",borderRadius:14,padding:20,maxWidth:300,width:"100%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
               <div style={{fontSize:13,marginBottom:16}}>{t("removePhotoConfirm")}</div>
               <div style={{display:"flex",gap:8}}>
