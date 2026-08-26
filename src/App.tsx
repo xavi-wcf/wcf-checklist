@@ -2505,15 +2505,36 @@ function UserCollectionView({ userId, name, onBack }: { userId:string; name:stri
   );
 }
 
+// Vista previa ligera: solo trae unas pocas portadas recientes para decorar
+// el botón de entrada, sin cargar el directorio completo hasta que se abra.
+function useCollectionsPreviewCovers() {
+  const [covers, setCovers] = useState<string[]>([]);
+  useEffect(() => {
+    supabase.from("wcf_collection_photos").select("url").eq("approved", true)
+      .order("created_at", { ascending: false }).limit(4)
+      .then(({ data }) => setCovers((data ?? []).map((d:any) => d.url)));
+  }, []);
+  return covers;
+}
+
 function CollectionsEntryButton({ onOpenMyCollection }: { onOpenMyCollection:()=>void }) {
   const { t } = useTr();
   const [showDirectory, setShowDirectory] = useState(false);
+  const covers = useCollectionsPreviewCovers();
   return (
     <>
       <button onClick={()=>setShowDirectory(true)}
-        style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",marginBottom:24}}>
-        <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{t("collectionsTitle")}</span>
-        <span style={{fontSize:14,color:"var(--text4)"}}>›</span>
+        style={{width:"100%",display:"flex",flexDirection:"column",alignItems:"center",gap:8,padding:"18px 14px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#0196e3,#6366f1)",cursor:"pointer",marginBottom:24,boxShadow:"0 4px 14px rgba(1,150,227,0.3)"}}>
+        {covers.length > 0 ? (
+          <div style={{display:"flex"}}>
+            {covers.map((url,i) => (
+              <img key={i} src={url} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2.5px solid #fff",marginLeft:i===0?0:-14,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}} />
+            ))}
+          </div>
+        ) : (
+          <div style={{fontSize:32}}>🖼️</div>
+        )}
+        <span style={{fontSize:14,fontWeight:800,color:"#fff",textAlign:"center"}}>{t("collectionsTitle")}</span>
       </button>
       {showDirectory && (
         <CollectionsDirectoryModal onClose={()=>setShowDirectory(false)} onOpenMyCollection={onOpenMyCollection} />
