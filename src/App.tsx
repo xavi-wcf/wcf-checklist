@@ -463,6 +463,10 @@ const T = {
   versionLabel:        { es: "Versión", en: "Version", th: "เวอร์ชัน", fr: "Version", vi: "Phiên bản", ja: "バージョン", zh: "版本" },
   addVersionBtn:       { es: "Añadir versión", en: "Add version", th: "เพิ่มเวอร์ชัน", fr: "Ajouter une version", vi: "Thêm phiên bản", ja: "バージョンを追加", zh: "添加版本" },
   altVersionsHint:     { es: "Para figuras con piezas intercambiables (ej. 2 cabezas). Aparecerán como botones A/B/C en la ficha.", en: "For figures with interchangeable parts (e.g. 2 heads). They'll appear as A/B/C buttons on the figure page.", th: "สำหรับฟิกเกอร์ที่มีชิ้นส่วนสลับได้ (เช่น 2 หัว) จะแสดงเป็นปุ่ม A/B/C ในหน้ารายละเอียด", fr: "Pour les figurines avec pièces interchangeables (ex. 2 têtes). Elles apparaîtront comme boutons A/B/C sur la fiche.", vi: "Dành cho mô hình có bộ phận thay thế (ví dụ 2 đầu). Sẽ hiện thành nút A/B/C trên trang chi tiết.", ja: "パーツ交換可能なフィギュア用（例：頭2種）。詳細ページにA/B/Cボタンとして表示されます。", zh: "适用于可更换部件的人偶（例如2个头）。将在详情页显示为A/B/C按钮。" },
+  moveFigureBtn:       { es: "Mover a otro set", en: "Move to another set", th: "ย้ายไปยังชุดอื่น", fr: "Déplacer vers un autre set", vi: "Chuyển sang bộ khác", ja: "他のセットに移動", zh: "移动到其他套装" },
+  moveFigureTitle:     { es: "Mover figura a...", en: "Move figure to...", th: "ย้ายฟิกเกอร์ไปที่...", fr: "Déplacer la figurine vers...", vi: "Chuyển mô hình đến...", ja: "フィギュアを移動...", zh: "将人偶移动到..." },
+  moveFigureUngrouped: { es: "Sin grupo", en: "Ungrouped", th: "ไม่มีกลุ่ม", fr: "Sans groupe", vi: "Không nhóm", ja: "グループなし", zh: "未分组" },
+  moveFigureDone:      { es: "Figura movida correctamente", en: "Figure moved successfully", th: "ย้ายฟิกเกอร์เรียบร้อยแล้ว", fr: "Figurine déplacée avec succès", vi: "Đã chuyển mô hình thành công", ja: "フィギュアを移動しました", zh: "人偶已成功移动" },
 } as const;
 
 type TKey = keyof typeof T;
@@ -1392,12 +1396,13 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 //  FIGURE CARD
 // ============================================================
-function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onDetail, userPhotoCount }: {
+function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onMove, onDetail, userPhotoCount }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
   onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
   onQuickUpload?:(file:File)=>void;
   onSwapImage?:(fromId:number)=>void;
   onReorderStart?:()=>void;
+  onMove?:()=>void;
   onDetail?:()=>void;
   userPhotoCount?:number;
 }) {
@@ -1473,6 +1478,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
         {isAdmin && hover && <>
           <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
+          {onMove && <button onClick={e=>{e.stopPropagation();onMove();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}} title="Move to another set">🗂️</button>}
           <button onClick={e=>{e.stopPropagation();onDelete();}} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>🗑</button>
         </>}
         {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
@@ -1561,7 +1567,50 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
+function MoveFigureModal({ figure, series, currentSetId, onMove, onClose }: { figure: Figure; series: Series; currentSetId: number; onMove:(destSetId:number,destGroupId?:number)=>void; onClose:()=>void }) {
+  const { t } = useTr();
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:360,maxHeight:"75vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>{t("moveFigureTitle")}</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>{figure.emoji} {figure.name}</div>
+
+        {series.sets.length > 0 && (
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:10,fontWeight:700,color:"var(--text4)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>{t("moveFigureUngrouped")}</div>
+            {series.sets.filter(st=>st.id!==currentSetId).map(st => (
+              <button key={st.id} onClick={()=>onMove(st.id)}
+                style={{display:"block",width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,marginBottom:6,color:"var(--text)"}}>
+                {st.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {series.groups.map(g => (
+          <div key={g.id} style={{marginBottom:14}}>
+            <div style={{fontSize:10,fontWeight:700,color:"var(--text4)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>{g.name}</div>
+            {g.sets.filter(st=>st.id!==currentSetId).map(st => (
+              <button key={st.id} onClick={()=>onMove(st.id, g.id)}
+                style={{display:"block",width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,marginBottom:6,color:"var(--text)"}}>
+                {st.name}
+              </button>
+            ))}
+            {g.sets.filter(st=>st.id!==currentSetId).length === 0 && (
+              <div style={{fontSize:11,color:"var(--text4)",fontStyle:"italic"}}>—</div>
+            )}
+          </div>
+        ))}
+
+        <button onClick={onClose} style={{width:"100%",padding:"10px",borderRadius:8,border:"none",background:"transparent",color:"var(--text3)",cursor:"pointer",fontSize:13,marginTop:4}}>
+          {t("cancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, onMoveFigure, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   set:FigureSet; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
@@ -1569,12 +1618,14 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
   onAddFigure:(f:Omit<Figure,"id">)=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
+  onMoveFigure?:(figureId:number,destSetId:number,destGroupId?:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
   cardSize?:"s"|"m"|"l";
 }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
+  const [movingFigure, setMovingFigure] = useState<Figure | null>(null);
   const [open,setOpen]=useState(false); const [editSet,setEditSet]=useState(false);
   const [addFigure,setAddFigure]=useState(false); const [bulkAdd,setBulkAdd]=useState(false);
   const [editFigure,setEditFigure]=useState<Figure|null>(null);
@@ -1661,6 +1712,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
                 }
               } : undefined}
               onReorderStart={isAdmin ? ()=>setReorderFromId(f.id) : undefined}
+              onMove={isAdmin && onMoveFigure ? ()=>setMovingFigure(f) : undefined}
               onDetail={()=>setDetailFigure(f)}
               userPhotoCount={figuresWithPhotos?.[f.id]??0}
             />
@@ -1691,6 +1743,15 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
         );
       })()}
       {editFigure && <FigureModal title={t("editFigureTitle")} initial={editFigure} apiKey={apiKey} onSave={f=>{onUpdateFigure(editFigure.id,f);setEditFigure(null);}} onClose={()=>setEditFigure(null)} />}
+      {movingFigure && onMoveFigure && (
+        <MoveFigureModal
+          figure={movingFigure}
+          series={series}
+          currentSetId={set.id}
+          onMove={(destSetId, destGroupId) => { onMoveFigure(movingFigure.id, destSetId, destGroupId); setMovingFigure(null); }}
+          onClose={()=>setMovingFigure(null)}
+        />
+      )}
       {quickCrop && (
         <CropModal
           imageSrc={URL.createObjectURL(quickCrop.file)}
@@ -1841,7 +1902,7 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onReorderSets, onUpdateFigure, onDeleteFigure, onSwapCross, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
+function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onReorderSets, onUpdateFigure, onDeleteFigure, onSwapCross, onMoveFigure, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   group:FigureGroup; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
@@ -1850,6 +1911,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   onReorderFigures:(stid:number,figures:Figure[])=>void;
   onReorderSets?:(sets:FigureSet[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
+  onMoveFigure?:(figureId:number,destSetId:number,destGroupId?:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
   cardSize?:"s"|"m"|"l";
@@ -1919,6 +1981,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
                   onUpdateFigure={(fid,f)=>onUpdateFigure(st.id,fid,f)}
                   onDeleteFigure={(fid)=>onDeleteFigure(st.id,fid)}
                   onSwapCross={onSwapCross}
+                  onMoveFigure={onMoveFigure}
                   communityOwned={communityOwned} communityWished={communityWished}
                   figuresWithPhotos={figuresWithPhotos} userId={userId}
                   cardSize={cardSize}
@@ -3446,6 +3509,31 @@ export default function App() {
       }));
     });
   };
+  // Mueve una figura entera (no solo su imagen) a otro set/grupo DENTRO DE LA MISMA FRANQUICIA.
+  // Busca la figura en cualquier set (top-level o dentro de un grupo) de esa franquicia,
+  // la extrae, y la añade al final del set de destino indicado.
+  const moveFigureToSet = (seriesId: number, figureId: number, destSetId: number, destGroupId?: number) => {
+    setData(d => d.map(s => {
+      if (s.id !== seriesId) return s;
+      let moved: Figure | null = null;
+      const removeFrom = (sets: FigureSet[]) => sets.map(st => {
+        const idx = st.figures.findIndex(f => f.id === figureId);
+        if (idx === -1) return st;
+        moved = st.figures[idx];
+        return { ...st, figures: st.figures.filter(f => f.id !== figureId) };
+      });
+      const setsAfterRemoval = removeFrom(s.sets);
+      const groupsAfterRemoval = s.groups.map(g => ({ ...g, sets: removeFrom(g.sets) }));
+      if (!moved) return s; // figura no encontrada en esta franquicia, no tocar nada
+      const insertInto = (sets: FigureSet[]) => sets.map(st =>
+        st.id === destSetId ? { ...st, figures: [...st.figures, moved as Figure] } : st
+      );
+      if (destGroupId) {
+        return { ...s, sets: setsAfterRemoval, groups: groupsAfterRemoval.map(g => g.id === destGroupId ? { ...g, sets: insertInto(g.sets) } : g) };
+      }
+      return { ...s, sets: insertInto(setsAfterRemoval), groups: groupsAfterRemoval };
+    }));
+  };
   const totalAll = data.flatMap(allFigures).length;
   const seriesOwned = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&(x.originalCategory??x.series.category)===s.category&&owned.has(x.figure.id)).length;
   const seriesTotal = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&(x.originalCategory??x.series.category)===s.category).length;
@@ -3853,6 +3941,7 @@ export default function App() {
                     onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,item.group.id)}
                     onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,item.group.id)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
+                    onMoveFigure={(fid,destSetId,destGroupId)=>moveFigureToSet(dbSeriesObj.id,fid,destSetId,destGroupId)}
                     series={dbSeriesObj}
                     communityOwned={communityOwned} communityWished={communityWished}
                     figuresWithPhotos={figuresWithPhotos} userId={user?.id}
@@ -3878,6 +3967,7 @@ export default function App() {
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
+                    onMoveFigure={(fid,destSetId,destGroupId)=>moveFigureToSet(dbSeriesObj.id,fid,destSetId,destGroupId)}
                   />
                 ));
               })()}
