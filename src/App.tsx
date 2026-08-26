@@ -3643,7 +3643,8 @@ function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:(
 // ============================================================
 //  CHOOSE NAME MODAL — shown once when a user has no display name yet
 // ============================================================
-function SettingsModal({ currentName, currentAvatar, onSaveName, onSaveAvatar, onClose }: {
+function SettingsModal({ userId, currentName, currentAvatar, onSaveName, onSaveAvatar, onClose }: {
+  userId: string;
   currentName: string;
   currentAvatar?: string|null;
   onSaveName:(name:string)=>Promise<{error:unknown}>;
@@ -3680,8 +3681,21 @@ function SettingsModal({ currentName, currentAvatar, onSaveName, onSaveAvatar, o
       trimmed !== currentName ? onSaveName(trimmed) : Promise.resolve({ error: null }),
       avatarPreview !== currentAvatar ? onSaveAvatar(avatarPreview ?? null) : Promise.resolve({ error: null }),
     ]);
+    if (nameRes.error || avatarRes.error) {
+      setSaving(false);
+      setError(t("uploadNetworkError"));
+      return;
+    }
+    // Sincroniza el nombre/avatar nuevo en todo el historial ya guardado
+    // (fotos subidas, progreso), para que rankings y colecciones se
+    // actualicen al instante sin esperar a la próxima acción del usuario.
+    const finalAvatar = avatarPreview ?? null;
+    await Promise.all([
+      supabase.from("wcf_progress").update({ owner_name: trimmed, owner_avatar: finalAvatar }).eq("user_id", userId),
+      supabase.from("wcf_photos").update({ uploader_name: trimmed, uploader_avatar: finalAvatar }).eq("user_id", userId),
+      supabase.from("wcf_collection_photos").update({ uploader_name: trimmed, uploader_avatar: finalAvatar }).eq("user_id", userId),
+    ]);
     setSaving(false);
-    if (nameRes.error || avatarRes.error) { setError(t("uploadNetworkError")); return; }
     setSaved(true);
     setTimeout(onClose, 900);
   };
@@ -4622,6 +4636,7 @@ export default function App() {
       )}
       {showSettings && user && (
         <SettingsModal
+          userId={user.id}
           currentName={user.name ?? user.email ?? "?"}
           currentAvatar={user.avatar}
           onSaveName={updateName}
