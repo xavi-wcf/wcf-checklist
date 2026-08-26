@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/c/:userId", "destination": "/index.html" }
+    { "source": "/c/:userId", "destination": "/api/collection-og?userId=:userId" }
   ]
 }

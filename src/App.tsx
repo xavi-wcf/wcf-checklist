@@ -500,6 +500,7 @@ const T = {
   saveSettings:        { es: "Guardar cambios", en: "Save changes", th: "บันทึกการเปลี่ยนแปลง", fr: "Enregistrer", vi: "Lưu thay đổi", ja: "変更を保存", zh: "保存更改" },
   settingsSaved:       { es: "✅ Cambios guardados", en: "✅ Changes saved", th: "✅ บันทึกการเปลี่ยนแปลงแล้ว", fr: "✅ Modifications enregistrées", vi: "✅ Đã lưu thay đổi", ja: "✅ 変更を保存しました", zh: "✅ 更改已保存" },
   shareCollectionBtn: { es: "🔗 Compartir mi colección", en: "🔗 Share my collection", th: "🔗 แชร์คอลเลกชันของฉัน", fr: "🔗 Partager ma collection", vi: "🔗 Chia sẻ bộ sưu tập", ja: "🔗 コレクションをシェア", zh: "🔗 分享我的收藏" },
+  shareCollectionText: { es: (name:string)=>`¡Mira la colección de figuras WCF de ${name}!`, en: (name:string)=>`Check out ${name}'s WCF figure collection!`, th: (name:string)=>`ดูคอลเลกชันฟิกเกอร์ WCF ของ ${name}!`, fr: (name:string)=>`Découvre la collection de figurines WCF de ${name} !`, vi: (name:string)=>`Xem bộ sưu tập mô hình WCF của ${name}!`, ja: (name:string)=>`${name}のWCFフィギュアコレクションをチェック！`, zh: (name:string)=>`快来看看${name}的WCF人偶收藏吧！` },
   shareLinkCopied:     { es: "✅ Enlace copiado al portapapeles", en: "✅ Link copied to clipboard", th: "✅ คัดลอกลิงก์แล้ว", fr: "✅ Lien copié", vi: "✅ Đã sao chép liên kết", ja: "✅ リンクをコピーしました", zh: "✅ 链接已复制" },
   publicCollectionNotFound: { es: "No se ha encontrado esta colección o no tiene fotos públicas.", en: "This collection wasn't found or has no public photos.", th: "ไม่พบคอลเลกชันนี้หรือไม่มีรูปภาพสาธารณะ", fr: "Cette collection est introuvable ou n'a pas de photos publiques.", vi: "Không tìm thấy bộ sưu tập này hoặc chưa có ảnh công khai.", ja: "このコレクションが見つからないか、公開写真がありません。", zh: "未找到此收藏，或没有公开照片。" },
   goToApp:             { es: "Ir a WCF Checklist →", en: "Go to WCF Checklist →", th: "ไปที่ WCF Checklist →", fr: "Aller sur WCF Checklist →", vi: "Đến WCF Checklist →", ja: "WCF Checklistへ →", zh: "前往 WCF Checklist →" },
@@ -2437,7 +2438,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
   const handleShare = async () => {
     const url = `${CANONICAL_ORIGIN}/c/${userId}`;
     if (navigator.share) {
-      try { await navigator.share({ url, title: t("collectionOf", uploaderName) }); return; } catch { /* cancelado, seguimos con el fallback */ }
+      try { await navigator.share({ url, title: t("collectionOf", uploaderName), text: t("shareCollectionText", uploaderName) }); return; } catch { /* cancelado, seguimos con el fallback */ }
     }
     try {
       await navigator.clipboard.writeText(url);
