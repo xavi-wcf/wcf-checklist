@@ -2410,13 +2410,18 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
     reload();
   };
 
-  const movePhoto = async (index: number, dir: -1 | 1) => {
-    const target = index + dir;
-    if (target < 0 || target >= photos.length) return;
-    const reordered = [...photos];
-    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+  const [dragPhotoId, setDragPhotoId] = useState<string|null>(null);
+  const handleDropReorder = async (targetId: string) => {
+    if (!dragPhotoId || dragPhotoId === targetId) { setDragPhotoId(null); return; }
+    const arr = [...photos];
+    const fi = arr.findIndex(p => p.id === dragPhotoId);
+    const ti = arr.findIndex(p => p.id === targetId);
+    setDragPhotoId(null);
+    if (fi === -1 || ti === -1) return;
+    const [moved] = arr.splice(fi, 1);
+    arr.splice(ti, 0, moved);
     // Persistimos el nuevo orden completo (0,1,2...) para todas las fotos
-    await Promise.all(reordered.map((p, i) => supabase.from("wcf_collection_photos").update({ sort_order: i }).eq("id", p.id)));
+    await Promise.all(arr.map((p, i) => supabase.from("wcf_collection_photos").update({ sort_order: i }).eq("id", p.id)));
     reload();
   };
 
@@ -2451,11 +2456,22 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
           <div style={{textAlign:"center",padding:"24px 0",color:"var(--text4)",fontSize:12}}>...</div>
         ) : (
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
-            {photos.map((p,i) => (
-              <div key={p.id} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:"var(--bg2)"}}>
-                <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:p.approved?1:0.5}} />
+            {photos.map((p) => (
+              <div key={p.id}
+                draggable
+                onDragStart={()=>setDragPhotoId(p.id)}
+                onDragOver={e=>e.preventDefault()}
+                onDrop={e=>{e.preventDefault();handleDropReorder(p.id);}}
+                onDragEnd={()=>setDragPhotoId(null)}
+                style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:"var(--bg2)",cursor:"grab",opacity:dragPhotoId===p.id?0.4:1,outline:dragPhotoId&&dragPhotoId!==p.id?"2px dashed #0196e3":"none"}}>
+                <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:p.approved?1:0.5,pointerEvents:"none"}} />
+                {photos.length > 1 && (
+                  <div style={{position:"absolute",top:4,left:4,background:"rgba(0,0,0,0.55)",color:"#fff",borderRadius:6,width:18,height:18,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
+                    ⠿
+                  </div>
+                )}
                 {!p.approved && (
-                  <div style={{position:"absolute",top:4,left:4,background:"rgba(0,0,0,0.7)",color:"#fff",fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:6}}>
+                  <div style={{position:"absolute",top:4,left:photos.length>1?26:4,background:"rgba(0,0,0,0.7)",color:"#fff",fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:6}}>
                     {t("pendingReviewLabel")}
                   </div>
                 )}
@@ -2474,22 +2490,6 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
                   style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",border:"none",borderRadius:"50%",width:20,height:20,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
                   ✕
                 </button>
-                {photos.length > 1 && (
-                  <div style={{position:"absolute",top:4,left:4,display:"flex",gap:2}}>
-                    {i > 0 && (
-                      <button onClick={()=>movePhoto(i,-1)}
-                        style={{background:"rgba(0,0,0,0.6)",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        ◀
-                      </button>
-                    )}
-                    {i < photos.length-1 && (
-                      <button onClick={()=>movePhoto(i,1)}
-                        style={{background:"rgba(0,0,0,0.6)",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        ▶
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
             ))}
             {canAddMore && (
