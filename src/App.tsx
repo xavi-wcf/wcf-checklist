@@ -4597,10 +4597,13 @@ function MainApp() {
                       <div key={sid} style={{marginBottom:10,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
                         <div onClick={()=>toggleSeriesExpanded(sid)}
                           style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer",background:"var(--bg2)"}}>
-                          <span style={{fontSize:11,color:"var(--text4)",transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.15s"}}>▶</span>
-                          <span style={{fontSize:18}}>{series.emoji}</span>
-                          <span style={{fontSize:14,fontWeight:700,color:"var(--text)",flex:1}}>{series.name}</span>
-                          <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg)",padding:"2px 9px",borderRadius:10,fontWeight:600}}>{items.length}</span>
+                          <span style={{fontSize:11,color:"var(--text4)",transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.15s",flexShrink:0}}>▶</span>
+                          {series.logoHeader
+                            ? <img src={series.logoHeader} alt={series.name} style={{height:22,maxWidth:120,objectFit:"contain",objectPosition:"left"}} />
+                            : <><span style={{fontSize:18}}>{series.emoji}</span><span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{series.name}</span></>
+                          }
+                          <span style={{flex:1}} />
+                          <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg)",padding:"2px 9px",borderRadius:10,fontWeight:600,flexShrink:0}}>{items.length}</span>
                         </div>
                         {isOpen && (
                           <div style={{display:"grid",gridTemplateColumns:`repeat(auto-fill, minmax(${colSize==="s"?70:colSize==="m"?95:130}px, 1fr))`,gap:8,padding:12}}>
