@@ -485,6 +485,8 @@ const T = {
   setAsCover:          { es: "Portada", en: "Cover", th: "ภาพปก", fr: "Couverture", vi: "Ảnh bìa", ja: "カバー", zh: "封面" },
   isCoverLabel:         { es: "✓ Portada", en: "✓ Cover", th: "✓ ภาพปก", fr: "✓ Couverture", vi: "✓ Ảnh bìa", ja: "✓ カバー", zh: "✓ 封面" },
   removePhotoConfirm:  { es: "¿Borrar esta foto?", en: "Delete this photo?", th: "ลบรูปนี้หรือไม่?", fr: "Supprimer cette photo ?", vi: "Xóa ảnh này?", ja: "この写真を削除しますか？", zh: "删除这张照片？" },
+  myWcfOwnedTab:       { es: "✅ Obtenidas", en: "✅ Owned", th: "✅ มีแล้ว", fr: "✅ Possédées", vi: "✅ Đã có", ja: "✅ 所持済み", zh: "✅ 已拥有" },
+  myWcfWishlistTab:    { es: "💛 Wishlist", en: "💛 Wishlist", th: "💛 รายการที่อยากได้", fr: "💛 Liste de souhaits", vi: "💛 Danh sách mong muốn", ja: "💛 ウィッシュリスト", zh: "💛 愿望清单" },
   collectionsTitle:    { es: "🖼️ Colecciones de la comunidad", en: "🖼️ Community collections", th: "🖼️ คอลเลกชันของชุมชน", fr: "🖼️ Collections de la communauté", vi: "🖼️ Bộ sưu tập cộng đồng", ja: "🖼️ コミュニティのコレクション", zh: "🖼️ 社区收藏" },
   noCollectionsYet:    { es: "Aún no hay colecciones compartidas. ¡Sé el primero!", en: "No shared collections yet. Be the first!", th: "ยังไม่มีคอลเลกชันที่แชร์ มาเป็นคนแรกสิ!", fr: "Pas encore de collections partagées. Sois le premier !", vi: "Chưa có bộ sưu tập nào được chia sẻ. Hãy là người đầu tiên!", ja: "まだ共有されたコレクションはありません。最初の投稿者になりましょう！", zh: "还没有人分享收藏，快来当第一个吧！" },
   backToCollections:   { es: "← Colecciones", en: "← Collections", th: "← คอลเลกชัน", fr: "← Collections", vi: "← Bộ sưu tập", ja: "← コレクション", zh: "← 收藏" },
@@ -4147,6 +4149,9 @@ function MainApp() {
   const [colSearch,  setColSearch]  = useState("");
   const [colSort,    setColSort]    = useState<"alpha"|"date">("date");
   const [colSize,    setColSize]    = useState<"s"|"m"|"l">("m");
+  const [colSubTab,  setColSubTab]  = useState<"owned"|"wishlist">("owned");
+  const [expandedSeries, setExpandedSeries] = useState<Set<number>>(new Set());
+  const toggleSeriesExpanded = (id: number) => setExpandedSeries(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [colSeries,  setColSeries]  = useState<number|"all">("all");
   const [colCategory, setColCategory] = useState<"all"|CategoryType>("all");
 
@@ -4550,75 +4555,91 @@ function MainApp() {
                 </button>
               </div>
             )}
-            {/* Owned section */}
-            <div style={{marginBottom:28}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,paddingBottom:8,borderBottom:"2px solid #0174b0"}}>
-                <span style={{fontSize:16}}>✅</span>
-                <span style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{t("owned")}</span>
-                <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg2)",padding:"2px 8px",borderRadius:10}}>{colOwned.length}</span>
-              </div>
-              {colOwned.length===0 ? (
-                <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>{t("noFiguresOwned")}</div>
-              ) : (
-                <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
-                  {colOwned.map(({figure,set,series,groupName})=>{
-                    const isConfirm = confirmFigure?.figure.id===figure.id;
-                    return (
-                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start",position:"relative"}}>
-                      <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
-                        isOwned={true} isWished={false} compact hideIcons
-                        userPhotoCount={figuresWithPhotos[figure.id]??0} userId={user?.id}
-                        onToggle={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})}
-                        onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"owned"})} />
-                      {isConfirm && (
-                        <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
-                          <button onClick={e=>{e.stopPropagation();setDetailFigureCol({figure,series,set});setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.9)",color:"#0196e3",cursor:"pointer",fontSize:9,fontWeight:700}}>🔍 Details</button>
-                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fef3c7",color:"#92400e",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToWishlist")}</button>
-                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
-                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
-                        </div>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
 
-            {/* Wishlist section */}
-            <div>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,paddingBottom:8,borderBottom:"2px solid #f59e0b"}}>
-                <span style={{fontSize:16}}>💛</span>
-                <span style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{t("wishlist")}</span>
-                <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg2)",padding:"2px 8px",borderRadius:10}}>{colWishlist.length}</span>
-              </div>
-              {colWishlist.length===0 ? (
-                <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>{t("wishlistEmpty")}</div>
-              ) : (
-                <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,scrollSnapType:"x mandatory"}}>
-                  {colWishlist.map(({figure,set,series,groupName})=>{
-                    const isConfirm = confirmFigure?.figure.id===figure.id;
-                    return (
-                    <div key={figure.id} style={{flexShrink:0,width:colSize==="s"?80:colSize==="m"?110:150,scrollSnapAlign:"start",position:"relative"}}>
-                      <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
-                        isOwned={false} isWished={true} compact hideIcons
-                        userPhotoCount={figuresWithPhotos[figure.id]??0} userId={user?.id}
-                        onToggle={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})}
-                        onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode:"wishlist"})} />
-                      {isConfirm && (
-                        <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
-                          <button onClick={e=>{e.stopPropagation();setDetailFigureCol({figure,series,set});setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.9)",color:"#0196e3",cursor:"pointer",fontSize:9,fontWeight:700}}>🔍 Details</button>
-                          <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#e6f4fd",color:"#0174b0",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToOwned")}</button>
-                          <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
-                          <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
-                        </div>
-                      )}
-                    </div>
-                    );
-                  })}
+            {(colOwned.length>0 || colWishlist.length>0 || colSearch) && (
+              <>
+                {/* Sub-tabs: Owned / Wishlist */}
+                <div style={{display:"flex",gap:8,marginBottom:20}}>
+                  <button onClick={()=>setColSubTab("owned")}
+                    style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:colSubTab==="owned"?"#0174b0":"var(--bg2)",color:colSubTab==="owned"?"#fff":"var(--text3)",cursor:"pointer",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                    {t("myWcfOwnedTab")} <span style={{fontSize:11,opacity:0.85}}>({colOwned.length})</span>
+                  </button>
+                  <button onClick={()=>setColSubTab("wishlist")}
+                    style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:colSubTab==="wishlist"?"#f59e0b":"var(--bg2)",color:colSubTab==="wishlist"?"#fff":"var(--text3)",cursor:"pointer",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                    {t("myWcfWishlistTab")} <span style={{fontSize:11,opacity:0.85}}>({colWishlist.length})</span>
+                  </button>
                 </div>
-              )}
-            </div>
+
+                {(() => {
+                  const activeItems = colSubTab==="owned" ? colOwned : colWishlist;
+                  const mode = colSubTab; // "owned" | "wishlist"
+                  const emptyMsg = colSubTab==="owned" ? t("noFiguresOwned") : t("wishlistEmpty");
+
+                  if (activeItems.length === 0) {
+                    return <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>{emptyMsg}</div>;
+                  }
+
+                  // Agrupamos por franquicia, respetando el orden en que aparecen en el catálogo
+                  const bySeriesOrder: number[] = [];
+                  const bySeriesMap = new Map<number, { series: Series; items: typeof activeItems }>();
+                  for (const item of activeItems) {
+                    if (!bySeriesMap.has(item.series.id)) {
+                      bySeriesOrder.push(item.series.id);
+                      bySeriesMap.set(item.series.id, { series: item.series, items: [] });
+                    }
+                    bySeriesMap.get(item.series.id)!.items.push(item);
+                  }
+
+                  return bySeriesOrder.map(sid => {
+                    const { series, items } = bySeriesMap.get(sid)!;
+                    const isOpen = expandedSeries.has(sid);
+                    return (
+                      <div key={sid} style={{marginBottom:10,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
+                        <div onClick={()=>toggleSeriesExpanded(sid)}
+                          style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer",background:"var(--bg2)"}}>
+                          <span style={{fontSize:11,color:"var(--text4)",transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.15s"}}>▶</span>
+                          <span style={{fontSize:18}}>{series.emoji}</span>
+                          <span style={{fontSize:14,fontWeight:700,color:"var(--text)",flex:1}}>{series.name}</span>
+                          <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg)",padding:"2px 9px",borderRadius:10,fontWeight:600}}>{items.length}</span>
+                        </div>
+                        {isOpen && (
+                          <div style={{display:"grid",gridTemplateColumns:`repeat(auto-fill, minmax(${colSize==="s"?70:colSize==="m"?95:130}px, 1fr))`,gap:8,padding:12}}>
+                            {items.map(({figure,set,series,groupName})=>{
+                              const isConfirm = confirmFigure?.figure.id===figure.id;
+                              return (
+                                <div key={figure.id} style={{position:"relative"}}>
+                                  <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
+                                    isOwned={mode==="owned"} isWished={mode==="wishlist"} compact hideIcons
+                                    userPhotoCount={figuresWithPhotos[figure.id]??0} userId={user?.id}
+                                    onToggle={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode})}
+                                    onToggleWish={()=>setConfirmFigure(isConfirm?null:{figure,series,set,mode})} />
+                                  {isConfirm && mode==="owned" && (
+                                    <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
+                                      <button onClick={e=>{e.stopPropagation();setDetailFigureCol({figure,series,set});setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.9)",color:"#0196e3",cursor:"pointer",fontSize:9,fontWeight:700}}>🔍 Details</button>
+                                      <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fef3c7",color:"#92400e",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToWishlist")}</button>
+                                      <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
+                                      <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
+                                    </div>
+                                  )}
+                                  {isConfirm && mode==="wishlist" && (
+                                    <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
+                                      <button onClick={e=>{e.stopPropagation();setDetailFigureCol({figure,series,set});setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.9)",color:"#0196e3",cursor:"pointer",fontSize:9,fontWeight:700}}>🔍 Details</button>
+                                      <button onClick={e=>{e.stopPropagation();toggle(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#e6f4fd",color:"#0174b0",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("moveToOwned")}</button>
+                                      <button onClick={e=>{e.stopPropagation();toggleWish(figure.id);setConfirmFigure(null);}} style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>{t("removeItem")}</button>
+                                      <button onClick={e=>{e.stopPropagation();setConfirmFigure(null);}} style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>{t("cancelBtn")}</button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </>
+            )}
           </div>
         )}
 
