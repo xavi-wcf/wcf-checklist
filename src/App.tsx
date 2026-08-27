@@ -6,6 +6,21 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 // ============================================================
 const CHANGELOG = [
   {
+    id: 12,
+    date: "2026-08-27",
+    entries: [
+      "🖼️ New: My Collection — upload photos of your full display case (not just single figures) and share them with the community",
+      "🔗 Share your collection outside the app with a simple link, no account needed to view it",
+      "❤️ Like other collectors' collections",
+      "⚙️ New Settings menu — change your display name and upload a profile photo",
+      "✉️ New login option: sign in with just your email, no Google account needed",
+      "🔀 Figures with interchangeable parts (e.g. multiple heads) can now show all versions — look for the A/B/C selector",
+      "📦 \"My WCF\" tab redesigned: figures are now grouped by franchise and split into Owned/Wishlist tabs for much easier browsing",
+      "🎉 39 WCF added to Kingdom",
+      "🎉 48 WCF added to Tiger & Bunny",
+    ]
+  },
+  {
     id: 11,
     date: "2025-08-14",
     entries: [
