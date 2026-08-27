@@ -4150,8 +4150,8 @@ function MainApp() {
   const [colSort,    setColSort]    = useState<"alpha"|"date">("date");
   const [colSize,    setColSize]    = useState<"s"|"m"|"l">("m");
   const [colSubTab,  setColSubTab]  = useState<"owned"|"wishlist">("owned");
-  const [expandedSeries, setExpandedSeries] = useState<Set<number>>(new Set());
-  const toggleSeriesExpanded = (id: number) => setExpandedSeries(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
+  const toggleSeriesExpanded = (id: string) => setExpandedSeries(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [colSeries,  setColSeries]  = useState<number|"all">("all");
   const [colCategory, setColCategory] = useState<"all"|CategoryType>("all");
 
@@ -4579,18 +4579,24 @@ function MainApp() {
                     return <div style={{textAlign:"center",padding:"2rem",color:"var(--text4)",fontSize:13}}>{emptyMsg}</div>;
                   }
 
-                  // Agrupamos por franquicia, respetando el orden en que aparecen en el catálogo
-                  const bySeriesOrder: number[] = [];
-                  const bySeriesMap = new Map<number, { series: Series; items: typeof activeItems }>();
+                  // Agrupamos por NOMBRE de franquicia (no por id interno), para fusionar
+                  // en una sola fila las que están registradas por separado como oficial/resina.
+                  // Respetamos el orden en que aparecen por primera vez en el catálogo.
+                  const bySeriesOrder: string[] = [];
+                  const bySeriesMap = new Map<string, { series: Series; items: typeof activeItems }>();
                   for (const item of activeItems) {
-                    if (!bySeriesMap.has(item.series.id)) {
-                      bySeriesOrder.push(item.series.id);
-                      bySeriesMap.set(item.series.id, { series: item.series, items: [] });
+                    const key = item.series.name.trim().toLowerCase();
+                    if (!bySeriesMap.has(key)) {
+                      bySeriesOrder.push(key);
+                      bySeriesMap.set(key, { series: item.series, items: [] });
                     }
-                    bySeriesMap.get(item.series.id)!.items.push(item);
+                    bySeriesMap.get(key)!.items.push(item);
                   }
 
-                  return bySeriesOrder.map(sid => {
+                  // Ordenamos de más a menos figuras (a igualdad de cantidad, mantenemos el orden del catálogo)
+                  const sortedSeriesKeys = [...bySeriesOrder].sort((a, b) => bySeriesMap.get(b)!.items.length - bySeriesMap.get(a)!.items.length);
+
+                  return sortedSeriesKeys.map(sid => {
                     const { series, items } = bySeriesMap.get(sid)!;
                     const isOpen = expandedSeries.has(sid);
                     return (
