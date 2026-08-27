@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 // ============================================================
 //  CHANGELOG — añade aquí las novedades antes de hacer push
@@ -3547,6 +3548,129 @@ function buildFigureNameMap(data: Series[]): Record<number, string> {
   return map;
 }
 
+// ============================================================
+//  ADMIN ANALYTICS PANEL
+// ============================================================
+function useAdminAnalytics(data: Series[]) {
+  const [rows, setRows] = useState<{ created_at: string|null; last_seen: string|null; owned: number[]; wishlist: number[] }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from("wcf_progress").select("created_at,last_seen,owned,wishlist")
+      .then(({ data: rows_ }) => { setRows((rows_ as any) ?? []); setLoading(false); });
+  }, []);
+
+  const totalUsers = rows.length;
+  const now = Date.now();
+  const activeLast7 = rows.filter(r => r.last_seen && now - new Date(r.last_seen).getTime() < 7 * 86400000).length;
+  const activeLast30 = rows.filter(r => r.last_seen && now - new Date(r.last_seen).getTime() < 30 * 86400000).length;
+  const convertedUsers = rows.filter(r => (r.owned?.length ?? 0) > 0 || (r.wishlist?.length ?? 0) > 0).length;
+  const conversionRate = totalUsers > 0 ? Math.round((convertedUsers / totalUsers) * 100) : 0;
+
+  // Altas por semana, últimas 12 semanas
+  const weeklySignups = useMemo(() => {
+    const buckets: { label: string; count: number }[] = [];
+    const today = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const start = new Date(today);
+      start.setHours(0,0,0,0);
+      start.setDate(today.getDate() - i * 7 - today.getDay());
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      const label = `${start.getDate()}/${start.getMonth() + 1}`;
+      const count = rows.filter(r => {
+        if (!r.created_at) return false;
+        const d = new Date(r.created_at);
+        return d >= start && d < end;
+      }).length;
+      buckets.push({ label, count });
+    }
+    return buckets;
+  }, [rows]);
+
+  // Franquicias más marcadas (por número de figuras obtenidas)
+  const topFranchises = useMemo(() => {
+    const figureToSeriesName = new Map<number, string>();
+    for (const s of data) {
+      for (const st of [...s.sets, ...s.groups.flatMap(g => g.sets)]) {
+        for (const f of st.figures) figureToSeriesName.set(f.id, s.name);
+      }
+    }
+    const counts: Record<string, number> = {};
+    for (const r of rows) {
+      for (const fid of r.owned ?? []) {
+        const name = figureToSeriesName.get(fid);
+        if (name) counts[name] = (counts[name] ?? 0) + 1;
+      }
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count }));
+  }, [rows, data]);
+
+  return { loading, totalUsers, activeLast7, activeLast30, conversionRate, convertedUsers, weeklySignups, topFranchises };
+}
+
+function AdminAnalyticsPanel({ onClose, data }: { onClose: ()=>void; data: Series[] }) {
+  const { loading, totalUsers, activeLast7, activeLast30, conversionRate, convertedUsers, weeklySignups, topFranchises } = useAdminAnalytics(data);
+
+  const MetricCard = ({ label, value }: { label:string; value:string|number }) => (
+    <div style={{flex:1,minWidth:110,background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 14px"}}>
+      <div style={{fontSize:22,fontWeight:800,color:"var(--text)"}}>{value}</div>
+      <div style={{fontSize:11,color:"var(--text4)",marginTop:2}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:18,width:"100%",maxWidth:520,maxHeight:"85vh",overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 12px 40px rgba(0,0,0,0.4)"}}>
+        <div style={{padding:"16px 16px 12px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div style={{fontSize:15,fontWeight:700}}>📊 Analytics</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--text3)"}}>×</button>
+        </div>
+        <div style={{overflowY:"auto",flex:1,padding:16}}>
+          {loading ? (
+            <div style={{textAlign:"center",padding:"40px 0",color:"var(--text4)",fontSize:13}}>Loading...</div>
+          ) : (
+            <>
+              <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:24}}>
+                <MetricCard label="Total users" value={totalUsers} />
+                <MetricCard label="Active (7d)" value={activeLast7} />
+                <MetricCard label="Active (30d)" value={activeLast30} />
+                <MetricCard label={`Conversion (${convertedUsers}/${totalUsers})`} value={`${conversionRate}%`} />
+              </div>
+
+              <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>New signups — last 12 weeks</div>
+              <div style={{width:"100%",height:180,marginBottom:24}}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklySignups} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#888" }} interval={1} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#888" }} width={28} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                    <Bar dataKey="count" fill="#0196e3" radius={[4,4,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>Top franchises (figures owned)</div>
+              <div style={{width:"100%",height:Math.max(180, topFranchises.length*32),marginBottom:8}}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topFranchises} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: "#888" }} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#888" }} width={90} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                    <Bar dataKey="count" fill="#6366f1" radius={[0,4,4,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Series[] }) {
   const [source, setSource] = useState<"figures"|"collections">("figures");
   const [tab, setTab] = useState<"pending"|"approved">("pending");
@@ -4023,6 +4147,16 @@ function MainApp() {
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
 
+  // Registra la última visita real (abrió la app, marque algo o no), una vez por sesión de navegador
+  useEffect(() => {
+    if (!user?.id) return;
+    const flagKey = "wcf_last_seen_pinged";
+    if (sessionStorage.getItem(flagKey) === user.id) return;
+    sessionStorage.setItem(flagKey, user.id);
+    supabase.from("wcf_progress").update({ last_seen: new Date().toISOString() }).eq("user_id", user.id)
+      .then(({ error }) => { if (error) console.error("last_seen ping error:", error); });
+  }, [user?.id]);
+
   useEffect(() => {
     supabase.from("wcf_photos").select("figure_id").eq("approved", true)
       .then(({ data }) => {
@@ -4178,6 +4312,7 @@ function MainApp() {
   // Favourites — stored in localStorage
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMyCollection, setShowMyCollection] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -4360,6 +4495,11 @@ function MainApp() {
                 {pendingPhotosCount > 99 ? "99+" : pendingPhotosCount}
               </span>
             )}
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={()=>setShowAnalytics(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Analytics">
+            📊
           </button>
         )}
         {!isInstalled && installPrompt && (
@@ -4876,6 +5016,7 @@ function MainApp() {
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
+      {showAnalytics && <AdminAnalyticsPanel onClose={()=>setShowAnalytics(false)} data={data} />}
       {showMyCollection && user && (
         <MyCollectionPanel userId={user.id} uploaderName={user.name ?? user.email ?? "?"} uploaderAvatar={user.avatar} onClose={()=>setShowMyCollection(false)} />
       )}
