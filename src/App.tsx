@@ -4499,24 +4499,8 @@ function MainApp() {
             ))}
           </div>}
         </div>
-        <button onClick={toggleDark} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}}>{dark?"☀️":"🌙"}</button>
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
-        {isAdmin && (
-          <button onClick={()=>setShowModeration(true)} style={{position:"relative",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Photo moderation">
-            📸
-            {pendingPhotosCount > 0 && (
-              <span style={{position:"absolute",top:-5,right:-5,background:"#dc2626",color:"#fff",fontSize:9,fontWeight:700,borderRadius:9,minWidth:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",border:"1.5px solid var(--bg)",lineHeight:1}}>
-                {pendingPhotosCount > 99 ? "99+" : pendingPhotosCount}
-              </span>
-            )}
-          </button>
-        )}
-        {isAdmin && (
-          <button onClick={()=>setShowAnalytics(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title="Analytics">
-            📊
-          </button>
-        )}
         {!isInstalled && installPrompt && (
           <button onClick={()=>{ (installPrompt as any).prompt(); }}
             style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("installBtn")}>📲</button>
@@ -4546,6 +4530,33 @@ function MainApp() {
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   {t("settingsMenuItem")}
                 </div>
+                <div onClick={()=>{setShowUserMenu(false);toggleDark();}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  {dark ? "☀️ Light mode" : "🌙 Dark mode"}
+                </div>
+                {isAdmin && (
+                  <div onClick={()=>{setShowUserMenu(false);setShowModeration(true);}}
+                    style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}
+                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <span>📸 Photo moderation</span>
+                    {pendingPhotosCount > 0 && (
+                      <span style={{background:"#dc2626",color:"#fff",fontSize:10,fontWeight:700,borderRadius:9,minWidth:17,height:17,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",lineHeight:1}}>
+                        {pendingPhotosCount > 99 ? "99+" : pendingPhotosCount}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {isAdmin && (
+                  <div onClick={()=>{setShowUserMenu(false);setShowAnalytics(true);}}
+                    style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    📊 Analytics
+                  </div>
+                )}
                 <div onClick={()=>{setShowUserMenu(false);signOut();}}
                   style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
