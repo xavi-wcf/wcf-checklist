@@ -1476,6 +1476,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
   const { t } = useTr();
   const isAdmin = useAdmin();
   const [imgError,setImgError]=useState(false); const [hover,setHover]=useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
   const retryCount = useRef(0);
   const [dragOver,setDragOver]=useState(false);
   const [popping, setPopping] = useState(false);
@@ -1532,7 +1533,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         transition: popping ? "transform 0.2s cubic-bezier(0.36,0.07,0.19,0.97), border 0.1s, background 0.1s" : "transform 0.2s ease-in, border 0.3s, background 0.3s",
         boxShadow: popping ? `0 0 12px ${color}99` : "none"
       }}
-      onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+      onMouseEnter={()=>setHover(true)} onMouseLeave={()=>{setHover(false);setShowAdminMenu(false);}}
       onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       {dragOver && <div style={{position:"absolute",inset:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(225,245,238,0.85)",fontSize:24,pointerEvents:"none"}}>🔄</div>}
       {/* Reorder handle */}
@@ -1547,10 +1548,32 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
           style={{position:"absolute",bottom:4,left:4,zIndex:5,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
       )}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
-        {isAdmin && hover && <>
-          {onMove && <button onClick={e=>{e.stopPropagation();onMove();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}} title="Move to another set">🗂️</button>}
-          <button onClick={e=>{e.stopPropagation();onDelete();}} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>🗑</button>
-        </>}
+        {isAdmin && hover && (onMove || onDelete) && (
+          <div style={{position:"relative"}}>
+            <button onClick={e=>{e.stopPropagation();setShowAdminMenu(m=>!m);}}
+              style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:12,cursor:"pointer",lineHeight:1,fontWeight:700}}>⋮</button>
+            {showAdminMenu && (
+              <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:20,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,0.2)",overflow:"hidden",minWidth:130}}>
+                {onMove && (
+                  <div onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onMove();}}
+                    style={{padding:"7px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap",color:"var(--text)"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    🗂️ Move to set
+                  </div>
+                )}
+                {onDelete && (
+                  <div onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onDelete();}}
+                    style={{padding:"7px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap",color:"#dc2626",borderTop:onMove?"1px solid var(--border)":"none"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    🗑 Delete
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
       </div>}
       <div onClick={handleToggle} style={{width:"100%",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",background:isOwned?color+"30":isWished?"#fef9c3":"var(--missing-bg)",overflow:"hidden",cursor:"pointer",opacity:isOwned?1:isWished?0.75:0.45,transition:"opacity 0.3s",position:"relative"}}>
