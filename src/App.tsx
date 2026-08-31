@@ -1549,30 +1549,8 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
       )}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
         {isAdmin && hover && (
-          <div style={{position:"relative"}}>
-            <button onClick={e=>{e.stopPropagation();setShowAdminMenu(m=>!m);}}
-              style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:12,cursor:"pointer",lineHeight:1,fontWeight:700}}>⋮</button>
-            {showAdminMenu && (
-              <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:20,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,0.2)",overflow:"hidden",minWidth:130}}>
-                {onMove && (
-                  <div onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onMove();}}
-                    style={{padding:"7px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap",color:"var(--text)"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    🗂️ Move to set
-                  </div>
-                )}
-                {onDelete && (
-                  <div onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onDelete();}}
-                    style={{padding:"7px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap",color:"#dc2626",borderTop:onMove?"1px solid var(--border)":"none"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    🗑 Delete
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <button onClick={e=>{e.stopPropagation();setShowAdminMenu(m=>!m);}}
+            style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:12,cursor:"pointer",lineHeight:1,fontWeight:700}}>⋮</button>
         )}
         {!isOwned && <button onClick={e=>{e.stopPropagation();onToggleWish();}} style={{background:isWished?"#fef3c7":"rgba(255,255,255,0.85)",border:"1px solid "+(isWished?"#fcd34d":"#e8e8e4"),borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>{isWished?"💛":"🤍"}</button>}
       </div>}
@@ -1601,6 +1579,24 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
           <div style={{position:"absolute",bottom:4,right:4,zIndex:3,background:color,borderRadius:10,padding:"1px 5px",display:"flex",alignItems:"center",gap:2,fontSize:9,color:"#fff",fontWeight:700,lineHeight:1}}>
             <span style={{fontSize:10,lineHeight:1,display:"flex",alignItems:"center"}}>📷</span>
             <span>+{userPhotoCount}</span>
+          </div>
+        )}
+        {showAdminMenu && (
+          <div style={{position:"absolute",inset:0,borderRadius:8,background:"rgba(0,0,0,0.75)",zIndex:10,display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:6}}>
+            {onMove && (
+              <button onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onMove();}}
+                style={{padding:"5px 4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.9)",color:"#0196e3",cursor:"pointer",fontSize:9,fontWeight:700}}>
+                🗂️ Move to set
+              </button>
+            )}
+            <button onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onDelete();}}
+              style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>
+              🗑 Delete
+            </button>
+            <button onClick={e=>{e.stopPropagation();setShowAdminMenu(false);}}
+              style={{padding:"4px",borderRadius:6,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer",fontSize:9}}>
+              {t("cancelBtn")}
+            </button>
           </div>
         )}
       </div>
