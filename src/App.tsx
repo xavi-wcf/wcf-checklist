@@ -1548,7 +1548,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
           style={{position:"absolute",bottom:4,left:4,zIndex:5,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
       )}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
-        {isAdmin && hover && (onMove || onDelete) && (
+        {isAdmin && hover && (
           <div style={{position:"relative"}}>
             <button onClick={e=>{e.stopPropagation();setShowAdminMenu(m=>!m);}}
               style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:12,cursor:"pointer",lineHeight:1,fontWeight:700}}>⋮</button>
