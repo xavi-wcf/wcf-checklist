@@ -1542,9 +1542,12 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
           style={{position:"absolute",bottom:4,right:4,zIndex:5,cursor:"grab",fontSize:13,color:"rgba(0,0,0,0.4)",padding:"2px 4px",borderRadius:4,background:"rgba(255,255,255,0.8)",lineHeight:1}}
           title="Reorder">⠿</div>
       )}
+      {isAdmin && hover && onEdit && (
+        <button onClick={e=>{e.stopPropagation();onEdit();}}
+          style={{position:"absolute",bottom:4,left:4,zIndex:5,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
+      )}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
         {isAdmin && hover && <>
-          <button onClick={e=>{e.stopPropagation();onEdit();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
           {onMove && <button onClick={e=>{e.stopPropagation();onMove();}} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}} title="Move to another set">🗂️</button>}
           <button onClick={e=>{e.stopPropagation();onDelete();}} style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>🗑</button>
         </>}
