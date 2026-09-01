@@ -4573,28 +4573,28 @@ function MainApp() {
               }
             </button>
             {showUserMenu && (
-              <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 4px 16px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:170}}>
+              <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 4px 16px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:170,textAlign:"left"}}>
                 <div onClick={()=>{setShowUserMenu(false);setShowMyCollection(true);}}
-                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap"}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   {t("myCollectionMenuItem")}
                 </div>
                 <div onClick={()=>{setShowUserMenu(false);setShowSettings(true);}}
-                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   {t("settingsMenuItem")}
                 </div>
                 <div onClick={()=>{setShowUserMenu(false);toggleDark();}}
-                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   {dark ? "☀️ Light mode" : "🌙 Dark mode"}
                 </div>
                 {isAdmin && (
                   <div onClick={()=>{setShowUserMenu(false);setShowModeration(true);}}
-                    style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}
+                    style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}
                     onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span>📸 Photo moderation</span>
@@ -4607,26 +4607,26 @@ function MainApp() {
                 )}
                 {isAdmin && (
                   <div onClick={()=>{setShowUserMenu(false);setShowAnalytics(true);}}
-                    style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                    style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left"}}
                     onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     📊 Analytics
                   </div>
                 )}
                 <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" onClick={()=>setShowUserMenu(false)}
-                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)",textDecoration:"none"}}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left",textDecoration:"none"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <InstagramIcon size={15} /> Instagram
                 </a>
                 <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" onClick={()=>setShowUserMenu(false)}
-                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textDecoration:"none"}}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left",textDecoration:"none"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <FacebookIcon size={15} /> Facebook
                 </a>
                 <div onClick={()=>{setShowUserMenu(false);signOut();}}
-                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   🚪 {t("signOut")}
