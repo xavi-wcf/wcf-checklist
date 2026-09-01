@@ -196,6 +196,10 @@ const SUPABASE_KEY = "sb_publishable_AQN2HtfIBlrI8cmQYDZOuw_vaUyOL8u";
 // de si el visitante está en wcfchecklist.com o en el .vercel.app viejo)
 const CANONICAL_ORIGIN = "https://www.wcfchecklist.com";
 
+// Redes sociales
+const INSTAGRAM_URL = "https://www.instagram.com/wcfchecklist/";
+const FACEBOOK_URL = "https://www.facebook.com/wcfchecklist";
+
 // Imagen 1x1 transparente para ocultar la miniatura fantasma que el
 // navegador dibuja por defecto al arrastrar (drag-and-drop más limpio)
 const TRANSPARENT_DRAG_IMG = new Image();
@@ -349,6 +353,7 @@ const T = {
   changelogTitle: { es: "Novedades",              en: "What's new",                  th: "อัปเดต" , fr: "Nouveautés" , vi: "Cập nhật" , ja: "更新情報", zh: "更新内容" },
   changelogHistory:{ es: "Ver historial completo", en: "Full history",               th: "ประวัติทั้งหมด" , fr: "Historique complet" , vi: "Lịch sử đầy đủ" , ja: "全履歴", zh: "完整历史" },
   changelogClose: { es: "Entendido",              en: "Got it",                      th: "เข้าใจแล้ว" , fr: "Compris" , vi: "Đã hiểu" , ja: "了解", zh: "明白了" },
+  followUs:       { es: "Síguenos:", en: "Follow us:", th: "ติดตามเรา:", fr: "Suivez-nous :", vi: "Theo dõi chúng tôi:", ja: "フォローする：", zh: "关注我们：" },
   tabStats:       { es: "Mis Stats",              en: "My Stats",                    th: "สถิติของฉัน" , fr: "Mes Stats" , vi: "Thống kê" , ja: "マイ統計", zh: "我的统计" },
   tabCommunity:   { es: "Comunidad",               en: "Community",                   th: "ชุมชน" , fr: "Communauté" , vi: "Cộng đồng" , ja: "コミュニティ", zh: "社区" },
   topUploaders:   { es: "Top subidas de fotos",    en: "Top photo uploaders",          th: "ผู้อัปโหลดรูปสูงสุด" , fr: "Top contributeurs photo" , vi: "Người tải ảnh nhiều nhất" , ja: "写真投稿トップ", zh: "上传照片排行榜" },
@@ -3096,7 +3101,12 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
             </div>
           ))}
         </div>
-        <div style={{display:"flex",gap:8,marginTop:16,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:16,marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",flexShrink:0}}>
+          <span style={{fontSize:11,color:"var(--text4)"}}>{t("followUs")}</span>
+          <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" style={{fontSize:18,textDecoration:"none"}} title="Instagram">📷</a>
+          <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" style={{fontSize:18,textDecoration:"none"}} title="Facebook">📘</a>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:12,flexShrink:0}}>
           {!showAll && CHANGELOG.length>1 && (
             <button onClick={()=>setShowAll(true)}
               style={{flex:1,padding:"9px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text3)",cursor:"pointer",fontSize:12}}>
@@ -4579,6 +4589,18 @@ function MainApp() {
                     📊 Analytics
                   </div>
                 )}
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" onClick={()=>setShowUserMenu(false)}
+                  style={{display:"block",padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)",textDecoration:"none"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  📷 Instagram
+                </a>
+                <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" onClick={()=>setShowUserMenu(false)}
+                  style={{display:"block",padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textDecoration:"none"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  📘 Facebook
+                </a>
                 <div onClick={()=>{setShowUserMenu(false);signOut();}}
                   style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",borderTop:"1px solid var(--border)"}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
