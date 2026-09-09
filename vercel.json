@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/c/:userId", "destination": "/api/collection-og?userId=:userId" }
+    { "source": "/c/:userId", "destination": "/api/collection-og?userId=:userId" },
+    { "source": "/dragon-ball/:path*", "destination": "https://wcf-public.vercel.app/dragon-ball/:path*" }
   ]
 }
