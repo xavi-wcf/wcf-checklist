@@ -470,6 +470,7 @@ const T = {
   installBtn:     { es: "Instalar",                en: "Install",                     th: "ติดตั้ง" , fr: "Installer" , vi: "Cài đặt" , ja: "インストール", zh: "安装" },
   signIn:         { es: "Iniciar sesión",          en: "Sign in",                     th: "เข้าสู่ระบบ" , fr: "Se connecter" , vi: "Đăng nhập" , ja: "ログイン", zh: "登录" },
   signInGoogle:   { es: "Continuar con Google",    en: "Continue with Google",        th: "ดำเนินการต่อด้วย Google" , fr: "Continuer avec Google" , vi: "Tiếp tục với Google" , ja: "Googleで続ける", zh: "使用Google继续" },
+  redirecting:    { es: "Redirigiendo…",           en: "Redirecting…",                th: "กำลังเปลี่ยนเส้นทาง…" , fr: "Redirection…" , vi: "Đang chuyển hướng…" , ja: "リダイレクト中…", zh: "正在跳转…" },
   signOut:        { es: "Cerrar sesión",          en: "Sign out",                    th: "ออกจากระบบ" , fr: "Se déconnecter" , vi: "Đăng xuất" , ja: "ログアウト", zh: "退出登录" },
   signInToMark:   { es: "Inicia sesión para marcar figuras", en: "Sign in to mark figures", th: "เข้าสู่ระบบเพื่อทำเครื่องหมาย" , fr: "Connecte-toi pour marquer des figurines" , vi: "Đăng nhập để đánh dấu nhân vật" , ja: "フィギュアにチェックするにはログインしてください", zh: "请登录以标记人偶" },
   guestMode:      { es: "Modo invitado",          en: "Guest mode",                  th: "โหมดผู้เยี่ยมชม" , fr: "Mode invité" , vi: "Chế độ khách" , ja: "ゲストモード", zh: "访客模式" },
@@ -774,10 +775,25 @@ function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = () => supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.origin }
-  });
+  // Guard contra doble disparo: sin esto, un usuario que pulsa el botón
+  // de Google varias veces seguidas (p.ej. en móvil con red lenta, mientras
+  // espera a que aparezca la redirección) dispara múltiples peticiones
+  // /authorize en paralelo, ninguna de las cuales llega a completarse
+  // (visto en los logs de Supabase: 6 intentos en <90s, sin login exitoso).
+  const googleSignInInFlight = useRef(false);
+  const signInWithGoogle = async () => {
+    if (googleSignInInFlight.current) return { error: null };
+    googleSignInInFlight.current = true;
+    const result = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin }
+    });
+    // Si signInWithOAuth devuelve error (en vez de redirigir), liberamos el
+    // guard para permitir reintentar. Si tiene éxito, la página va a
+    // navegar fuera de la app en breve, así que no hace falta liberarlo.
+    if (result.error) googleSignInInFlight.current = false;
+    return result;
+  };
   const signInWithEmail = (email: string) => supabase.auth.signInWithOtp({
     email,
     options: { shouldCreateUser: true }
@@ -3237,8 +3253,15 @@ function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:o
 // ============================================================
 //  ONBOARDING MODAL
 // ============================================================
-function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, onGuest }: { onLogin:()=>void; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}>; onEmailSuccess:()=>void; onGuest:()=>void }) {
+function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, onGuest }: { onLogin:()=>Promise<{error:unknown}>; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}>; onEmailSuccess:()=>void; onGuest:()=>void }) {
   const { t } = useTr();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const handleGoogleClick = async () => {
+    if (googleLoading) return; // ignora clics mientras ya hay uno en curso
+    setGoogleLoading(true);
+    const { error } = await onLogin();
+    if (error) setGoogleLoading(false); // solo si falla; si tiene éxito, la página navega fuera
+  };
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -3254,10 +3277,10 @@ function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, on
             📱 {t("onboardIos")}
           </div>
         )}
-        <button onClick={onLogin}
-          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
+        <button onClick={handleGoogleClick} disabled={googleLoading}
+          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0196e3",color:"#fff",cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.7:1,fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
-          {t("onboardLogin")}
+          {googleLoading ? t("redirecting") : t("onboardLogin")}
         </button>
 
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
@@ -3951,18 +3974,28 @@ function EmailCodeLogin({ onSendCode, onVerifyCode, onSuccess, buttonStyle }: {
   );
 }
 
-function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:()=>void; onGoogle:()=>void; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}> }) {
+function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:()=>void; onGoogle:()=>Promise<{error:unknown}>; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}> }) {
   const { t } = useTr();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const handleGoogleClick = async () => {
+    if (googleLoading) return; // ignora clics mientras ya hay uno en curso
+    setGoogleLoading(true);
+    // No cerramos el modal aquí: la página va a redirigir a Google en breve.
+    // Si el usuario sigue viendo el modal unos instantes, el botón ya
+    // aparece deshabilitado/"Redirigiendo...", así que no vuelve a pulsar.
+    const { error } = await onGoogle();
+    if (error) setGoogleLoading(false); // solo si falla; si tiene éxito, la página navega fuera
+  };
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"var(--bg)",borderRadius:16,padding:28,width:"100%",maxWidth:340,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:12}}>📦</div>
         <div style={{fontWeight:700,fontSize:18,marginBottom:8}}>WCF Checklist</div>
         <div style={{fontSize:13,color:"var(--text3)",marginBottom:24}}>{t("signInToMark")}</div>
-        <button onClick={onGoogle}
-          style={{width:"100%",padding:"12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
+        <button onClick={handleGoogleClick} disabled={googleLoading}
+          style={{width:"100%",padding:"12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.6:1,fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
-          {t("signInGoogle")}
+          {googleLoading ? t("redirecting") : t("signInGoogle")}
         </button>
 
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
@@ -5125,10 +5158,10 @@ function MainApp() {
         />
       )}
       {showFeedback && <FeedbackModal onClose={()=>setShowFeedback(false)} data={isAdmin?data:undefined} userEmail={user?.email} />}
-      {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={()=>{signInWithGoogle();setShowLogin(false);}} onSendCode={signInWithEmail} onVerifyCode={verifyEmailCode} />}
+      {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onGoogle={signInWithGoogle} onSendCode={signInWithEmail} onVerifyCode={verifyEmailCode} />}
       {user && !user.name && <ChooseNameModal onSave={updateName} />}
       {showOnboarding && <OnboardingModal
-        onLogin={()=>{ setShowOnboarding(false); localStorage.setItem("wcf_onboarded","1"); signInWithGoogle(); }}
+        onLogin={()=>{ localStorage.setItem("wcf_onboarded","1"); return signInWithGoogle(); }}
         onSendCode={signInWithEmail}
         onVerifyCode={verifyEmailCode}
         onEmailSuccess={()=>setShowOnboarding(false)}
