@@ -1,4 +1,7 @@
 {
+  "redirects": [
+    { "source": "/:path+/", "destination": "/:path", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/c/:userId", "destination": "/api/collection-og?userId=:userId" },
     { "source": "/dragon-ball/oficial/:path*", "destination": "https://wcf-public.vercel.app/dragon-ball/oficial/:path*" },
