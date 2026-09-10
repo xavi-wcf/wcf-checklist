@@ -1,6 +1,34 @@
 {
   "rewrites": [
     { "source": "/c/:userId", "destination": "/api/collection-og?userId=:userId" },
-    { "source": "/dragon-ball/resina/:path*", "destination": "https://wcf-public.vercel.app/dragon-ball/resina/:path*" }
+    { "source": "/dragon-ball/oficial/:path*", "destination": "https://wcf-public.vercel.app/dragon-ball/oficial/:path*" },
+    { "source": "/one-piece/oficial/:path*", "destination": "https://wcf-public.vercel.app/one-piece/oficial/:path*" },
+    { "source": "/my-hero-academia/oficial/:path*", "destination": "https://wcf-public.vercel.app/my-hero-academia/oficial/:path*" },
+    { "source": "/kimetsu-no-yaiba/oficial/:path*", "destination": "https://wcf-public.vercel.app/kimetsu-no-yaiba/oficial/:path*" },
+    { "source": "/hunter-x-hunter/oficial/:path*", "destination": "https://wcf-public.vercel.app/hunter-x-hunter/oficial/:path*" },
+    { "source": "/chainsaw-man/oficial/:path*", "destination": "https://wcf-public.vercel.app/chainsaw-man/oficial/:path*" },
+    { "source": "/naruto/oficial/:path*", "destination": "https://wcf-public.vercel.app/naruto/oficial/:path*" },
+    { "source": "/shonen-jump/oficial/:path*", "destination": "https://wcf-public.vercel.app/shonen-jump/oficial/:path*" },
+    { "source": "/kaiju-n-8/oficial/:path*", "destination": "https://wcf-public.vercel.app/kaiju-n-8/oficial/:path*" },
+    { "source": "/tokyo-revengers/oficial/:path*", "destination": "https://wcf-public.vercel.app/tokyo-revengers/oficial/:path*" },
+    { "source": "/tensei-shitara/oficial/:path*", "destination": "https://wcf-public.vercel.app/tensei-shitara/oficial/:path*" },
+    { "source": "/others/oficial/:path*", "destination": "https://wcf-public.vercel.app/others/oficial/:path*" },
+    { "source": "/dragon-ball/resina/:path*", "destination": "https://wcf-public.vercel.app/dragon-ball/resina/:path*" },
+    { "source": "/one-piece/resina/:path*", "destination": "https://wcf-public.vercel.app/one-piece/resina/:path*" },
+    { "source": "/naruto/resina/:path*", "destination": "https://wcf-public.vercel.app/naruto/resina/:path*" },
+    { "source": "/bleach/resina/:path*", "destination": "https://wcf-public.vercel.app/bleach/resina/:path*" },
+    { "source": "/hunter-x-hunter/resina/:path*", "destination": "https://wcf-public.vercel.app/hunter-x-hunter/resina/:path*" },
+    { "source": "/kimetsu-no-yaiba/resina/:path*", "destination": "https://wcf-public.vercel.app/kimetsu-no-yaiba/resina/:path*" },
+    { "source": "/yuyu-hakusho/resina/:path*", "destination": "https://wcf-public.vercel.app/yuyu-hakusho/resina/:path*" },
+    { "source": "/jujutsu-kaisen/resina/:path*", "destination": "https://wcf-public.vercel.app/jujutsu-kaisen/resina/:path*" },
+    { "source": "/the-king-of-fighters/resina/:path*", "destination": "https://wcf-public.vercel.app/the-king-of-fighters/resina/:path*" },
+    { "source": "/kingdom/oficial/:path*", "destination": "https://wcf-public.vercel.app/kingdom/oficial/:path*" },
+    { "source": "/tiger-bunny/oficial/:path*", "destination": "https://wcf-public.vercel.app/tiger-bunny/oficial/:path*" },
+    { "source": "/jojo-s-bizarre-adventure/oficial/:path*", "destination": "https://wcf-public.vercel.app/jojo-s-bizarre-adventure/oficial/:path*" },
+    { "source": "/gintama/oficial/:path*", "destination": "https://wcf-public.vercel.app/gintama/oficial/:path*" },
+    { "source": "/mobile-suit-gundam/oficial/:path*", "destination": "https://wcf-public.vercel.app/mobile-suit-gundam/oficial/:path*" },
+    { "source": "/full-metal-alchemist/resina/:path*", "destination": "https://wcf-public.vercel.app/full-metal-alchemist/resina/:path*" },
+    { "source": "/sitemap-index.xml", "destination": "https://wcf-public.vercel.app/sitemap-index.xml" },
+    { "source": "/sitemap-:num.xml", "destination": "https://wcf-public.vercel.app/sitemap-:num.xml" }
   ]
 }
