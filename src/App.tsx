@@ -495,6 +495,8 @@ const T = {
   uploadNetworkError:  { es: "Error de red al subir. Inténtalo de nuevo.", en: "Network error while uploading. Try again.", th: "เกิดข้อผิดพลาดเครือข่ายขณะอัปโหลด ลองใหม่อีกครั้ง", fr: "Erreur réseau lors de l'envoi. Réessaie.", vi: "Lỗi mạng khi tải lên. Vui lòng thử lại.", ja: "アップロード中にネットワークエラーが発生しました。再試行してください。", zh: "上传时发生网络错误，请重试。" },
   loginToSharePhoto:   { es: "Inicia sesión para compartir tu foto de esta figura", en: "Log in to share your photo of this figure", th: "เข้าสู่ระบบเพื่อแชร์รูปตัวเลขนี้", fr: "Connecte-toi pour partager ta photo de cette figurine", vi: "Đăng nhập để chia sẻ ảnh của nhân vật này", ja: "ログインしてこのフィギュアの写真をシェア", zh: "登录以分享你这个人偶的照片" },
   orContinueWithEmail: { es: "o continúa con tu email", en: "or continue with email", th: "หรือดำเนินการต่อด้วยอีเมล", fr: "ou continue avec ton email", vi: "hoặc tiếp tục bằng email", ja: "またはメールで続ける", zh: "或使用邮箱继续" },
+  continueWithEmail: { es: "Continuar con email", en: "Continue with email", th: "ดำเนินการต่อด้วยอีเมล", fr: "Continuer avec l'email", vi: "Tiếp tục bằng email", ja: "メールで続ける", zh: "使用邮箱继续" },
+  backToOptions: { es: "Volver", en: "Back", th: "กลับ", fr: "Retour", vi: "Quay lại", ja: "戻る", zh: "返回" },
   emailPlaceholder:    { es: "Tu dirección de email", en: "Your email address", th: "ที่อยู่อีเมลของคุณ", fr: "Ton adresse email", vi: "Địa chỉ email của bạn", ja: "メールアドレス", zh: "你的邮箱地址" },
   sendMagicLink:       { es: "📧 Enviar enlace de acceso", en: "📧 Send login link", th: "📧 ส่งลิงก์เข้าสู่ระบบ", fr: "📧 Envoyer le lien de connexion", vi: "📧 Gửi liên kết đăng nhập", ja: "📧 ログインリンクを送信", zh: "📧 发送登录链接" },
   sendingLink:         { es: "Enviando...", en: "Sending...", th: "กำลังส่ง...", fr: "Envoi...", vi: "Đang gửi...", ja: "送信中...", zh: "发送中..." },
@@ -3256,12 +3258,15 @@ function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:o
 function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, onGuest }: { onLogin:()=>Promise<{error:unknown}>; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}>; onEmailSuccess:()=>void; onGuest:()=>void }) {
   const { t } = useTr();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showEmail, setShowEmail] = useState(false); // igual que en LoginModal: 2 opciones con el mismo peso, no una principal y otra secundaria
   const handleGoogleClick = async () => {
     if (googleLoading) return; // ignora clics mientras ya hay uno en curso
     setGoogleLoading(true);
     const { error } = await onLogin();
     if (error) setGoogleLoading(false); // solo si falla; si tiene éxito, la página navega fuera
   };
+
+  const equalOptionStyle: React.CSSProperties = {width:"100%",padding:"13px",borderRadius:12,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10};
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -3277,24 +3282,38 @@ function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, on
             📱 {t("onboardIos")}
           </div>
         )}
-        <button onClick={handleGoogleClick} disabled={googleLoading}
-          style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"#0196e3",color:"#fff",cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.7:1,fontSize:14,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
-          <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
-          {googleLoading ? t("redirecting") : t("onboardLogin")}
-        </button>
 
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
-          <div style={{flex:1,height:1,background:"var(--border)"}} />
-          <div style={{fontSize:11,color:"var(--text4)"}}>{t("orContinueWithEmail")}</div>
-          <div style={{flex:1,height:1,background:"var(--border)"}} />
-        </div>
-
-        <EmailCodeLogin
-          onSendCode={onSendCode}
-          onVerifyCode={onVerifyCode}
-          onSuccess={()=>{ localStorage.setItem("wcf_onboarded","1"); onEmailSuccess(); }}
-          buttonStyle={{width:"100%",padding:"11px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer",fontSize:13,fontWeight:700,marginBottom:16}}
-        />
+        {!showEmail ? (
+          <>
+            <button onClick={handleGoogleClick} disabled={googleLoading}
+              style={{...equalOptionStyle,cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.7:1,marginBottom:10}}>
+              <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
+              {googleLoading ? t("redirecting") : t("onboardLogin")}
+            </button>
+            <button onClick={()=>setShowEmail(true)} style={{...equalOptionStyle,marginBottom:16}}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M3 6.5v11a1.5 1.5 0 0 0 1.5 1.5h15a1.5 1.5 0 0 0 1.5-1.5v-11M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5m-18 0 9 6.5 9-6.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t("continueWithEmail")}
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={()=>setShowEmail(false)}
+              style={{background:"none",border:"none",display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--text4)",cursor:"pointer",padding:0,marginBottom:16}}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+                <path d="M19 12H5m6-7-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t("backToOptions")}
+            </button>
+            <EmailCodeLogin
+              onSendCode={onSendCode}
+              onVerifyCode={onVerifyCode}
+              onSuccess={()=>{ localStorage.setItem("wcf_onboarded","1"); onEmailSuccess(); }}
+              buttonStyle={{width:"100%",padding:"11px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer",fontSize:13,fontWeight:700,marginBottom:16}}
+            />
+          </>
+        )}
 
         <button onClick={onGuest}
           style={{width:"100%",padding:"11px",borderRadius:12,border:"1px solid var(--border)",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
@@ -3977,6 +3996,7 @@ function EmailCodeLogin({ onSendCode, onVerifyCode, onSuccess, buttonStyle }: {
 function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:()=>void; onGoogle:()=>Promise<{error:unknown}>; onSendCode:(email:string)=>Promise<{error:unknown}>; onVerifyCode:(email:string,code:string)=>Promise<{error:unknown}> }) {
   const { t } = useTr();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showEmail, setShowEmail] = useState(false); // alterna entre las 2 opciones iguales y el formulario de email
   const handleGoogleClick = async () => {
     if (googleLoading) return; // ignora clics mientras ya hay uno en curso
     setGoogleLoading(true);
@@ -3986,25 +4006,47 @@ function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:(
     const { error } = await onGoogle();
     if (error) setGoogleLoading(false); // solo si falla; si tiene éxito, la página navega fuera
   };
+
+  // Mismo estilo exacto para ambas opciones — ninguna debe parecer "la principal"
+  // y la otra "la alternativa de segunda categoría" (esto era justo el problema:
+  // usuarios en China se quedaban atascados en Google sin darse cuenta de que
+  // el email era una opción igual de válida).
+  const equalOptionStyle: React.CSSProperties = {width:"100%",padding:"14px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10};
+
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"var(--bg)",borderRadius:16,padding:28,width:"100%",maxWidth:340,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:12}}>📦</div>
         <div style={{fontWeight:700,fontSize:18,marginBottom:8}}>WCF Checklist</div>
         <div style={{fontSize:13,color:"var(--text3)",marginBottom:24}}>{t("signInToMark")}</div>
-        <button onClick={handleGoogleClick} disabled={googleLoading}
-          style={{width:"100%",padding:"12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.6:1,fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
-          <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
-          {googleLoading ? t("redirecting") : t("signInGoogle")}
-        </button>
 
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
-          <div style={{flex:1,height:1,background:"var(--border)"}} />
-          <div style={{fontSize:11,color:"var(--text4)"}}>{t("orContinueWithEmail")}</div>
-          <div style={{flex:1,height:1,background:"var(--border)"}} />
-        </div>
-
-        <EmailCodeLogin onSendCode={onSendCode} onVerifyCode={onVerifyCode} onSuccess={onClose} />
+        {!showEmail ? (
+          <>
+            <button onClick={handleGoogleClick} disabled={googleLoading}
+              style={{...equalOptionStyle,cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.6:1,marginBottom:10}}>
+              <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
+              {googleLoading ? t("redirecting") : t("signInGoogle")}
+            </button>
+            <button onClick={()=>setShowEmail(true)}
+              style={{...equalOptionStyle,marginBottom:16}}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M3 6.5v11a1.5 1.5 0 0 0 1.5 1.5h15a1.5 1.5 0 0 0 1.5-1.5v-11M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5m-18 0 9 6.5 9-6.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t("continueWithEmail")}
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={()=>setShowEmail(false)}
+              style={{background:"none",border:"none",display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--text4)",cursor:"pointer",padding:0,marginBottom:16}}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+                <path d="M19 12H5m6-7-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t("backToOptions")}
+            </button>
+            <EmailCodeLogin onSendCode={onSendCode} onVerifyCode={onVerifyCode} onSuccess={onClose} />
+          </>
+        )}
 
         <button onClick={onClose}
           style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--text3)"}}>
