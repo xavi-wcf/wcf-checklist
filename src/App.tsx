@@ -545,6 +545,9 @@ const T = {
   loginToComment:      { es: "Inicia sesión para comentar", en: "Sign in to comment", th: "เข้าสู่ระบบเพื่อแสดงความคิดเห็น", fr: "Connecte-toi pour commenter", vi: "Đăng nhập để bình luận", ja: "コメントするにはログイン", zh: "登录后评论" },
   send:                { es: "Enviar", en: "Send", th: "ส่ง", fr: "Envoyer", vi: "Gửi", ja: "送信", zh: "发送" },
   deleteCommentAction: { es: "Eliminar", en: "Delete", th: "ลบ", fr: "Supprimer", vi: "Xóa", ja: "削除", zh: "删除" },
+  translateAction:     { es: "Traducir", en: "Translate", th: "แปล", fr: "Traduire", vi: "Dịch", ja: "翻訳", zh: "翻译" },
+  seeOriginalAction:   { es: "Ver original", en: "See original", th: "ดูต้นฉบับ", fr: "Voir l'original", vi: "Xem bản gốc", ja: "元のテキストを見る", zh: "查看原文" },
+  translatingAction:   { es: "Traduciendo…", en: "Translating…", th: "กำลังแปล…", fr: "Traduction…", vi: "Đang dịch…", ja: "翻訳中…", zh: "翻译中…" },
   myCollectionMenuItem:{ es: "🖼️ Mi colección", en: "🖼️ My collection", th: "🖼️ คอลเลกชันของฉัน", fr: "🖼️ Ma collection", vi: "🖼️ Bộ sưu tập của tôi", ja: "🖼️ マイコレクション", zh: "🖼️ 我的收藏" },
   deleteBtn:           { es: "Borrar", en: "Delete", th: "ลบ", fr: "Supprimer", vi: "Xóa", ja: "削除", zh: "删除" },
   settingsMenuItem:    { es: "⚙️ Ajustes", en: "⚙️ Settings", th: "⚙️ ตั้งค่า", fr: "⚙️ Paramètres", vi: "⚙️ Cài đặt", ja: "⚙️ 設定", zh: "⚙️ 设置" },
@@ -2649,11 +2652,38 @@ function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, cur
   likeCounts: Record<string,number>; likedByMe: Set<string>;
   onToggleLike:(id:string)=>void; onRequireLogin:()=>void;
 }) {
-  const { t } = useTr();
+  const { t, lang } = useTr();
   const photo = photos[index];
   const [commentText, setCommentText] = useState("");
   const [sending, setSending] = useState(false);
   const { comments, addComment, deleteComment } = useCollectionPhotoComments(photo?.id ?? null);
+  const [translations, setTranslations] = useState<Record<string,string>>({});
+  const [translating, setTranslating] = useState<Set<string>>(new Set());
+  const [showingTranslation, setShowingTranslation] = useState<Set<string>>(new Set());
+
+  const handleTranslate = async (commentId: string, text: string) => {
+    // Si ya la tenemos traducida, solo alterna mostrar/ocultar sin volver a llamar a la API
+    if (translations[commentId] !== undefined) {
+      setShowingTranslation(prev => { const n = new Set(prev); n.has(commentId) ? n.delete(commentId) : n.add(commentId); return n; });
+      return;
+    }
+    setTranslating(prev => new Set(prev).add(commentId));
+    try {
+      const res = await fetch("/api/translate-comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, targetLang: lang }),
+      });
+      const data = await res.json();
+      if (data.translated) {
+        setTranslations(prev => ({ ...prev, [commentId]: data.translated }));
+        setShowingTranslation(prev => new Set(prev).add(commentId));
+      }
+    } catch {
+      // Fallo silencioso: si la traducción no funciona, el comentario original sigue visible igualmente
+    }
+    setTranslating(prev => { const n = new Set(prev); n.delete(commentId); return n; });
+  };
 
   if (!photo) return null;
   const liked = likedByMe.has(photo.id);
@@ -2719,13 +2749,19 @@ function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, cur
               <div style={{minWidth:0}}>
                 <div style={{display:"inline-block",background:"var(--bg2)",borderRadius:14,padding:"6px 12px",textAlign:"left"}}>
                   <span style={{fontSize:12,fontWeight:700,marginRight:6}}>{c.commenter_name ?? t("communityMember")}</span>
-                  <span style={{fontSize:13,color:"var(--text2)",wordBreak:"break-word"}}>{c.text}</span>
+                  <span style={{fontSize:13,color:"var(--text2)",wordBreak:"break-word"}}>
+                    {showingTranslation.has(c.id) ? translations[c.id] : c.text}
+                  </span>
                 </div>
-                {currentUserId === c.user_id && (
-                  <div>
+                <div style={{display:"flex",gap:10,marginTop:2}}>
+                  {currentUserId === c.user_id && (
                     <button onClick={()=>deleteComment(c.id)} style={{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:11,padding:"2px 4px 0",textAlign:"left"}}>{t("deleteCommentAction")}</button>
-                  </div>
-                )}
+                  )}
+                  <button onClick={()=>handleTranslate(c.id, c.text)} disabled={translating.has(c.id)}
+                    style={{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:11,padding:"2px 4px 0",textAlign:"left"}}>
+                    {translating.has(c.id) ? t("translatingAction") : showingTranslation.has(c.id) ? t("seeOriginalAction") : t("translateAction")}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
