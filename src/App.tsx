@@ -544,6 +544,7 @@ const T = {
   addCommentPlaceholder: { es: "Añade un comentario…", en: "Add a comment…", th: "แสดงความคิดเห็น…", fr: "Ajoute un commentaire…", vi: "Thêm bình luận…", ja: "コメントを追加…", zh: "添加评论…" },
   loginToComment:      { es: "Inicia sesión para comentar", en: "Sign in to comment", th: "เข้าสู่ระบบเพื่อแสดงความคิดเห็น", fr: "Connecte-toi pour commenter", vi: "Đăng nhập để bình luận", ja: "コメントするにはログイン", zh: "登录后评论" },
   send:                { es: "Enviar", en: "Send", th: "ส่ง", fr: "Envoyer", vi: "Gửi", ja: "送信", zh: "发送" },
+  deleteCommentAction: { es: "Eliminar", en: "Delete", th: "ลบ", fr: "Supprimer", vi: "Xóa", ja: "削除", zh: "删除" },
   myCollectionMenuItem:{ es: "🖼️ Mi colección", en: "🖼️ My collection", th: "🖼️ คอลเลกชันของฉัน", fr: "🖼️ Ma collection", vi: "🖼️ Bộ sưu tập của tôi", ja: "🖼️ マイコレクション", zh: "🖼️ 我的收藏" },
   deleteBtn:           { es: "Borrar", en: "Delete", th: "ลบ", fr: "Supprimer", vi: "Xóa", ja: "削除", zh: "删除" },
   settingsMenuItem:    { es: "⚙️ Ajustes", en: "⚙️ Settings", th: "⚙️ ตั้งค่า", fr: "⚙️ Paramètres", vi: "⚙️ Cài đặt", ja: "⚙️ 設定", zh: "⚙️ 设置" },
@@ -2477,6 +2478,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
   const [shareCopied, setShareCopied] = useState(false);
   const photoIds = useMemo(() => photos.filter(p=>p.approved).map(p=>p.id), [photos]);
   const { counts: likeCounts } = useCollectionLikes(photoIds, userId);
+  const { counts: commentCounts } = useCollectionCommentCounts(photoIds);
 
   const approvedCount = photos.length; // pending also counts toward the limit to prevent gaming it
   const canAddMore = approvedCount < 15;
@@ -2593,6 +2595,11 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
                     ❤️ {likeCounts[p.id]}
                   </div>
                 )}
+                {p.approved && (commentCounts[p.id] ?? 0) > 0 && (
+                  <div style={{position:"absolute",bottom:4,left:(likeCounts[p.id] ?? 0) > 0 ? 44 : 4,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:9,fontWeight:700,padding:"2px 5px",borderRadius:6,display:"flex",alignItems:"center",gap:3}}>
+                    💬 {commentCounts[p.id]}
+                  </div>
+                )}
                 {p.approved && (
                   <button onClick={()=>handleSetCover(p.id)}
                     style={{position:"absolute",bottom:4,right:4,background:coverId===p.id?"#0196e3":"rgba(0,0,0,0.6)",color:"#fff",border:"none",borderRadius:6,fontSize:9,fontWeight:700,padding:"3px 5px",cursor:"pointer"}}>
@@ -2644,7 +2651,6 @@ function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, cur
 }) {
   const { t } = useTr();
   const photo = photos[index];
-  const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [sending, setSending] = useState(false);
   const { comments, addComment, deleteComment } = useCollectionPhotoComments(photo?.id ?? null);
@@ -2667,73 +2673,79 @@ function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, cur
         style={{position:"absolute",top:16,right:16,zIndex:421,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:40,height:40,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
         ✕
       </button>
-      <div style={{position:"relative",maxWidth:"100%",maxHeight:"90vh"}} onClick={e=>e.stopPropagation()}>
-        <img src={photo.url} alt="" style={{display:"block",maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
-        {photos.length > 1 && (
-          <>
-            <button onClick={()=>{onNav((index-1+photos.length)%photos.length); setShowComments(false);}} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
-            <button onClick={()=>{onNav((index+1)%photos.length); setShowComments(false);}} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
-          </>
-        )}
-        <button onClick={e=>{e.stopPropagation(); currentUserId ? onToggleLike(photo.id) : onRequireLogin();}}
-          style={{position:"absolute",bottom:8,left:8,background:"rgba(0,0,0,0.65)",border:"none",borderRadius:20,padding:"6px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:700,color:"#fff"}}>
-          <span style={{fontSize:15}}>{liked ? "❤️" : "🤍"}</span>
-          {likeCounts[photo.id] ?? 0}
-        </button>
-        <button onClick={e=>{e.stopPropagation(); setShowComments(v=>!v);}}
-          style={{position:"absolute",bottom:8,left:76,background:"rgba(0,0,0,0.65)",border:"none",borderRadius:20,padding:"6px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:700,color:"#fff"}}>
-          <span style={{fontSize:15}}>💬</span>
-          {comments.length}
-        </button>
-        <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:8}}>
-          {t("uploadedBy")} {photo.uploader_name ?? t("communityMember")}
+
+      {/* Tarjeta general: columna, altura máx. 90vh — la foto ocupa el espacio
+          disponible arriba, los comentarios van SIEMPRE debajo, sin tapar nada */}
+      <div onClick={e=>e.stopPropagation()}
+        style={{display:"flex",flexDirection:"column",width:"100%",maxWidth:520,maxHeight:"90vh",borderRadius:12,overflow:"hidden",background:"var(--bg)"}}>
+
+        {/* Zona de la foto */}
+        <div style={{position:"relative",flex:"1 1 auto",minHeight:0,display:"flex",alignItems:"center",justifyContent:"center",background:"#000"}}>
+          <img src={photo.url} alt="" style={{display:"block",maxWidth:"100%",maxHeight:"100%",objectFit:"contain"}} />
+          {photos.length > 1 && (
+            <>
+              <button onClick={()=>onNav((index-1+photos.length)%photos.length)} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+              <button onClick={()=>onNav((index+1)%photos.length)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+            </>
+          )}
+          <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:8}}>
+            {t("uploadedBy")} {photo.uploader_name ?? t("communityMember")}
+          </div>
         </div>
 
-        {showComments && (
-          <div onClick={e=>e.stopPropagation()}
-            style={{position:"absolute",left:0,right:0,bottom:0,maxHeight:"60%",background:"var(--bg)",borderRadius:"16px 16px 0 0",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-            <div style={{padding:"12px 14px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-              <div style={{fontSize:13,fontWeight:700}}>{t("commentsTitle", comments.length)}</div>
-              <button onClick={()=>setShowComments(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--text3)"}}>×</button>
-            </div>
-            <div style={{overflowY:"auto",flex:1,padding:"10px 14px"}}>
-              {comments.length === 0 ? (
-                <div style={{textAlign:"center",color:"var(--text4)",fontSize:12,padding:"16px 0"}}>{t("noCommentsYet")}</div>
-              ) : comments.map(c => (
-                <div key={c.id} style={{display:"flex",gap:8,marginBottom:12}}>
-                  {c.commenter_avatar ? (
-                    <img src={c.commenter_avatar} alt="" style={{width:28,height:28,borderRadius:"50%",flexShrink:0,objectFit:"cover"}} />
-                  ) : (
-                    <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700}}>
-                      {(c.commenter_name ?? "?").charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:700}}>{c.commenter_name ?? t("communityMember")}</div>
-                    <div style={{fontSize:13,color:"var(--text2)",wordBreak:"break-word"}}>{c.text}</div>
-                  </div>
-                  {currentUserId === c.user_id && (
-                    <button onClick={()=>deleteComment(c.id)} style={{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:16,padding:0,flexShrink:0}}>🗑</button>
-                  )}
+        {/* Barra de like + contador de comentarios, entre la foto y la lista */}
+        <div style={{display:"flex",alignItems:"center",gap:14,padding:"10px 14px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+          <button onClick={()=>currentUserId ? onToggleLike(photo.id) : onRequireLogin()}
+            style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:700,color:"var(--text)",padding:0}}>
+            <span style={{fontSize:16}}>{liked ? "❤️" : "🤍"}</span>
+            {likeCounts[photo.id] ?? 0}
+          </button>
+          <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{t("commentsTitle", comments.length)}</div>
+        </div>
+
+        {/* Comentarios — siempre visibles, alineados a la izquierda estilo Facebook */}
+        <div style={{overflowY:"auto",flexShrink:1,minHeight:80,maxHeight:220,padding:"10px 14px"}}>
+          {comments.length === 0 ? (
+            <div style={{color:"var(--text4)",fontSize:12,padding:"8px 0",textAlign:"left"}}>{t("noCommentsYet")}</div>
+          ) : comments.map(c => (
+            <div key={c.id} style={{display:"flex",gap:8,marginBottom:10,textAlign:"left"}}>
+              {c.commenter_avatar ? (
+                <img src={c.commenter_avatar} alt="" style={{width:30,height:30,borderRadius:"50%",flexShrink:0,objectFit:"cover"}} />
+              ) : (
+                <div style={{width:30,height:30,borderRadius:"50%",flexShrink:0,background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700}}>
+                  {(c.commenter_name ?? "?").charAt(0).toUpperCase()}
                 </div>
-              ))}
+              )}
+              <div style={{minWidth:0}}>
+                <div style={{display:"inline-block",background:"var(--bg2)",borderRadius:14,padding:"6px 12px",textAlign:"left"}}>
+                  <span style={{fontSize:12,fontWeight:700,marginRight:6}}>{c.commenter_name ?? t("communityMember")}</span>
+                  <span style={{fontSize:13,color:"var(--text2)",wordBreak:"break-word"}}>{c.text}</span>
+                </div>
+                {currentUserId === c.user_id && (
+                  <div>
+                    <button onClick={()=>deleteComment(c.id)} style={{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:11,padding:"2px 4px 0",textAlign:"left"}}>{t("deleteCommentAction")}</button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div style={{display:"flex",gap:8,padding:"10px 14px",borderTop:"1px solid var(--border)",flexShrink:0}}>
-              <input
-                value={commentText}
-                onChange={e=>setCommentText(e.target.value)}
-                onKeyDown={e=>{ if(e.key==="Enter") handleSend(); }}
-                placeholder={currentUserId ? t("addCommentPlaceholder") : t("loginToComment")}
-                maxLength={500}
-                style={{flex:1,padding:"9px 12px",borderRadius:20,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}
-              />
-              <button onClick={handleSend} disabled={sending || !commentText.trim()}
-                style={{padding:"9px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,opacity:(sending||!commentText.trim())?0.6:1,flexShrink:0}}>
-                {t("send")}
-              </button>
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
+
+        {/* Campo para añadir comentario */}
+        <div style={{display:"flex",gap:8,padding:"10px 14px",borderTop:"1px solid var(--border)",flexShrink:0}}>
+          <input
+            value={commentText}
+            onChange={e=>setCommentText(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter") handleSend(); }}
+            placeholder={currentUserId ? t("addCommentPlaceholder") : t("loginToComment")}
+            maxLength={500}
+            style={{flex:1,padding:"9px 12px",borderRadius:20,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}
+          />
+          <button onClick={handleSend} disabled={sending || !commentText.trim()}
+            style={{padding:"9px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,opacity:(sending||!commentText.trim())?0.6:1,flexShrink:0}}>
+            {t("send")}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2745,6 +2757,7 @@ function UserCollectionView({ userId, name, currentUserId, currentUserName, curr
   const [zoomIndex, setZoomIndex] = useState<number|null>(null);
   const photoIds = useMemo(() => photos.map(p=>p.id), [photos]);
   const { counts: likeCounts, likedByMe, toggleLike } = useCollectionLikes(photoIds, currentUserId);
+  const { counts: commentCounts } = useCollectionCommentCounts(photoIds);
   return (
     <div>
       <button onClick={onBack} style={{background:"none",border:"none",fontSize:12,color:"#0196e3",cursor:"pointer",padding:0,marginBottom:12}}>
@@ -2758,10 +2771,17 @@ function UserCollectionView({ userId, name, currentUserId, currentUserName, curr
           {photos.map((p,i) => (
             <div key={p.id} onClick={()=>setZoomIndex(i)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",cursor:"pointer",background:"var(--bg2)"}}>
               <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-              <button onClick={e=>{e.stopPropagation(); currentUserId ? toggleLike(p.id) : onRequireLogin();}}
-                style={{position:"absolute",bottom:3,left:3,background:"rgba(0,0,0,0.6)",border:"none",borderRadius:10,padding:"2px 6px",cursor:"pointer",display:"flex",alignItems:"center",gap:3,fontSize:10,fontWeight:700,color:"#fff"}}>
-                {likedByMe.has(p.id) ? "❤️" : "🤍"} {likeCounts[p.id] ?? 0}
-              </button>
+              <div style={{position:"absolute",bottom:3,left:3,right:3,display:"flex",gap:4}}>
+                <button onClick={e=>{e.stopPropagation(); currentUserId ? toggleLike(p.id) : onRequireLogin();}}
+                  style={{background:"rgba(0,0,0,0.6)",border:"none",borderRadius:10,padding:"2px 6px",cursor:"pointer",display:"flex",alignItems:"center",gap:3,fontSize:10,fontWeight:700,color:"#fff"}}>
+                  {likedByMe.has(p.id) ? "❤️" : "🤍"} {likeCounts[p.id] ?? 0}
+                </button>
+                {(commentCounts[p.id] ?? 0) > 0 && (
+                  <div style={{background:"rgba(0,0,0,0.6)",borderRadius:10,padding:"2px 6px",display:"flex",alignItems:"center",gap:3,fontSize:10,fontWeight:700,color:"#fff"}}>
+                    💬 {commentCounts[p.id]}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -3485,6 +3505,28 @@ function useCollectionLikes(photoIds: string[], currentUserId?: string | null) {
   };
 
   return { counts, likedByMe, toggleLike };
+}
+
+// Recuento de comentarios por foto para la cuadrícula (miniaturas) — solo
+// necesita el número total, no el contenido, así que es una consulta ligera
+// separada del hook que carga los comentarios completos de una foto abierta.
+function useCollectionCommentCounts(photoIds: string[]) {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const idsKey = photoIds.join(",");
+
+  const reload = useCallback(() => {
+    if (photoIds.length === 0) { setCounts({}); return; }
+    supabase.from("wcf_collection_comments").select("photo_id").in("photo_id", photoIds)
+      .then(({ data }) => {
+        const c: Record<string, number> = {};
+        for (const row of data ?? []) c[row.photo_id] = (c[row.photo_id] ?? 0) + 1;
+        setCounts(c);
+      });
+  }, [idsKey]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  return { counts, reload };
 }
 
 // Comentarios de una foto de colección concreta — a diferencia de los likes
@@ -5406,7 +5448,7 @@ function MainApp() {
 }
 
 // ============================================================
-//  ROOT — decide si mostrar una colección pública (/c/<código>) o la app enterita
+//  ROOT — decide si mostrar una colección pública (/c/<código>) o la app entera
 // ============================================================
 export default function App() {
   const [publicShareCode] = useState<string | null>(() => {
