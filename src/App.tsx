@@ -539,6 +539,11 @@ const T = {
   noCollectionsYet:    { es: "Aún no hay colecciones compartidas. ¡Sé el primero!", en: "No shared collections yet. Be the first!", th: "ยังไม่มีคอลเลกชันที่แชร์ มาเป็นคนแรกสิ!", fr: "Pas encore de collections partagées. Sois le premier !", vi: "Chưa có bộ sưu tập nào được chia sẻ. Hãy là người đầu tiên!", ja: "まだ共有されたコレクションはありません。最初の投稿者になりましょう！", zh: "还没有人分享收藏，快来当第一个吧！" },
   backToCollections:   { es: "← Colecciones", en: "← Collections", th: "← คอลเลกชัน", fr: "← Collections", vi: "← Bộ sưu tập", ja: "← コレクション", zh: "← 收藏" },
   collectionOf:        { es: (name:string)=>`La colección de ${name}`, en: (name:string)=>`${name}'s collection`, th: (name:string)=>`คอลเลกชันของ ${name}`, fr: (name:string)=>`La collection de ${name}`, vi: (name:string)=>`Bộ sưu tập của ${name}`, ja: (name:string)=>`${name}のコレクション`, zh: (name:string)=>`${name}的收藏` },
+  commentsTitle:       { es: (n:number)=>`${n} comentario${n===1?"":"s"}`, en: (n:number)=>`${n} comment${n===1?"":"s"}`, th: (n:number)=>`${n} ความคิดเห็น`, fr: (n:number)=>`${n} commentaire${n===1?"":"s"}`, vi: (n:number)=>`${n} bình luận`, ja: (n:number)=>`コメント${n}件`, zh: (n:number)=>`${n}条评论` },
+  noCommentsYet:       { es: "Sé el primero en comentar", en: "Be the first to comment", th: "เป็นคนแรกที่แสดงความคิดเห็น", fr: "Sois le premier à commenter", vi: "Hãy là người đầu tiên bình luận", ja: "最初のコメントを投稿しよう", zh: "抢先评论吧" },
+  addCommentPlaceholder: { es: "Añade un comentario…", en: "Add a comment…", th: "แสดงความคิดเห็น…", fr: "Ajoute un commentaire…", vi: "Thêm bình luận…", ja: "コメントを追加…", zh: "添加评论…" },
+  loginToComment:      { es: "Inicia sesión para comentar", en: "Sign in to comment", th: "เข้าสู่ระบบเพื่อแสดงความคิดเห็น", fr: "Connecte-toi pour commenter", vi: "Đăng nhập để bình luận", ja: "コメントするにはログイン", zh: "登录后评论" },
+  send:                { es: "Enviar", en: "Send", th: "ส่ง", fr: "Envoyer", vi: "Gửi", ja: "送信", zh: "发送" },
   myCollectionMenuItem:{ es: "🖼️ Mi colección", en: "🖼️ My collection", th: "🖼️ คอลเลกชันของฉัน", fr: "🖼️ Ma collection", vi: "🖼️ Bộ sưu tập của tôi", ja: "🖼️ マイコレクション", zh: "🖼️ 我的收藏" },
   deleteBtn:           { es: "Borrar", en: "Delete", th: "ลบ", fr: "Supprimer", vi: "Xóa", ja: "削除", zh: "删除" },
   settingsMenuItem:    { es: "⚙️ Ajustes", en: "⚙️ Settings", th: "⚙️ ตั้งค่า", fr: "⚙️ Paramètres", vi: "⚙️ Cài đặt", ja: "⚙️ 設定", zh: "⚙️ 设置" },
@@ -2631,15 +2636,31 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
 // ============================================================
 //  COLLECTIONS DIRECTORY + individual gallery — inside Community tab
 // ============================================================
-function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, likeCounts, likedByMe, onToggleLike, onRequireLogin }: {
+function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, currentUserName, currentUserAvatar, likeCounts, likedByMe, onToggleLike, onRequireLogin }: {
   photos: CollectionPhoto[]; index: number; onClose:()=>void; onNav:(i:number)=>void;
-  currentUserId?: string|null; likeCounts: Record<string,number>; likedByMe: Set<string>;
+  currentUserId?: string|null; currentUserName?: string|null; currentUserAvatar?: string|null;
+  likeCounts: Record<string,number>; likedByMe: Set<string>;
   onToggleLike:(id:string)=>void; onRequireLogin:()=>void;
 }) {
   const { t } = useTr();
   const photo = photos[index];
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [sending, setSending] = useState(false);
+  const { comments, addComment, deleteComment } = useCollectionPhotoComments(photo?.id ?? null);
+
   if (!photo) return null;
   const liked = likedByMe.has(photo.id);
+
+  const handleSend = async () => {
+    if (!currentUserId) { onRequireLogin(); return; }
+    if (!commentText.trim() || sending) return;
+    setSending(true);
+    await addComment(currentUserId, currentUserName, currentUserAvatar, commentText);
+    setCommentText("");
+    setSending(false);
+  };
+
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:420,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <button onClick={e=>{e.stopPropagation();onClose();}}
@@ -2650,8 +2671,8 @@ function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, lik
         <img src={photo.url} alt="" style={{display:"block",maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}} />
         {photos.length > 1 && (
           <>
-            <button onClick={()=>onNav((index-1+photos.length)%photos.length)} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
-            <button onClick={()=>onNav((index+1)%photos.length)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+            <button onClick={()=>{onNav((index-1+photos.length)%photos.length); setShowComments(false);}} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+            <button onClick={()=>{onNav((index+1)%photos.length); setShowComments(false);}} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.5)",border:"none",color:"#fff",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
           </>
         )}
         <button onClick={e=>{e.stopPropagation(); currentUserId ? onToggleLike(photo.id) : onRequireLogin();}}
@@ -2659,15 +2680,66 @@ function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, lik
           <span style={{fontSize:15}}>{liked ? "❤️" : "🤍"}</span>
           {likeCounts[photo.id] ?? 0}
         </button>
+        <button onClick={e=>{e.stopPropagation(); setShowComments(v=>!v);}}
+          style={{position:"absolute",bottom:8,left:76,background:"rgba(0,0,0,0.65)",border:"none",borderRadius:20,padding:"6px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:700,color:"#fff"}}>
+          <span style={{fontSize:15}}>💬</span>
+          {comments.length}
+        </button>
         <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:8}}>
           {t("uploadedBy")} {photo.uploader_name ?? t("communityMember")}
         </div>
+
+        {showComments && (
+          <div onClick={e=>e.stopPropagation()}
+            style={{position:"absolute",left:0,right:0,bottom:0,maxHeight:"60%",background:"var(--bg)",borderRadius:"16px 16px 0 0",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+            <div style={{padding:"12px 14px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+              <div style={{fontSize:13,fontWeight:700}}>{t("commentsTitle", comments.length)}</div>
+              <button onClick={()=>setShowComments(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--text3)"}}>×</button>
+            </div>
+            <div style={{overflowY:"auto",flex:1,padding:"10px 14px"}}>
+              {comments.length === 0 ? (
+                <div style={{textAlign:"center",color:"var(--text4)",fontSize:12,padding:"16px 0"}}>{t("noCommentsYet")}</div>
+              ) : comments.map(c => (
+                <div key={c.id} style={{display:"flex",gap:8,marginBottom:12}}>
+                  {c.commenter_avatar ? (
+                    <img src={c.commenter_avatar} alt="" style={{width:28,height:28,borderRadius:"50%",flexShrink:0,objectFit:"cover"}} />
+                  ) : (
+                    <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700}}>
+                      {(c.commenter_name ?? "?").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:700}}>{c.commenter_name ?? t("communityMember")}</div>
+                    <div style={{fontSize:13,color:"var(--text2)",wordBreak:"break-word"}}>{c.text}</div>
+                  </div>
+                  {currentUserId === c.user_id && (
+                    <button onClick={()=>deleteComment(c.id)} style={{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:16,padding:0,flexShrink:0}}>🗑</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8,padding:"10px 14px",borderTop:"1px solid var(--border)",flexShrink:0}}>
+              <input
+                value={commentText}
+                onChange={e=>setCommentText(e.target.value)}
+                onKeyDown={e=>{ if(e.key==="Enter") handleSend(); }}
+                placeholder={currentUserId ? t("addCommentPlaceholder") : t("loginToComment")}
+                maxLength={500}
+                style={{flex:1,padding:"9px 12px",borderRadius:20,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}
+              />
+              <button onClick={handleSend} disabled={sending || !commentText.trim()}
+                style={{padding:"9px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,opacity:(sending||!commentText.trim())?0.6:1,flexShrink:0}}>
+                {t("send")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function UserCollectionView({ userId, name, currentUserId, onRequireLogin, onBack }: { userId:string; name:string; currentUserId?:string|null; onRequireLogin:()=>void; onBack:()=>void }) {
+function UserCollectionView({ userId, name, currentUserId, currentUserName, currentUserAvatar, onRequireLogin, onBack }: { userId:string; name:string; currentUserId?:string|null; currentUserName?:string|null; currentUserAvatar?:string|null; onRequireLogin:()=>void; onBack:()=>void }) {
   const { t } = useTr();
   const { photos, loading } = useUserCollectionGallery(userId);
   const [zoomIndex, setZoomIndex] = useState<number|null>(null);
@@ -2696,7 +2768,8 @@ function UserCollectionView({ userId, name, currentUserId, onRequireLogin, onBac
       )}
       {zoomIndex !== null && (
         <CollectionPhotoZoom photos={photos} index={zoomIndex} onClose={()=>setZoomIndex(null)} onNav={setZoomIndex}
-          currentUserId={currentUserId} likeCounts={likeCounts} likedByMe={likedByMe} onToggleLike={toggleLike} onRequireLogin={onRequireLogin} />
+          currentUserId={currentUserId} currentUserName={currentUserName} currentUserAvatar={currentUserAvatar}
+          likeCounts={likeCounts} likedByMe={likedByMe} onToggleLike={toggleLike} onRequireLogin={onRequireLogin} />
       )}
     </div>
   );
@@ -2723,7 +2796,7 @@ function useCollectionsPreviewCovers() {
   return covers;
 }
 
-function CollectionsEntryButton({ onOpenMyCollection, currentUserId, onRequireLogin }: { onOpenMyCollection:()=>void; currentUserId?:string|null; onRequireLogin:()=>void }) {
+function CollectionsEntryButton({ onOpenMyCollection, currentUserId, currentUserName, currentUserAvatar, onRequireLogin }: { onOpenMyCollection:()=>void; currentUserId?:string|null; currentUserName?:string|null; currentUserAvatar?:string|null; onRequireLogin:()=>void }) {
   const { t } = useTr();
   const [showDirectory, setShowDirectory] = useState(false);
   const covers = useCollectionsPreviewCovers();
@@ -2743,13 +2816,13 @@ function CollectionsEntryButton({ onOpenMyCollection, currentUserId, onRequireLo
         <span style={{fontSize:14,fontWeight:800,color:"#fff",textAlign:"center"}}>{t("collectionsTitle")}</span>
       </button>
       {showDirectory && (
-        <CollectionsDirectoryModal onClose={()=>setShowDirectory(false)} onOpenMyCollection={onOpenMyCollection} currentUserId={currentUserId} onRequireLogin={onRequireLogin} />
+        <CollectionsDirectoryModal onClose={()=>setShowDirectory(false)} onOpenMyCollection={onOpenMyCollection} currentUserId={currentUserId} currentUserName={currentUserName} currentUserAvatar={currentUserAvatar} onRequireLogin={onRequireLogin} />
       )}
     </>
   );
 }
 
-function CollectionsDirectoryModal({ onClose, onOpenMyCollection, currentUserId, onRequireLogin }: { onClose:()=>void; onOpenMyCollection:()=>void; currentUserId?:string|null; onRequireLogin:()=>void }) {
+function CollectionsDirectoryModal({ onClose, onOpenMyCollection, currentUserId, currentUserName, currentUserAvatar, onRequireLogin }: { onClose:()=>void; onOpenMyCollection:()=>void; currentUserId?:string|null; currentUserName?:string|null; currentUserAvatar?:string|null; onRequireLogin:()=>void }) {
   const { t } = useTr();
   const { entries, loading } = useCollectionsDirectory();
   const [viewing, setViewing] = useState<{ userId:string; name:string }|null>(null);
@@ -2769,7 +2842,7 @@ function CollectionsDirectoryModal({ onClose, onOpenMyCollection, currentUserId,
         </div>
         <div style={{overflowY:"auto",flex:1,padding:16}}>
           {viewing ? (
-            <UserCollectionView userId={viewing.userId} name={viewing.name} currentUserId={currentUserId} onRequireLogin={onRequireLogin} onBack={()=>setViewing(null)} />
+            <UserCollectionView userId={viewing.userId} name={viewing.name} currentUserId={currentUserId} currentUserName={currentUserName} currentUserAvatar={currentUserAvatar} onRequireLogin={onRequireLogin} onBack={()=>setViewing(null)} />
           ) : (
             <>
               <button onClick={onOpenMyCollection}
@@ -2806,10 +2879,12 @@ function CollectionsDirectoryModal({ onClose, onOpenMyCollection, currentUserId,
   );
 }
 
-function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished, currentUserId, onOpenMyCollection, onRequireLogin }: {
+function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWished, currentUserId, currentUserName, currentUserAvatar, onOpenMyCollection, onRequireLogin }: {
   data: Series[]; communityUsers:number; communityTotal:number;
   topOwned:{id:number;count:number}[]; topWished:{id:number;count:number}[];
   currentUserId?: string|null;
+  currentUserName?: string|null;
+  currentUserAvatar?: string|null;
   onOpenMyCollection:()=>void;
   onRequireLogin:()=>void;
 }) {
@@ -2950,7 +3025,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
             </div>
           </div>
 
-          <CollectionsEntryButton onOpenMyCollection={onOpenMyCollection} currentUserId={currentUserId} onRequireLogin={onRequireLogin} />
+          <CollectionsEntryButton onOpenMyCollection={onOpenMyCollection} currentUserId={currentUserId} currentUserName={currentUserName} currentUserAvatar={currentUserAvatar} onRequireLogin={onRequireLogin} />
 
           <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>📸 {t("topUploaders")}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
@@ -3410,6 +3485,49 @@ function useCollectionLikes(photoIds: string[], currentUserId?: string | null) {
   };
 
   return { counts, likedByMe, toggleLike };
+}
+
+// Comentarios de una foto de colección concreta — a diferencia de los likes
+// (que cargan contadores de varias fotos a la vez para la cuadrícula), los
+// comentarios solo hacen falta cuando el usuario abre una foto en grande,
+// así que se cargan bajo demanda para esa única foto.
+type PhotoComment = { id: string; photo_id: string; user_id: string; commenter_name: string|null; commenter_avatar: string|null; text: string; created_at: string };
+
+function useCollectionPhotoComments(photoId: string|null) {
+  const [comments, setComments] = useState<PhotoComment[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const reload = useCallback(() => {
+    if (!photoId) { setComments([]); return; }
+    setLoading(true);
+    supabase.from("wcf_collection_comments").select("*").eq("photo_id", photoId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => { setComments(data ?? []); setLoading(false); });
+  }, [photoId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const addComment = async (userId: string, name: string|null|undefined, avatar: string|null|undefined, text: string) => {
+    if (!photoId || !text.trim()) return;
+    const trimmed = text.trim().slice(0, 500); // límite razonable, evita comentarios kilométricos
+    // Optimista: lo añadimos localmente al instante con un id temporal, y lo
+    // sustituimos por la fila real en cuanto Supabase responde.
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: PhotoComment = { id: tempId, photo_id: photoId, user_id: userId, commenter_name: name ?? null, commenter_avatar: avatar ?? null, text: trimmed, created_at: new Date().toISOString() };
+    setComments(prev => [...prev, optimistic]);
+    const { data, error } = await supabase.from("wcf_collection_comments")
+      .insert({ photo_id: photoId, user_id: userId, commenter_name: name ?? null, commenter_avatar: avatar ?? null, text: trimmed })
+      .select().single();
+    if (error || !data) { setComments(prev => prev.filter(c => c.id !== tempId)); return; }
+    setComments(prev => prev.map(c => c.id === tempId ? data : c));
+  };
+
+  const deleteComment = async (id: string) => {
+    setComments(prev => prev.filter(c => c.id !== id)); // optimista
+    await supabase.from("wcf_collection_comments").delete().eq("id", id);
+  };
+
+  return { comments, loading, addComment, deleteComment };
 }
 
 // Directorio de todos los usuarios con al menos una foto de colección aprobada
@@ -4286,8 +4404,48 @@ function PublicCollectionPage({ code }: { code: string }) {
   );
 }
 
+// Punto rojo de "hay actividad nueva" — compara la fecha del último vistazo
+// del usuario (guardada en wcf_collection_settings) contra los likes/comentarios
+// más recientes en SUS PROPIAS fotos de colección, excluyendo sus propias
+// acciones. Sin Service Worker ni notificaciones push: solo una comprobación
+// ligera que se repite cada vez que se abre la app o se marca como vista.
+function useHasNewCollectionActivity(userId?: string | null) {
+  const [hasNew, setHasNew] = useState(false);
+
+  const check = useCallback(async () => {
+    if (!userId) { setHasNew(false); return; }
+
+    const { data: settings } = await supabase.from("wcf_collection_settings")
+      .select("notifications_last_seen_at").eq("user_id", userId).maybeSingle();
+    const lastSeen = settings?.notifications_last_seen_at ?? "1970-01-01T00:00:00Z";
+
+    const { data: myPhotos } = await supabase.from("wcf_collection_photos").select("id").eq("user_id", userId);
+    const photoIds = (myPhotos ?? []).map(p => p.id);
+    if (photoIds.length === 0) { setHasNew(false); return; }
+
+    const [{ count: likeCount }, { count: commentCount }] = await Promise.all([
+      supabase.from("wcf_collection_likes").select("id", { count: "exact", head: true })
+        .in("photo_id", photoIds).gt("created_at", lastSeen).neq("user_id", userId),
+      supabase.from("wcf_collection_comments").select("id", { count: "exact", head: true })
+        .in("photo_id", photoIds).gt("created_at", lastSeen).neq("user_id", userId),
+    ]);
+    setHasNew((likeCount ?? 0) + (commentCount ?? 0) > 0);
+  }, [userId]);
+
+  useEffect(() => { check(); }, [check]);
+
+  const markSeen = async () => {
+    if (!userId) return;
+    setHasNew(false); // optimista
+    await supabase.from("wcf_collection_settings").upsert({ user_id: userId, notifications_last_seen_at: new Date().toISOString() }, { onConflict: "user_id" });
+  };
+
+  return { hasNew, markSeen, recheck: check };
+}
+
 function MainApp() {
   const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut } = useAuth();
+  const { hasNew: hasNewCollectionActivity, markSeen: markCollectionActivitySeen } = useHasNewCollectionActivity(user?.id ?? null);
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null, user?.avatar ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
@@ -4641,19 +4799,23 @@ function MainApp() {
         {user ? (
           <div style={{position:"relative"}}>
             <button onClick={()=>setShowUserMenu(m=>!m)} title={user.name ?? user.email ?? ""}
-              style={{background:"none",border:"none",cursor:"pointer",padding:0,borderRadius:"50%",overflow:"hidden",width:28,height:28,flexShrink:0}}>
+              style={{background:"none",border:"none",cursor:"pointer",padding:0,borderRadius:"50%",overflow:"hidden",width:28,height:28,flexShrink:0,position:"relative"}}>
               {user.avatar
                 ? <img src={user.avatar} alt={user.name} style={{width:28,height:28,borderRadius:"50%",objectFit:"cover"}} />
                 : <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff"}}>{user.name?.[0]??user.email?.[0]??"?"}</div>
               }
+              {hasNewCollectionActivity && (
+                <span style={{position:"absolute",top:-1,right:-1,width:9,height:9,borderRadius:"50%",background:"#ef4444",border:"1.5px solid var(--bg)"}} />
+              )}
             </button>
             {showUserMenu && (
               <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"0 4px 16px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:170,textAlign:"left"}}>
-                <div onClick={()=>{setShowUserMenu(false);setShowMyCollection(true);}}
-                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left"}}
+                <div onClick={()=>{setShowUserMenu(false);setShowMyCollection(true);markCollectionActivitySeen();}}
+                  style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left",display:"flex",alignItems:"center",gap:6}}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   {t("myCollectionMenuItem")}
+                  {hasNewCollectionActivity && <span style={{width:7,height:7,borderRadius:"50%",background:"#ef4444",flexShrink:0}} />}
                 </div>
                 <div onClick={()=>{setShowUserMenu(false);setShowSettings(true);}}
                   style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left"}}
@@ -5119,7 +5281,8 @@ function MainApp() {
         {activeTab==="community" && <CommunityTab
           data={data} communityUsers={communityUsers} communityTotal={communityTotal}
           topOwned={topOwned} topWished={topWished} currentUserId={user?.id ?? null}
-          onOpenMyCollection={user ? ()=>setShowMyCollection(true) : ()=>setShowLogin(true)}
+          currentUserName={user?.name ?? user?.email ?? "?"} currentUserAvatar={user?.avatar}
+          onOpenMyCollection={user ? ()=>{setShowMyCollection(true);markCollectionActivitySeen();} : ()=>setShowLogin(true)}
           onRequireLogin={()=>setShowLogin(true)}
         />}
         {/* ── STATS TAB ── */}
