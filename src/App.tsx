@@ -5406,7 +5406,7 @@ function MainApp() {
 }
 
 // ============================================================
-//  ROOT — decide si mostrar una colección pública (/c/<código>) o la app entera
+//  ROOT — decide si mostrar una colección pública (/c/<código>) o la app enterita
 // ============================================================
 export default function App() {
   const [publicShareCode] = useState<string | null>(() => {
