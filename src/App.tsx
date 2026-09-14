@@ -6,6 +6,21 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 // ============================================================
 const CHANGELOG = [
   {
+    id: 13,
+    date: "2026-09-14",
+    entries: [
+      "💬 New: comment on collection photos, just like you can already like them",
+      "🌐 Translate any comment into your own language with one tap",
+      "🔴 New activity indicator on your profile picture when someone likes or comments on your photos",
+      "🐛 Fixed: some collection photos got stuck \"under review\" longer than they should have due to a permissions bug — sorted now, thanks for your patience!",
+      "🎉 89 WCF added to JoJo's Bizarre Adventure",
+      "🎉 32 WCF added to Mobile Suit Gundam",
+      "🎉 22 WCF added to Gintama",
+      "🎉 11 WCF added to Full Metal Alchemist (Resin):",
+      "　　A+ studio → 11",
+    ]
+  },
+  {
     id: 12,
     date: "2026-08-27",
     entries: [
