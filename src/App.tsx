@@ -3395,7 +3395,7 @@ function NewsModal({ items, data, onOpenDetail, onClose }: { items: Announcement
           <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
           {ctx && (
             <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
-              {ctx.series.emoji} {ctx.series.name} — {ctx.set.name}
+              {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""} — {ctx.set.name}
             </div>
           )}
           {ctx && (
@@ -3971,15 +3971,17 @@ function buildFigureNameMap(data: Series[]): Record<number, string> {
   return map;
 }
 
-function findFigureContext(data: Series[], figureId: number): { figure: Figure; set: FigureSet; series: Series } | null {
+function findFigureContext(data: Series[], figureId: number): { figure: Figure; set: FigureSet; series: Series; group?: FigureGroup } | null {
   for (const series of data) {
-    const allSets: FigureSet[] = [
-      ...(series.sets ?? []),
-      ...(series.groups ?? []).flatMap(g => g.sets ?? []),
-    ];
-    for (const set of allSets) {
+    for (const set of series.sets ?? []) {
       const figure = (set.figures ?? []).find(f => f.id === figureId);
       if (figure) return { figure, set, series };
+    }
+    for (const group of series.groups ?? []) {
+      for (const set of group.sets ?? []) {
+        const figure = (set.figures ?? []).find(f => f.id === figureId);
+        if (figure) return { figure, set, series, group };
+      }
     }
   }
   return null;
