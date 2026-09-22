@@ -1784,7 +1784,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
   onMoveToGroup?:(gid:number)=>void; groups?:FigureGroup[];
-  onAddFigure:(f:Omit<Figure,"id">)=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
+  onAddFigure:(f:Omit<Figure,"id">&{id?:number})=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
   onMoveFigure?:(figureId:number,destSetId:number,destGroupId?:number)=>void;
@@ -2089,7 +2089,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
   onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
-  onAddFigure:(stid:number,f:Omit<Figure,"id">)=>void; onAddFigures:(stid:number,fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
+  onAddFigure:(stid:number,f:Omit<Figure,"id">&{id?:number})=>void; onAddFigures:(stid:number,fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
   onReorderFigures:(stid:number,figures:Figure[])=>void;
   onReorderSets?:(sets:FigureSet[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
