@@ -390,6 +390,8 @@ const T = {
   noFiguresOwned: { es: "Aún no has marcado ninguna figura.", en: "You haven't marked any figures yet.", th: "ยังไม่ได้ทำเครื่องหมายตัวเลขใดๆ" , fr: "Tu n'as encore marqué aucune figurine." , vi: "Bạn chưa đánh dấu nhân vật nào." , ja: "まだフィギュアにチェックしていません。", zh: "您还没有标记任何人偶。" },
   back:           { es: "← Volver",               en: "← Back",                     th: "← กลับ" , fr: "← Retour" , vi: "← Quay lại" , ja: "← 戻る", zh: "← 返回" },
   changelogTitle: { es: "Novedades",              en: "What's new",                  th: "อัปเดต" , fr: "Nouveautés" , vi: "Cập nhật" , ja: "更新情報", zh: "更新内容" },
+  newsLabel:       { es: "Novedad",                en: "New",                         th: "ของใหม่" , fr: "Nouveauté" , vi: "Mới" , ja: "新着", zh: "新品" },
+  newsButtonTitle: { es: "Novedades",              en: "News",                        th: "ข่าวสาร" , fr: "Nouveautés" , vi: "Tin mới" , ja: "お知らせ", zh: "新品资讯" },
   changelogHistory:{ es: "Ver historial completo", en: "Full history",               th: "ประวัติทั้งหมด" , fr: "Historique complet" , vi: "Lịch sử đầy đủ" , ja: "全履歴", zh: "完整历史" },
   changelogClose: { es: "Entendido",              en: "Got it",                      th: "เข้าใจแล้ว" , fr: "Compris" , vi: "Đã hiểu" , ja: "了解", zh: "明白了" },
   followUs:       { es: "Síguenos:", en: "Follow us:", th: "ติดตามเรา:", fr: "Suivez-nous :", vi: "Theo dõi chúng tôi:", ja: "フォローする：", zh: "关注我们：" },
@@ -846,17 +848,19 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [favourites, setFavourites] = useState<Set<number>>(new Set());
+  const [lastSeenAnnouncementId, setLastSeenAnnouncementId] = useState<number>(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (userId) {
-      supabase.from("wcf_progress").select("owned,wishlist,favourites").eq("user_id", userId).maybeSingle()
+      supabase.from("wcf_progress").select("owned,wishlist,favourites,last_seen_announcement_id").eq("user_id", userId).maybeSingle()
         .then(({ data, error }) => {
           if (error) console.error("Load error:", error);
           if (data) {
             if (data.owned?.length > 0) setOwned(new Set(data.owned));
             if (data.wishlist?.length > 0) setWishlist(new Set(data.wishlist));
             if (data.favourites?.length > 0) setFavourites(new Set(data.favourites));
+            setLastSeenAnnouncementId(data.last_seen_announcement_id ?? 0);
           } else {
             try {
               const o = JSON.parse(localStorage.getItem("wcf_owned") ?? "[]");
@@ -921,7 +925,15 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
     return n;
   });
 
-  return { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey: IMGBB_KEY, ready };
+  const markAnnouncementsSeen = (id: number) => {
+    setLastSeenAnnouncementId(id);
+    if (userId) supabase.from("wcf_progress")
+      .update({ last_seen_announcement_id: id })
+      .eq("user_id", userId)
+      .then(({ error }) => { if (error) console.error("Seen save error:", error); });
+  };
+
+  return { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, lastSeenAnnouncementId, markAnnouncementsSeen, imgbbKey: IMGBB_KEY, ready };
 }
 
 function useCommunityStats() {
@@ -3333,6 +3345,58 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
   );
 }
 
+type Announcement = { id:number; figure_id:string; image_url:string; title:string; franchise_id:string; created_at:string };
+
+function useAnnouncements(favourites: Set<number>) {
+  const [all, setAll] = useState<Announcement[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    supabase.from("wcf_announcements")
+      .select("id,figure_id,image_url,title,franchise_id,created_at")
+      .eq("active", true)
+      .gte("created_at", new Date(Date.now() - 15*24*60*60*1000).toISOString())
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) console.error("Announcements load error:", error);
+        if (!error && data) setAll(data as Announcement[]);
+        setLoaded(true);
+      });
+  }, []);
+  const items = favourites.size === 0 ? all : all.filter(a => favourites.has(Number(a.franchise_id)));
+  const maxId = all.reduce((m,a)=>Math.max(m,a.id), 0);
+  return { items, maxId, loaded };
+}
+
+function NewsModal({ items, onClose }: { items: Announcement[]; onClose: ()=>void }) {
+  const { t } = useTr();
+  const [index, setIndex] = useState(0);
+  const item = items[index];
+  if (!item) return null;
+  const next = () => index < items.length-1 ? setIndex(index+1) : onClose();
+  const prev = () => { if (index > 0) setIndex(index-1); };
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:310,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{position:"relative",width:"100%",maxWidth:360,maxHeight:"85vh",background:"var(--bg)",borderRadius:16,overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+        <div style={{display:"flex",gap:4,padding:"10px 12px 0",flexShrink:0}}>
+          {items.map((_,i)=>(
+            <div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=index?"#0196e3":"var(--border)"}} />
+          ))}
+        </div>
+        <button onClick={onClose} style={{position:"absolute",top:8,right:10,background:"none",border:"none",fontSize:22,color:"#fff",cursor:"pointer",zIndex:2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>×</button>
+        <div style={{position:"relative",flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",minHeight:220}}>
+          {index > 0 && <div onClick={prev} style={{position:"absolute",left:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />}
+          <div onClick={next} style={{position:"absolute",right:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />
+          {item.image_url && <img src={item.image_url} alt={item.title} style={{maxWidth:"100%",maxHeight:"60vh",objectFit:"contain",pointerEvents:"none"}} />}
+        </div>
+        <div style={{padding:16,textAlign:"center",flexShrink:0}}>
+          <div style={{fontSize:12,color:"#0196e3",fontWeight:700,marginBottom:4}}>🎉 {t("newsLabel")}</div>
+          <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type ConfirmFigure = { figure:Figure; series:Series; set:FigureSet; mode:"owned"|"wishlist" };
 
 type TabType = "collection" | "database" | "community" | "stats";
@@ -4561,7 +4625,7 @@ function useHasNewCollectionActivity(userId?: string | null) {
 function MainApp() {
   const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut } = useAuth();
   const { hasNew: hasNewCollectionActivity, markSeen: markCollectionActivitySeen } = useHasNewCollectionActivity(user?.id ?? null);
-  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null, user?.avatar ?? null);
+  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, lastSeenAnnouncementId, markAnnouncementsSeen, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null, user?.avatar ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
@@ -4620,6 +4684,17 @@ function MainApp() {
     const seen = parseInt(localStorage.getItem("wcf_changelog_seen") ?? "0");
     return seen < latestId;
   });
+  const { items: newsItems, maxId: newsMaxId, loaded: newsLoaded } = useAnnouncements(favourites);
+  const [showNewsModal, setShowNewsModal] = useState(false);
+  const [showNewsHistory, setShowNewsHistory] = useState(false);
+  const newsAutoChecked = useRef(false);
+  useEffect(() => {
+    if (newsLoaded && !newsAutoChecked.current) {
+      newsAutoChecked.current = true;
+      if (newsItems.some(a => a.id > lastSeenAnnouncementId)) setShowNewsModal(true);
+    }
+  }, [newsLoaded]);
+  const closeNewsModal = () => { markAnnouncementsSeen(newsMaxId); setShowNewsModal(false); };
   const apiKey = imgbbKey;
 
   const requireLogin = (fn: ()=>void) => {
@@ -4905,6 +4980,12 @@ function MainApp() {
         </div>
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
+        {newsItems.length>0 && (
+          <button onClick={()=>setShowNewsHistory(true)} style={{position:"relative",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("newsButtonTitle")}>
+            🆕
+            {newsItems.some(a=>a.id>lastSeenAnnouncementId) && <span style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:"#ff4d4f",border:"1px solid #fff"}} />}
+          </button>
+        )}
         {!isInstalled && installPrompt && (
           <button onClick={()=>{ (installPrompt as any).prompt(); }}
             style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("installBtn")}>📲</button>
@@ -5512,6 +5593,8 @@ function MainApp() {
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
             {appContent}
             {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
+            {showNewsModal && <NewsModal items={newsItems} onClose={closeNewsModal} />}
+            {showNewsHistory && <NewsModal items={newsItems} onClose={()=>setShowNewsHistory(false)} />}
           </DragCtx.Provider>
         </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
