@@ -392,6 +392,7 @@ const T = {
   changelogTitle: { es: "Novedades",              en: "What's new",                  th: "อัปเดต" , fr: "Nouveautés" , vi: "Cập nhật" , ja: "更新情報", zh: "更新内容" },
   newsLabel:       { es: "Novedad",                en: "New",                         th: "ของใหม่" , fr: "Nouveauté" , vi: "Mới" , ja: "新着", zh: "新品" },
   newsButtonTitle: { es: "Novedades",              en: "News",                        th: "ข่าวสาร" , fr: "Nouveautés" , vi: "Tin mới" , ja: "お知らせ", zh: "新品资讯" },
+  newsSeeDetail:   { es: "Ver ficha completa",     en: "View full details",           th: "ดูรายละเอียด" , fr: "Voir la fiche" , vi: "Xem chi tiết" , ja: "詳細を見る", zh: "查看详情" },
   changelogHistory:{ es: "Ver historial completo", en: "Full history",               th: "ประวัติทั้งหมด" , fr: "Historique complet" , vi: "Lịch sử đầy đủ" , ja: "全履歴", zh: "完整历史" },
   changelogClose: { es: "Entendido",              en: "Got it",                      th: "เข้าใจแล้ว" , fr: "Compris" , vi: "Đã hiểu" , ja: "了解", zh: "明白了" },
   followUs:       { es: "Síguenos:", en: "Follow us:", th: "ติดตามเรา:", fr: "Suivez-nous :", vi: "Theo dõi chúng tôi:", ja: "フォローする：", zh: "关注我们：" },
@@ -3367,11 +3368,12 @@ function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
   return { items, maxId, loaded: loaded && favouritesReady };
 }
 
-function NewsModal({ items, onClose }: { items: Announcement[]; onClose: ()=>void }) {
+function NewsModal({ items, data, onOpenDetail, onClose }: { items: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
   const { t } = useTr();
   const [index, setIndex] = useState(0);
   const item = items[index];
   if (!item) return null;
+  const ctx = findFigureContext(data, Number(item.figure_id));
   const next = () => index < items.length-1 ? setIndex(index+1) : onClose();
   const prev = () => { if (index > 0) setIndex(index-1); };
   return (
@@ -3391,6 +3393,17 @@ function NewsModal({ items, onClose }: { items: Announcement[]; onClose: ()=>voi
         <div style={{padding:16,textAlign:"center",flexShrink:0}}>
           <div style={{fontSize:12,color:"#0196e3",fontWeight:700,marginBottom:4}}>🎉 {t("newsLabel")}</div>
           <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
+          {ctx && (
+            <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
+              {ctx.series.emoji} {ctx.series.name} — {ctx.set.name}
+            </div>
+          )}
+          {ctx && (
+            <button onClick={()=>{ onOpenDetail(item.figure_id); onClose(); }}
+              style={{marginTop:10,padding:"7px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              {t("newsSeeDetail")}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -3956,6 +3969,20 @@ function buildFigureNameMap(data: Series[]): Record<number, string> {
     });
   });
   return map;
+}
+
+function findFigureContext(data: Series[], figureId: number): { figure: Figure; set: FigureSet; series: Series } | null {
+  for (const series of data) {
+    const allSets: FigureSet[] = [
+      ...(series.sets ?? []),
+      ...(series.groups ?? []).flatMap(g => g.sets ?? []),
+    ];
+    for (const set of allSets) {
+      const figure = (set.figures ?? []).find(f => f.id === figureId);
+      if (figure) return { figure, set, series };
+    }
+  }
+  return null;
 }
 
 // ============================================================
@@ -5593,8 +5620,8 @@ function MainApp() {
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
             {appContent}
             {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
-            {showNewsModal && <NewsModal items={newsItems} onClose={closeNewsModal} />}
-            {showNewsHistory && <NewsModal items={newsItems} onClose={()=>setShowNewsHistory(false)} />}
+            {showNewsModal && <NewsModal items={newsItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={closeNewsModal} />}
+            {showNewsHistory && <NewsModal items={newsItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={()=>setShowNewsHistory(false)} />}
           </DragCtx.Provider>
         </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
