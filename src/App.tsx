@@ -3347,7 +3347,7 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
 
 type Announcement = { id:number; figure_id:string; image_url:string; title:string; franchise_id:string; created_at:string };
 
-function useAnnouncements(favourites: Set<number>) {
+function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
   const [all, setAll] = useState<Announcement[]>([]);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -3362,9 +3362,9 @@ function useAnnouncements(favourites: Set<number>) {
         setLoaded(true);
       });
   }, []);
-  const items = favourites.size === 0 ? all : all.filter(a => favourites.has(Number(a.franchise_id)));
+  const items = !favouritesReady ? [] : (favourites.size === 0 ? all : all.filter(a => favourites.has(Number(a.franchise_id))));
   const maxId = all.reduce((m,a)=>Math.max(m,a.id), 0);
-  return { items, maxId, loaded };
+  return { items, maxId, loaded: loaded && favouritesReady };
 }
 
 function NewsModal({ items, onClose }: { items: Announcement[]; onClose: ()=>void }) {
@@ -4684,7 +4684,7 @@ function MainApp() {
     const seen = parseInt(localStorage.getItem("wcf_changelog_seen") ?? "0");
     return seen < latestId;
   });
-  const { items: newsItems, maxId: newsMaxId, loaded: newsLoaded } = useAnnouncements(favourites);
+  const { items: newsItems, maxId: newsMaxId, loaded: newsLoaded } = useAnnouncements(favourites, ownedReady);
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [showNewsHistory, setShowNewsHistory] = useState(false);
   const newsAutoChecked = useRef(false);
