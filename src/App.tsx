@@ -1421,7 +1421,7 @@ function AltImagesEditor({ altImages, onChange, apiKey }: { altImages: string[];
   );
 }
 
-function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string; initial?:Partial<Figure>; apiKey:string; onSave:(f:Omit<Figure,"id">)=>void; onClose:()=>void }) {
+function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string; initial?:Partial<Figure>; apiKey:string; onSave:(f:Omit<Figure,"id">, markAsNews?:boolean)=>void; onClose:()=>void }) {
   const { t } = useTr();
   const seriesList = useSeriesData();
   const [name, setName] = useState(initial?.name??"");
@@ -1443,6 +1443,7 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
   const parsed = parseTags(initial?.tags);
   const [selectedSeriesIds, setSelectedSeriesIds] = useState<number[]>(parsed.seriesIds);
   const [freeText, setFreeText] = useState(parsed.freeText);
+  const [markAsNews, setMarkAsNews] = useState(false);
 
   const toggleSeries = (id: number) => setSelectedSeriesIds(prev =>
     prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]
@@ -1478,9 +1479,17 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
         <Input value={freeText} onChange={setFreeText} placeholder="Otras series (separadas por comas)" />
         <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Para series que no están en el catálogo.</div>
       </Field>
+      {!initial && (
+        <Field label="">
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
+            <input type="checkbox" checked={markAsNews} onChange={e=>setMarkAsNews(e.target.checked)} />
+            📢 Marcar como novedad
+          </label>
+        </Field>
+      )}
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:buildTags(),altImages:altImages.filter(Boolean)});onClose();}}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:buildTags(),altImages:altImages.filter(Boolean)}, markAsNews);onClose();}}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1881,7 +1890,20 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
         </div>
       </div>}
       {editSet && <SetModal title={t("editSetTitle")} initial={set} apiKey={apiKey} onSave={(n,rd,sl)=>{onUpdateSet(n,rd,sl);setEditSet(false);}} onClose={()=>setEditSet(false)} />}
-      {addFigure && <FigureModal title={t("newFigureTitle")} apiKey={apiKey} onSave={f=>{onAddFigure(f);setAddFigure(false);}} onClose={()=>setAddFigure(false)} />}
+      {addFigure && <FigureModal title={t("newFigureTitle")} apiKey={apiKey} onSave={(f, markAsNews)=>{
+        const newFigureId = newId();
+        onAddFigure({...f, id: newFigureId});
+        if (markAsNews) {
+          supabase.from("wcf_announcements").insert({
+            figure_id: String(newFigureId),
+            image_url: f.image,
+            title: f.name,
+            franchise_id: String(series.id),
+            active: true,
+          }).then(({ error }) => { if (error) console.error("Error guardando novedad:", error); });
+        }
+        setAddFigure(false);
+      }} onClose={()=>setAddFigure(false)} />}
       {bulkAdd && <BulkAddModal onSave={names=>{
         onAddFigures(names.map(name=>({name,emoji:"⭐",image:""})));
         setBulkAdd(false);
@@ -4640,8 +4662,8 @@ function MainApp() {
     const st = s.sets.find(x=>x.id===stid); if(!st) return s;
     return {...s, sets:s.sets.filter(x=>x.id!==stid), groups:s.groups.map(g=>g.id===gid?{...g,sets:[...g.sets,st]}:g)};
   }));
-  const addFigure = (sid:number,stid:number,f:Omit<Figure,"id">,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
-    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:[...st.figures,{...f,id:newId()}]}:st);
+  const addFigure = (sid:number,stid:number,f:Omit<Figure,"id">&{id?:number},gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:[...st.figures,{...f,id:f.id??newId()}]}:st);
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
     return {...s,sets:upd(s.sets)};
   }));
