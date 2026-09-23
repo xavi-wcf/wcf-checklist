@@ -6,6 +6,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 // ============================================================
 const CHANGELOG = [
   {
+    id: 14,
+    date: "2026-09-23",
+    entries: [
+      "🔔 New: figure announcements — new figures marked by the team now pop up in a quick story-style view when you open the app",
+      "⭐ Filter announcements by your favourite series only, or switch to see all of them — your choice is remembered",
+      "👆 Missed one? Tap the bell icon in the header anytime to see recent announcements again, and open the full figure details straight from there",
+      "🎉 15 WCF added to Lupin the 3rd",
+      "🎉 228 WCF added to Kamen Rider",
+    ]
+  },
+  {
     id: 13,
     date: "2026-09-14",
     entries: [
@@ -390,8 +401,8 @@ const T = {
   noFiguresOwned: { es: "Aún no has marcado ninguna figura.", en: "You haven't marked any figures yet.", th: "ยังไม่ได้ทำเครื่องหมายตัวเลขใดๆ" , fr: "Tu n'as encore marqué aucune figurine." , vi: "Bạn chưa đánh dấu nhân vật nào." , ja: "まだフィギュアにチェックしていません。", zh: "您还没有标记任何人偶。" },
   back:           { es: "← Volver",               en: "← Back",                     th: "← กลับ" , fr: "← Retour" , vi: "← Quay lại" , ja: "← 戻る", zh: "← 返回" },
   changelogTitle: { es: "Novedades",              en: "What's new",                  th: "อัปเดต" , fr: "Nouveautés" , vi: "Cập nhật" , ja: "更新情報", zh: "更新内容" },
-  newsLabel:       { es: "Novedad",                en: "New",                         th: "ของใหม่" , fr: "Nouveauté" , vi: "Mới" , ja: "新着", zh: "新品" },
-  newsButtonTitle: { es: "Novedades",              en: "News",                        th: "ข่าวสาร" , fr: "Nouveautés" , vi: "Tin mới" , ja: "お知らせ", zh: "新品资讯" },
+  newsLabel:       { es: "Nueva figura",           en: "New addition",                th: "ฟิกเกอร์ใหม่" , fr: "Nouvelle figurine" , vi: "Mô hình mới" , ja: "新着フィギュア", zh: "新手办" },
+  newsButtonTitle: { es: "Nuevas figuras",         en: "New additions",               th: "ฟิกเกอร์ใหม่" , fr: "Nouvelles figurines" , vi: "Mô hình mới" , ja: "新着フィギュア", zh: "新手办" },
   newsSeeDetail:   { es: "Ver ficha completa",     en: "View full details",           th: "ดูรายละเอียด" , fr: "Voir la fiche" , vi: "Xem chi tiết" , ja: "詳細を見る", zh: "查看详情" },
   newsFilterFavs:  { es: "Favoritas",              en: "Favorites",                    th: "รายการโปรด" , fr: "Favoris" , vi: "Yêu thích" , ja: "お気に入り", zh: "收藏" },
   newsFilterAll:   { es: "Todas",                  en: "All",                          th: "ทั้งหมด" , fr: "Toutes" , vi: "Tất cả" , ja: "すべて", zh: "全部" },
