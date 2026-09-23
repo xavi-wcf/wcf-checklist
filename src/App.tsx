@@ -5087,7 +5087,7 @@ function MainApp() {
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
         {(newsItems.length>0 || newsAllItems.length>0) && (
           <button onClick={()=>setShowNewsHistory(true)} style={{position:"relative",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("newsButtonTitle")}>
-            🆕
+            🔔
             {newsItems.some(a=>a.id>lastSeenAnnouncementId) && <span style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:"#ff4d4f",border:"1px solid #fff"}} />}
           </button>
         )}
