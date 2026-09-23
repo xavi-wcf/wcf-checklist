@@ -393,6 +393,8 @@ const T = {
   newsLabel:       { es: "Novedad",                en: "New",                         th: "ของใหม่" , fr: "Nouveauté" , vi: "Mới" , ja: "新着", zh: "新品" },
   newsButtonTitle: { es: "Novedades",              en: "News",                        th: "ข่าวสาร" , fr: "Nouveautés" , vi: "Tin mới" , ja: "お知らせ", zh: "新品资讯" },
   newsSeeDetail:   { es: "Ver ficha completa",     en: "View full details",           th: "ดูรายละเอียด" , fr: "Voir la fiche" , vi: "Xem chi tiết" , ja: "詳細を見る", zh: "查看详情" },
+  newsFilterFavs:  { es: "Favoritas",              en: "Favorites",                    th: "รายการโปรด" , fr: "Favoris" , vi: "Yêu thích" , ja: "お気に入り", zh: "收藏" },
+  newsFilterAll:   { es: "Todas",                  en: "All",                          th: "ทั้งหมด" , fr: "Toutes" , vi: "Tất cả" , ja: "すべて", zh: "全部" },
   changelogHistory:{ es: "Ver historial completo", en: "Full history",               th: "ประวัติทั้งหมด" , fr: "Historique complet" , vi: "Lịch sử đầy đủ" , ja: "全履歴", zh: "完整历史" },
   changelogClose: { es: "Entendido",              en: "Got it",                      th: "เข้าใจแล้ว" , fr: "Compris" , vi: "Đã hiểu" , ja: "了解", zh: "明白了" },
   followUs:       { es: "Síguenos:", en: "Follow us:", th: "ติดตามเรา:", fr: "Suivez-nous :", vi: "Theo dõi chúng tôi:", ja: "フォローする：", zh: "关注我们：" },
@@ -3363,14 +3365,19 @@ function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
         setLoaded(true);
       });
   }, []);
-  const items = !favouritesReady ? [] : (favourites.size === 0 ? all : all.filter(a => favourites.has(Number(a.franchise_id))));
+  const favItems = !favouritesReady ? [] : (favourites.size === 0 ? all : all.filter(a => favourites.has(Number(a.franchise_id))));
+  const allItems = !favouritesReady ? [] : all;
   const maxId = all.reduce((m,a)=>Math.max(m,a.id), 0);
-  return { items, maxId, loaded: loaded && favouritesReady };
+  return { favItems, allItems, maxId, loaded: loaded && favouritesReady };
 }
 
-function NewsModal({ items, data, onOpenDetail, onClose }: { items: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
+function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favItems: Announcement[]; allItems: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
   const { t } = useTr();
+  const showSwitch = allItems.length > favItems.length;
+  const [showAll, setShowAll] = useState(favItems.length === 0 && allItems.length > 0);
+  const items = showAll ? allItems : favItems;
   const [index, setIndex] = useState(0);
+  useEffect(() => { setIndex(0); }, [showAll]);
   const item = items[index];
   if (!item) return null;
   const ctx = findFigureContext(data, Number(item.figure_id));
@@ -3379,6 +3386,12 @@ function NewsModal({ items, data, onOpenDetail, onClose }: { items: Announcement
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:310,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{position:"relative",width:"100%",maxWidth:360,maxHeight:"85vh",background:"var(--bg)",borderRadius:16,overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+        {showSwitch && (
+          <div style={{display:"flex",gap:6,padding:"10px 12px 0",flexShrink:0}}>
+            <button onClick={()=>setShowAll(false)} style={{flex:1,padding:"7px",borderRadius:8,border:"none",fontSize:11,fontWeight:700,cursor:"pointer",background:!showAll?"#0196e3":"var(--bg2)",color:!showAll?"#fff":"var(--text3)"}}>{t("newsFilterFavs")}</button>
+            <button onClick={()=>setShowAll(true)} style={{flex:1,padding:"7px",borderRadius:8,border:"none",fontSize:11,fontWeight:700,cursor:"pointer",background:showAll?"#0196e3":"var(--bg2)",color:showAll?"#fff":"var(--text3)"}}>{t("newsFilterAll")}</button>
+          </div>
+        )}
         <div style={{display:"flex",gap:4,padding:"10px 12px 0",flexShrink:0}}>
           {items.map((_,i)=>(
             <div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=index?"#0196e3":"var(--border)"}} />
@@ -3386,8 +3399,15 @@ function NewsModal({ items, data, onOpenDetail, onClose }: { items: Announcement
         </div>
         <button onClick={onClose} style={{position:"absolute",top:8,right:10,background:"none",border:"none",fontSize:22,color:"#fff",cursor:"pointer",zIndex:2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>×</button>
         <div style={{position:"relative",flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",minHeight:220}}>
+          {items.length>1 && (
+            <div style={{position:"absolute",top:8,left:12,background:"rgba(0,0,0,0.55)",color:"#fff",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:10,zIndex:2}}>
+              {index+1} / {items.length}
+            </div>
+          )}
           {index > 0 && <div onClick={prev} style={{position:"absolute",left:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />}
           <div onClick={next} style={{position:"absolute",right:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />
+          {index > 0 && <div style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.85)",fontSize:30,fontWeight:700,pointerEvents:"none",textShadow:"0 1px 3px rgba(0,0,0,0.6)"}}>‹</div>}
+          {items.length>1 && <div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.85)",fontSize:30,fontWeight:700,pointerEvents:"none",textShadow:"0 1px 3px rgba(0,0,0,0.6)"}}>›</div>}
           {item.image_url && <img src={item.image_url} alt={item.title} style={{maxWidth:"100%",maxHeight:"60vh",objectFit:"contain",pointerEvents:"none"}} />}
         </div>
         <div style={{padding:16,textAlign:"center",flexShrink:0}}>
@@ -4713,7 +4733,7 @@ function MainApp() {
     const seen = parseInt(localStorage.getItem("wcf_changelog_seen") ?? "0");
     return seen < latestId;
   });
-  const { items: newsItems, maxId: newsMaxId, loaded: newsLoaded } = useAnnouncements(favourites, ownedReady);
+  const { favItems: newsItems, allItems: newsAllItems, maxId: newsMaxId, loaded: newsLoaded } = useAnnouncements(favourites, ownedReady);
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [showNewsHistory, setShowNewsHistory] = useState(false);
   const newsAutoChecked = useRef(false);
@@ -5009,7 +5029,7 @@ function MainApp() {
         </div>
         <button onClick={()=>setShowFeedback(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("feedbackTitle")}>💬</button>
         <button onClick={()=>setShowChangelog(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("changelogTitle")}>🎉</button>
-        {newsItems.length>0 && (
+        {(newsItems.length>0 || newsAllItems.length>0) && (
           <button onClick={()=>setShowNewsHistory(true)} style={{position:"relative",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("newsButtonTitle")}>
             🆕
             {newsItems.some(a=>a.id>lastSeenAnnouncementId) && <span style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:"#ff4d4f",border:"1px solid #fff"}} />}
@@ -5622,8 +5642,8 @@ function MainApp() {
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
             {appContent}
             {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
-            {showNewsModal && <NewsModal items={newsItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={closeNewsModal} />}
-            {showNewsHistory && <NewsModal items={newsItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={()=>setShowNewsHistory(false)} />}
+            {showNewsModal && <NewsModal favItems={newsItems} allItems={newsAllItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={closeNewsModal} />}
+            {showNewsHistory && <NewsModal favItems={newsItems} allItems={newsAllItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={()=>setShowNewsHistory(false)} />}
           </DragCtx.Provider>
         </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
