@@ -395,6 +395,8 @@ const T = {
   newsSeeDetail:   { es: "Ver ficha completa",     en: "View full details",           th: "ดูรายละเอียด" , fr: "Voir la fiche" , vi: "Xem chi tiết" , ja: "詳細を見る", zh: "查看详情" },
   newsFilterFavs:  { es: "Favoritas",              en: "Favorites",                    th: "รายการโปรด" , fr: "Favoris" , vi: "Yêu thích" , ja: "お気に入り", zh: "收藏" },
   newsFilterAll:   { es: "Todas",                  en: "All",                          th: "ทั้งหมด" , fr: "Toutes" , vi: "Tất cả" , ja: "すべて", zh: "全部" },
+  newsEmptyFavs:   { es: "No hay novedades en tus series favoritas ahora mismo.", en: "No news in your favorite series right now.", th: "ตอนนี้ยังไม่มีของใหม่ในซีรีส์โปรดของคุณ", fr: "Aucune nouveauté dans vos séries favorites pour le moment.", vi: "Hiện chưa có tin mới trong các series yêu thích của bạn.", ja: "現在お気に入りのシリーズに新着はありません。", zh: "你收藏的系列目前没有新品。" },
+  newsEmptyAll:    { es: "No hay novedades en este momento.", en: "No news right now.", th: "ยังไม่มีข่าวสารในตอนนี้", fr: "Aucune nouveauté pour le moment.", vi: "Hiện chưa có tin mới.", ja: "現在お知らせはありません。", zh: "目前没有新品资讯。" },
   changelogHistory:{ es: "Ver historial completo", en: "Full history",               th: "ประวัติทั้งหมด" , fr: "Historique complet" , vi: "Lịch sử đầy đủ" , ja: "全履歴", zh: "完整历史" },
   changelogClose: { es: "Entendido",              en: "Got it",                      th: "เข้าใจแล้ว" , fr: "Compris" , vi: "Đã hiểu" , ja: "了解", zh: "明白了" },
   followUs:       { es: "Síguenos:", en: "Follow us:", th: "ติดตามเรา:", fr: "Suivez-nous :", vi: "Theo dõi chúng tôi:", ja: "フォローする：", zh: "关注我们：" },
@@ -3416,10 +3418,9 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
   const items = showAll ? allItems : favItems;
   const [index, setIndex] = useState(0);
   useEffect(() => { setIndex(0); }, [showAll]);
-  const item = items[index];
-  if (!item) return null;
-  const ctx = findFigureContext(data, Number(item.figure_id));
-  const next = () => index < items.length-1 ? setIndex(index+1) : onClose();
+  const item = items[index] ?? null;
+  const ctx = item ? findFigureContext(data, Number(item.figure_id)) : null;
+  const next = () => { if (!item) return; if (index < items.length-1) setIndex(index+1); else onClose(); };
   const prev = () => { if (index > 0) setIndex(index-1); };
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:310,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -3430,39 +3431,50 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
             <button onClick={()=>setShowAll(true)} style={{flex:1,padding:"7px",borderRadius:8,border:"none",fontSize:11,fontWeight:700,cursor:"pointer",background:showAll?"#0196e3":"var(--bg2)",color:showAll?"#fff":"var(--text3)"}}>{t("newsFilterAll")}</button>
           </div>
         )}
-        <div style={{display:"flex",gap:4,padding:"10px 12px 0",flexShrink:0}}>
-          {items.map((_,i)=>(
-            <div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=index?"#0196e3":"var(--border)"}} />
-          ))}
-        </div>
-        <button onClick={onClose} style={{position:"absolute",top:8,right:10,background:"none",border:"none",fontSize:22,color:"#fff",cursor:"pointer",zIndex:2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>×</button>
-        <div style={{position:"relative",flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",minHeight:220}}>
-          {items.length>1 && (
-            <div style={{position:"absolute",top:8,left:12,background:"rgba(0,0,0,0.55)",color:"#fff",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:10,zIndex:2}}>
-              {index+1} / {items.length}
+        {item && (
+          <div style={{display:"flex",gap:4,padding:"10px 12px 0",flexShrink:0}}>
+            {items.map((_,i)=>(
+              <div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=index?"#0196e3":"var(--border)"}} />
+            ))}
+          </div>
+        )}
+        <button onClick={onClose} style={{position:"absolute",top:8,right:10,background:"none",border:"none",fontSize:22,color:item?"#fff":"var(--text3)",cursor:"pointer",zIndex:2,textShadow:item?"0 1px 3px rgba(0,0,0,0.5)":"none"}}>×</button>
+        {item ? (
+          <>
+            <div style={{position:"relative",flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",minHeight:220}}>
+              {items.length>1 && (
+                <div style={{position:"absolute",top:8,left:12,background:"rgba(0,0,0,0.55)",color:"#fff",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:10,zIndex:2}}>
+                  {index+1} / {items.length}
+                </div>
+              )}
+              {index > 0 && <div onClick={prev} style={{position:"absolute",left:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />}
+              <div onClick={next} style={{position:"absolute",right:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />
+              {index > 0 && <div style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.85)",fontSize:30,fontWeight:700,pointerEvents:"none",textShadow:"0 1px 3px rgba(0,0,0,0.6)"}}>‹</div>}
+              {items.length>1 && <div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.85)",fontSize:30,fontWeight:700,pointerEvents:"none",textShadow:"0 1px 3px rgba(0,0,0,0.6)"}}>›</div>}
+              {item.image_url && <img src={item.image_url} alt={item.title} style={{maxWidth:"100%",maxHeight:"60vh",objectFit:"contain",pointerEvents:"none"}} />}
             </div>
-          )}
-          {index > 0 && <div onClick={prev} style={{position:"absolute",left:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />}
-          <div onClick={next} style={{position:"absolute",right:0,top:0,bottom:0,width:"35%",cursor:"pointer",zIndex:1}} />
-          {index > 0 && <div style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.85)",fontSize:30,fontWeight:700,pointerEvents:"none",textShadow:"0 1px 3px rgba(0,0,0,0.6)"}}>‹</div>}
-          {items.length>1 && <div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.85)",fontSize:30,fontWeight:700,pointerEvents:"none",textShadow:"0 1px 3px rgba(0,0,0,0.6)"}}>›</div>}
-          {item.image_url && <img src={item.image_url} alt={item.title} style={{maxWidth:"100%",maxHeight:"60vh",objectFit:"contain",pointerEvents:"none"}} />}
-        </div>
-        <div style={{padding:16,textAlign:"center",flexShrink:0}}>
-          <div style={{fontSize:12,color:"#0196e3",fontWeight:700,marginBottom:4}}>🎉 {t("newsLabel")}</div>
-          <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
-          {ctx && (
-            <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
-              {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""} — {ctx.set.name}
+            <div style={{padding:16,textAlign:"center",flexShrink:0}}>
+              <div style={{fontSize:12,color:"#0196e3",fontWeight:700,marginBottom:4}}>🎉 {t("newsLabel")}</div>
+              <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
+              {ctx && (
+                <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
+                  {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""} — {ctx.set.name}
+                </div>
+              )}
+              {ctx && (
+                <button onClick={()=>{ onOpenDetail(item.figure_id); onClose(); }}
+                  style={{marginTop:10,padding:"7px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                  {t("newsSeeDetail")}
+                </button>
+              )}
             </div>
-          )}
-          {ctx && (
-            <button onClick={()=>{ onOpenDetail(item.figure_id); onClose(); }}
-              style={{marginTop:10,padding:"7px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-              {t("newsSeeDetail")}
-            </button>
-          )}
-        </div>
+          </>
+        ) : (
+          <div style={{padding:"44px 24px",textAlign:"center"}}>
+            <div style={{fontSize:34,marginBottom:10}}>🗂️</div>
+            <div style={{fontSize:13,color:"var(--text3)",lineHeight:1.4}}>{showAll ? t("newsEmptyAll") : t("newsEmptyFavs")}</div>
+          </div>
+        )}
       </div>
     </div>
   );
