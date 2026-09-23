@@ -3414,7 +3414,13 @@ function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
 function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favItems: Announcement[]; allItems: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
   const { t } = useTr();
   const showSwitch = allItems.length > favItems.length;
-  const [showAll, setShowAll] = useState(favItems.length === 0 && allItems.length > 0);
+  const [showAll, setShowAllState] = useState(() => {
+    const saved = localStorage.getItem("wcf_news_filter");
+    if (saved === "all") return true;
+    if (saved === "favs") return false;
+    return favItems.length === 0 && allItems.length > 0;
+  });
+  const setShowAll = (v: boolean) => { setShowAllState(v); localStorage.setItem("wcf_news_filter", v ? "all" : "favs"); };
   const items = showAll ? allItems : favItems;
   const [index, setIndex] = useState(0);
   useEffect(() => { setIndex(0); }, [showAll]);
