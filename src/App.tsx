@@ -1436,7 +1436,7 @@ function AltImagesEditor({ altImages, onChange, apiKey }: { altImages: string[];
   );
 }
 
-function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string; initial?:Partial<Figure>; apiKey:string; onSave:(f:Omit<Figure,"id">, markAsNews?:boolean)=>void; onClose:()=>void }) {
+function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string; initial?:Partial<Figure>; apiKey:string; onSave:(f:Omit<Figure,"id">, markAsNews?:boolean, wasNews?:boolean)=>void; onClose:()=>void }) {
   const { t } = useTr();
   const seriesList = useSeriesData();
   const [name, setName] = useState(initial?.name??"");
@@ -1459,6 +1459,14 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
   const [selectedSeriesIds, setSelectedSeriesIds] = useState<number[]>(parsed.seriesIds);
   const [freeText, setFreeText] = useState(parsed.freeText);
   const [markAsNews, setMarkAsNews] = useState(false);
+  const [wasNewsInitial, setWasNewsInitial] = useState(false);
+  const [newsChecked, setNewsChecked] = useState(!initial);
+  useEffect(() => {
+    if (initial?.id) {
+      supabase.from("wcf_announcements").select("id").eq("figure_id", String(initial.id)).eq("active", true).limit(1)
+        .then(({ data }) => { const isNews = (data?.length ?? 0) > 0; setMarkAsNews(isNews); setWasNewsInitial(isNews); setNewsChecked(true); });
+    }
+  }, [initial?.id]);
 
   const toggleSeries = (id: number) => setSelectedSeriesIds(prev =>
     prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]
@@ -1494,7 +1502,7 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
         <Input value={freeText} onChange={setFreeText} placeholder="Otras series (separadas por comas)" />
         <div style={{fontSize:11,color:"var(--text4)",marginTop:4}}>Para series que no están en el catálogo.</div>
       </Field>
-      {!initial && (
+      {newsChecked && (
         <Field label="">
           <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
             <input type="checkbox" checked={markAsNews} onChange={e=>setMarkAsNews(e.target.checked)} />
@@ -1504,7 +1512,7 @@ function FigureModal({ title, initial, apiKey, onSave, onClose }: { title:string
       )}
       <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={onClose}>{t("cancel")}</Btn>
-        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:buildTags(),altImages:altImages.filter(Boolean)}, markAsNews);onClose();}}} variant="primary">{t("save")}</Btn>
+        <Btn onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,image,tags:buildTags(),altImages:altImages.filter(Boolean)}, markAsNews, wasNewsInitial);onClose();}}} variant="primary">{t("save")}</Btn>
       </div>
     </Modal>
   );
@@ -1939,7 +1947,22 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
           />
         );
       })()}
-      {editFigure && <FigureModal title={t("editFigureTitle")} initial={editFigure} apiKey={apiKey} onSave={f=>{onUpdateFigure(editFigure.id,f);setEditFigure(null);}} onClose={()=>setEditFigure(null)} />}
+      {editFigure && <FigureModal title={t("editFigureTitle")} initial={editFigure} apiKey={apiKey} onSave={(f, markAsNews, wasNews)=>{
+        onUpdateFigure(editFigure.id, f);
+        if (markAsNews && !wasNews) {
+          supabase.from("wcf_announcements").insert({
+            figure_id: String(editFigure.id),
+            image_url: f.image,
+            title: f.name,
+            franchise_id: String(series.id),
+            active: true,
+          }).then(({ error }) => { if (error) console.error("Error guardando novedad:", error); });
+        } else if (!markAsNews && wasNews) {
+          supabase.from("wcf_announcements").update({ active: false }).eq("figure_id", String(editFigure.id)).eq("active", true)
+            .then(({ error }) => { if (error) console.error("Error quitando novedad:", error); });
+        }
+        setEditFigure(null);
+      }} onClose={()=>setEditFigure(null)} />}
       {movingFigure && onMoveFigure && (
         <MoveFigureModal
           figure={movingFigure}
@@ -2064,7 +2087,22 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
         </>}
       </div>
     </div>
-    {editing && onEdit && <FigureModal title={t("editFigureTitle")} initial={figure} apiKey={IMGBB_KEY} onSave={(f)=>{onEdit(f);setEditing(false);}} onClose={()=>setEditing(false)} />}
+    {editing && onEdit && <FigureModal title={t("editFigureTitle")} initial={figure} apiKey={IMGBB_KEY} onSave={(f, markAsNews, wasNews)=>{
+      onEdit(f);
+      if (markAsNews && !wasNews) {
+        supabase.from("wcf_announcements").insert({
+          figure_id: String(figure.id),
+          image_url: f.image,
+          title: f.name,
+          franchise_id: String(series.id),
+          active: true,
+        }).then(({ error }) => { if (error) console.error("Error guardando novedad:", error); });
+      } else if (!markAsNews && wasNews) {
+        supabase.from("wcf_announcements").update({ active: false }).eq("figure_id", String(figure.id)).eq("active", true)
+          .then(({ error }) => { if (error) console.error("Error quitando novedad:", error); });
+      }
+      setEditing(false);
+    }} onClose={()=>setEditing(false)} />}
     {showDetail && <FigureDetailModal figure={figure} set={set} series={series} isOwned={isOwned} isWished={isWished} onToggle={onToggle} onToggleWish={onToggleWish} onClose={()=>setShowDetail(false)} communityOwned={communityOwned} communityWished={communityWished} userId={userId} />}
     </> 
   );
