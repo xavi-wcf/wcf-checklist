@@ -3461,8 +3461,8 @@ async function generateStoryImage(item: Announcement, ctx: { figure: Figure; set
   c.restore();
 
   let logoTop = 100;
+  const seriesLogoSrc = ctx.series.logoHeader || ctx.series.logo;
   try {
-    const seriesLogoSrc = ctx.series.logoHeader || ctx.series.logo;
     if (seriesLogoSrc) {
       const seriesLogo = await loadImageAsync(seriesLogoSrc, true);
       const maxW = 480, maxH = 150;
@@ -3473,12 +3473,16 @@ async function generateStoryImage(item: Announcement, ctx: { figure: Figure; set
     }
   } catch {}
   try {
-    if (ctx.group?.logo) {
-      const groupLogo = await loadImageAsync(ctx.group.logo, true);
+    // Studio logo when the figure belongs to a resin group; otherwise fall back to
+    // the set's own logo, but only if it actually differs from the franchise logo
+    // above (most official sets just reuse the same one, so skip the duplicate).
+    const secondaryLogoSrc = ctx.group?.logo || (ctx.set.seriesLogo && ctx.set.seriesLogo !== seriesLogoSrc ? ctx.set.seriesLogo : undefined);
+    if (secondaryLogoSrc) {
+      const secondaryLogo = await loadImageAsync(secondaryLogoSrc, true);
       const maxW = 320, maxH = 100;
-      const scale = Math.min(maxW/groupLogo.width, maxH/groupLogo.height, 1);
-      const w = groupLogo.width*scale, h = groupLogo.height*scale;
-      c.drawImage(groupLogo, (W-w)/2, logoTop, w, h);
+      const scale = Math.min(maxW/secondaryLogo.width, maxH/secondaryLogo.height, 1);
+      const w = secondaryLogo.width*scale, h = secondaryLogo.height*scale;
+      c.drawImage(secondaryLogo, (W-w)/2, logoTop, w, h);
       logoTop += h + 16;
     }
   } catch {}
