@@ -3409,7 +3409,11 @@ function loadImageAsync(src: string, crossOrigin?: boolean): Promise<HTMLImageEl
     if (crossOrigin) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
+    // Cache-busting query param when loading cross-origin: some browsers reuse
+    // an "opaque" cache entry from an earlier plain (non-CORS) <img> load of the
+    // same exact URL, which then fails CORS validation. A unique query string
+    // forces a fresh network fetch under CORS mode every time.
+    img.src = crossOrigin ? src + (src.includes("?") ? "&" : "?") + "cb=" + Date.now() : src;
   });
 }
 
