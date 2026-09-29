@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wcf-checklist-v159';
+const CACHE_NAME = 'wcf-checklist-v160';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -28,6 +28,7 @@ self.addEventListener('fetch', (event) => {
       event.request.url.includes('google.com') ||
       event.request.url.includes('r2.dev') ||
       event.request.url.includes('r2.cloudflarestorage.com') ||
+      event.request.url.includes('img.wcfchecklist.com') ||
       event.request.url.includes('/api/') ||
       event.request.method !== 'GET') {
     return;
