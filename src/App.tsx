@@ -3567,6 +3567,27 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
     byFranchise.set(e.ctx.series.id, bucket);
   }
 
+  // Within each franchise, sub-group by studio (group) when present, otherwise by
+  // the figure's own set. Prefer showing a logo for the sub-group (studio logo, or
+  // the set's own logo) over text, falling back to the name only when no usable
+  // logo exists, and skipping a set logo that's just a duplicate of the franchise
+  // logo shown above it.
+  type SubGroup = { label: string; logo?: string; entries: Entry[] };
+  const buildSubGroups = (bucketEntries: Entry[], seriesLogoSrc?: string): SubGroup[] => {
+    const map = new Map<string, SubGroup>();
+    for (const e of bucketEntries) {
+      const key = e.ctx.group ? `g${e.ctx.group.id}` : `s${e.ctx.set.id}`;
+      const label = e.ctx.group ? e.ctx.group.name : e.ctx.set.name;
+      const logo = e.ctx.group
+        ? e.ctx.group.logo
+        : (e.ctx.set.seriesLogo && e.ctx.set.seriesLogo !== seriesLogoSrc ? e.ctx.set.seriesLogo : undefined);
+      const sg = map.get(key) ?? { label, logo, entries: [] };
+      sg.entries.push(e);
+      map.set(key, sg);
+    }
+    return [...map.values()];
+  };
+
   const W = 1080, H = 1080;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -3598,117 +3619,146 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
   c.fillStyle = "rgba(255,255,255,0.85)";
   c.fillText(`${fmt(weekAgoDate)} – ${fmt(now)}  ·  ${entries.length} figures`, W/2, 98);
 
-  const contentPad = 44;
+  const contentPad = 40;
   const contentTop = 130;
   const footerH = 96;
+  const columnGap = 32;
   const contentWidth = W - contentPad*2;
+  const colWidth = (contentWidth - columnGap) / 2;
   const contentHeight = H - footerH - contentTop - 10;
 
-  const franchiseHeaderH = 58;
-  const groupHeaderH = 36;
-  const sectionGap = 16;
+  const franchiseHeaderH = 50;
+  const subHeaderH = 34;
+  const blockGap = 18;
 
-  const sizes = [150, 132, 116, 100, 88, 76];
+  const franchiseList = [...byFranchise.values()];
+
+  const sizes = [130, 116, 100, 88, 76, 66, 58];
   let chosen: { size: number; gap: number; cols: number } | null = null;
+  let chosenLeft: typeof franchiseList = [];
+  let chosenRight: typeof franchiseList = [];
   let chosenHeight = 0;
 
-  const computeHeight = (cols: number, size: number, gap: number) => {
-    let total = 0;
-    for (const [, bucket] of byFranchise) {
-      total += franchiseHeaderH;
-      const byGroup = new Map<string, Entry[]>();
-      for (const e of bucket.entries) {
-        const key = e.ctx.group ? `g${e.ctx.group.id}` : "_";
-        const arr = byGroup.get(key) ?? [];
-        arr.push(e);
-        byGroup.set(key, arr);
-      }
-      for (const [key, list] of byGroup) {
-        if (key !== "_") total += groupHeaderH;
-        const rows = Math.ceil(list.length / cols);
-        total += rows * (size + gap);
-      }
-      total += sectionGap;
+  const blockHeight = (bucket: { series: Series; entries: Entry[] }, cols: number, size: number, gap: number) => {
+    let h = franchiseHeaderH;
+    const seriesLogoSrc = bucket.series.logoHeader || bucket.series.logo;
+    for (const sg of buildSubGroups(bucket.entries, seriesLogoSrc)) {
+      h += subHeaderH;
+      const rows = Math.ceil(sg.entries.length / cols);
+      h += rows * (size + gap);
     }
-    return total;
+    return h;
   };
 
   for (const size of sizes) {
     const gap = Math.round(size * 0.14);
-    const cols = Math.max(2, Math.floor((contentWidth + gap) / (size + gap)));
-    const h = computeHeight(cols, size, gap);
-    if (h <= contentHeight) { chosen = { size, gap, cols }; chosenHeight = h; break; }
+    const cols = Math.max(1, Math.floor((colWidth + gap) / (size + gap)));
+    const withHeights = franchiseList.map(b => ({ bucket: b, h: blockHeight(b, cols, size, gap) }));
+    withHeights.sort((a, b) => b.h - a.h);
+    let leftH = 0, rightH = 0;
+    const left: typeof franchiseList = [], right: typeof franchiseList = [];
+    for (const { bucket, h } of withHeights) {
+      if (leftH <= rightH) { left.push(bucket); leftH += h + blockGap; }
+      else { right.push(bucket); rightH += h + blockGap; }
+    }
+    const total = Math.max(leftH, rightH);
+    if (total <= contentHeight) {
+      chosen = { size, gap, cols };
+      chosenLeft = left; chosenRight = right;
+      chosenHeight = total;
+      break;
+    }
   }
   if (!chosen) {
     const size = sizes[sizes.length - 1];
     const gap = Math.round(size * 0.14);
-    const cols = Math.max(2, Math.floor((contentWidth + gap) / (size + gap)));
+    const cols = Math.max(1, Math.floor((colWidth + gap) / (size + gap)));
+    const withHeights = franchiseList.map(b => ({ bucket: b, h: blockHeight(b, cols, size, gap) }));
+    withHeights.sort((a, b) => b.h - a.h);
+    let leftH = 0, rightH = 0;
+    const left: typeof franchiseList = [], right: typeof franchiseList = [];
+    for (const { bucket, h } of withHeights) {
+      if (leftH <= rightH) { left.push(bucket); leftH += h + blockGap; }
+      else { right.push(bucket); rightH += h + blockGap; }
+    }
     chosen = { size, gap, cols };
-    chosenHeight = computeHeight(cols, size, gap);
+    chosenLeft = left; chosenRight = right;
+    chosenHeight = Math.max(leftH, rightH);
   }
 
   const { size, gap, cols } = chosen;
-  let y = contentTop + Math.max(0, (contentHeight - chosenHeight) / 2);
+  const startY = contentTop + Math.max(0, (contentHeight - chosenHeight) / 2);
 
-  for (const [, bucket] of byFranchise) {
-    c.textAlign = "left";
-    c.fillStyle = "#ffffff";
-    c.font = "700 30px Arial, sans-serif";
-    let labelX = contentPad;
-    const logoSrc = bucket.series.logoHeader || bucket.series.logo;
-    if (logoSrc) {
-      try {
-        const logo = await loadImageAsync(logoSrc, true);
-        const lh = 40, lw = Math.min(140, logo.width * (lh/logo.height));
-        c.drawImage(logo, contentPad, y, lw, lh);
-        labelX = contentPad + lw + 14;
-      } catch {}
-    }
-    c.fillText(bucket.series.name, labelX, y + 30);
-    y += franchiseHeaderH;
-
-    const byGroup = new Map<string, { group?: FigureGroup; entries: Entry[] }>();
-    for (const e of bucket.entries) {
-      const key = e.ctx.group ? `g${e.ctx.group.id}` : "_";
-      const gb = byGroup.get(key) ?? { group: e.ctx.group, entries: [] };
-      gb.entries.push(e);
-      byGroup.set(key, gb);
-    }
-
-    for (const [key, gbucket] of byGroup) {
-      if (key !== "_" && gbucket.group) {
-        c.font = "600 20px Arial, sans-serif";
-        c.fillStyle = "rgba(255,255,255,0.8)";
-        c.fillText(gbucket.group.name, contentPad + 8, y + 20);
-        y += groupHeaderH;
+  const drawColumn = async (blocks: typeof franchiseList, x: number) => {
+    let y = startY;
+    for (const bucket of blocks) {
+      const seriesLogoSrc = bucket.series.logoHeader || bucket.series.logo;
+      let drewSeriesLogo = false;
+      if (seriesLogoSrc) {
+        try {
+          const logo = await loadImageAsync(seriesLogoSrc, true);
+          const lh = 40, lw = Math.min(180, logo.width * (lh/logo.height));
+          c.drawImage(logo, x, y, lw, lh);
+          drewSeriesLogo = true;
+        } catch {}
       }
-      let col = 0;
-      for (const e of gbucket.entries) {
-        const x = contentPad + col * (size + gap);
-        roundRectPath(c, x, y, size, size, 14);
+      if (!drewSeriesLogo) {
+        c.textAlign = "left";
         c.fillStyle = "#ffffff";
-        c.fill();
-        if (e.item.image_url) {
+        c.font = "700 24px Arial, sans-serif";
+        c.fillText(bucket.series.name, x, y + 26);
+      }
+      y += franchiseHeaderH;
+
+      for (const sg of buildSubGroups(bucket.entries, seriesLogoSrc)) {
+        let drewSubLogo = false;
+        if (sg.logo) {
           try {
-            const img = await loadImageAsync(e.item.image_url, true);
-            const pad = size * 0.08;
-            const innerW = size - pad*2, innerH = size - pad*2;
-            const scale = Math.min(innerW/img.width, innerH/img.height);
-            const w = img.width*scale, h = img.height*scale;
-            c.save();
-            roundRectPath(c, x, y, size, size, 14);
-            c.clip();
-            c.drawImage(img, x + (size-w)/2, y + (size-h)/2, w, h);
-            c.restore();
+            const logo = await loadImageAsync(sg.logo, true);
+            const lh = 28, lw = Math.min(140, logo.width * (lh/logo.height));
+            c.drawImage(logo, x + 4, y, lw, lh);
+            drewSubLogo = true;
           } catch {}
         }
-        col++;
-        if (col >= cols) { col = 0; y += size + gap; }
+        if (!drewSubLogo) {
+          c.textAlign = "left";
+          c.font = "600 17px Arial, sans-serif";
+          c.fillStyle = "rgba(255,255,255,0.8)";
+          c.fillText(sg.label, x + 6, y + 18);
+        }
+        y += subHeaderH;
+
+        let col = 0;
+        for (const e of sg.entries) {
+          const tx = x + col * (size + gap);
+          roundRectPath(c, tx, y, size, size, 12);
+          c.fillStyle = "#ffffff";
+          c.fill();
+          if (e.item.image_url) {
+            try {
+              const img = await loadImageAsync(e.item.image_url, true);
+              const pad = size * 0.08;
+              const innerW = size - pad*2, innerH = size - pad*2;
+              const scale = Math.min(innerW/img.width, innerH/img.height);
+              const w = img.width*scale, h = img.height*scale;
+              c.save();
+              roundRectPath(c, tx, y, size, size, 12);
+              c.clip();
+              c.drawImage(img, tx + (size-w)/2, y + (size-h)/2, w, h);
+              c.restore();
+            } catch {}
+          }
+          col++;
+          if (col >= cols) { col = 0; y += size + gap; }
+        }
+        if (col !== 0) y += size + gap;
       }
-      if (col !== 0) y += size + gap;
+      y += blockGap;
     }
-    y += sectionGap;
-  }
+  };
+
+  await drawColumn(chosenLeft, contentPad);
+  await drawColumn(chosenRight, contentPad + colWidth + columnGap);
 
   try {
     const stamp = await loadImageAsync(STORY_STAMP_URL);
