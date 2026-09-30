@@ -406,6 +406,9 @@ const T = {
   newsSeeDetail:   { es: "Ver ficha completa",     en: "View full details",           th: "ดูรายละเอียด" , fr: "Voir la fiche" , vi: "Xem chi tiết" , ja: "詳細を見る", zh: "查看详情" },
   newsDownloadStory: { es: "Descargar story",      en: "Download story",              th: "ดาวน์โหลดสตอรี่" , fr: "Télécharger la story" , vi: "Tải story" , ja: "ストーリーを保存", zh: "下载故事图" },
   newsStoryError:  { es: "No se pudo generar la imagen. Inténtalo de nuevo.", en: "Couldn't generate the image. Please try again.", th: "สร้างรูปภาพไม่สำเร็จ ลองอีกครั้ง", fr: "Impossible de générer l'image. Réessayez.", vi: "Không thể tạo hình ảnh. Vui lòng thử lại.", ja: "画像を生成できませんでした。もう一度お試しください。", zh: "生成图片失败，请重试。" },
+  newsWeeklySummary: { es: "Resumen semanal", en: "Weekly summary", th: "สรุปประจำสัปดาห์", fr: "Résumé hebdomadaire", vi: "Tổng kết tuần", ja: "週間まとめ", zh: "每周汇总" },
+  newsWeeklyEmpty: { es: "No se ha marcado ninguna figura como novedad esta semana.", en: "No figures were marked as new this week.", th: "ยังไม่มีการทำเครื่องหมายฟิกเกอร์ใหม่ในสัปดาห์นี้", fr: "Aucune figurine marquée comme nouvelle cette semaine.", vi: "Chưa có mô hình nào được đánh dấu là mới trong tuần này.", ja: "今週新着としてマークされたフィギュアはありません。", zh: "本周还没有标记为新品的手办。" },
+  newsWeeklyError: { es: "No se pudo generar la imagen. Inténtalo de nuevo.", en: "Couldn't generate the image. Please try again.", th: "สร้างรูปภาพไม่สำเร็จ ลองอีกครั้ง", fr: "Impossible de générer l'image. Réessayez.", vi: "Không thể tạo hình ảnh. Vui lòng thử lại.", ja: "画像を生成できませんでした。もう一度お試しください。", zh: "生成图片失败，请重试。" },
   newsFilterFavs:  { es: "Favoritas",              en: "Favorites",                    th: "รายการโปรด" , fr: "Favoris" , vi: "Yêu thích" , ja: "お気に入り", zh: "收藏" },
   newsFilterAll:   { es: "Todas",                  en: "All",                          th: "ทั้งหมด" , fr: "Toutes" , vi: "Tất cả" , ja: "すべて", zh: "全部" },
   newsEmptyFavs:   { es: "No hay novedades en tus series favoritas ahora mismo.", en: "No news in your favorite series right now.", th: "ตอนนี้ยังไม่มีของใหม่ในซีรีส์โปรดของคุณ", fr: "Aucune nouveauté dans vos séries favorites pour le moment.", vi: "Hiện chưa có tin mới trong các series yêu thích của bạn.", ja: "現在お気に入りのシリーズに新着はありません。", zh: "你收藏的系列目前没有新品。" },
@@ -3548,6 +3551,184 @@ async function generateStoryImage(item: Announcement, ctx: { figure: Figure; set
   URL.revokeObjectURL(url);
 }
 
+async function generateWeeklySummaryImage(weekItems: Announcement[], data: Series[]) {
+  type Entry = { item: Announcement; ctx: { figure: Figure; set: FigureSet; series: Series; group?: FigureGroup } };
+  const entries: Entry[] = [];
+  for (const item of weekItems) {
+    const ctx = findFigureContext(data, Number(item.figure_id));
+    if (ctx) entries.push({ item, ctx });
+  }
+  if (entries.length === 0) throw new Error("No figures resolved for this week");
+
+  const byFranchise = new Map<number, { series: Series; entries: Entry[] }>();
+  for (const e of entries) {
+    const bucket = byFranchise.get(e.ctx.series.id) ?? { series: e.ctx.series, entries: [] };
+    bucket.entries.push(e);
+    byFranchise.set(e.ctx.series.id, bucket);
+  }
+
+  const W = 1080, H = 1080;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const c = canvas.getContext("2d");
+  if (!c) throw new Error("Canvas not supported");
+
+  const grad = c.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "#0196e3");
+  grad.addColorStop(1, "#6366f1");
+  c.fillStyle = grad;
+  c.fillRect(0, 0, W, H);
+
+  c.save();
+  c.globalAlpha = 0.07;
+  c.fillStyle = "#ffffff";
+  c.beginPath(); c.arc(W*0.9, H*0.05, 200, 0, Math.PI*2); c.fill();
+  c.beginPath(); c.arc(W*0.05, H*0.98, 180, 0, Math.PI*2); c.fill();
+  c.restore();
+
+  const now = new Date();
+  const weekAgoDate = new Date(Date.now() - 7*24*60*60*1000);
+  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  c.textAlign = "center";
+  c.fillStyle = "#ffffff";
+  c.font = "700 46px Arial, sans-serif";
+  c.fillText("New This Week", W/2, 66);
+  c.font = "500 24px Arial, sans-serif";
+  c.fillStyle = "rgba(255,255,255,0.85)";
+  c.fillText(`${fmt(weekAgoDate)} – ${fmt(now)}  ·  ${entries.length} figures`, W/2, 98);
+
+  const contentPad = 44;
+  const contentTop = 130;
+  const footerH = 96;
+  const contentWidth = W - contentPad*2;
+  const contentHeight = H - footerH - contentTop - 10;
+
+  const franchiseHeaderH = 58;
+  const groupHeaderH = 36;
+  const sectionGap = 16;
+
+  const sizes = [150, 132, 116, 100, 88, 76];
+  let chosen: { size: number; gap: number; cols: number } | null = null;
+  let chosenHeight = 0;
+
+  const computeHeight = (cols: number, size: number, gap: number) => {
+    let total = 0;
+    for (const [, bucket] of byFranchise) {
+      total += franchiseHeaderH;
+      const byGroup = new Map<string, Entry[]>();
+      for (const e of bucket.entries) {
+        const key = e.ctx.group ? `g${e.ctx.group.id}` : "_";
+        const arr = byGroup.get(key) ?? [];
+        arr.push(e);
+        byGroup.set(key, arr);
+      }
+      for (const [key, list] of byGroup) {
+        if (key !== "_") total += groupHeaderH;
+        const rows = Math.ceil(list.length / cols);
+        total += rows * (size + gap);
+      }
+      total += sectionGap;
+    }
+    return total;
+  };
+
+  for (const size of sizes) {
+    const gap = Math.round(size * 0.14);
+    const cols = Math.max(2, Math.floor((contentWidth + gap) / (size + gap)));
+    const h = computeHeight(cols, size, gap);
+    if (h <= contentHeight) { chosen = { size, gap, cols }; chosenHeight = h; break; }
+  }
+  if (!chosen) {
+    const size = sizes[sizes.length - 1];
+    const gap = Math.round(size * 0.14);
+    const cols = Math.max(2, Math.floor((contentWidth + gap) / (size + gap)));
+    chosen = { size, gap, cols };
+    chosenHeight = computeHeight(cols, size, gap);
+  }
+
+  const { size, gap, cols } = chosen;
+  let y = contentTop + Math.max(0, (contentHeight - chosenHeight) / 2);
+
+  for (const [, bucket] of byFranchise) {
+    c.textAlign = "left";
+    c.fillStyle = "#ffffff";
+    c.font = "700 30px Arial, sans-serif";
+    let labelX = contentPad;
+    const logoSrc = bucket.series.logoHeader || bucket.series.logo;
+    if (logoSrc) {
+      try {
+        const logo = await loadImageAsync(logoSrc, true);
+        const lh = 40, lw = Math.min(140, logo.width * (lh/logo.height));
+        c.drawImage(logo, contentPad, y, lw, lh);
+        labelX = contentPad + lw + 14;
+      } catch {}
+    }
+    c.fillText(bucket.series.name, labelX, y + 30);
+    y += franchiseHeaderH;
+
+    const byGroup = new Map<string, { group?: FigureGroup; entries: Entry[] }>();
+    for (const e of bucket.entries) {
+      const key = e.ctx.group ? `g${e.ctx.group.id}` : "_";
+      const gb = byGroup.get(key) ?? { group: e.ctx.group, entries: [] };
+      gb.entries.push(e);
+      byGroup.set(key, gb);
+    }
+
+    for (const [key, gbucket] of byGroup) {
+      if (key !== "_" && gbucket.group) {
+        c.font = "600 20px Arial, sans-serif";
+        c.fillStyle = "rgba(255,255,255,0.8)";
+        c.fillText(gbucket.group.name, contentPad + 8, y + 20);
+        y += groupHeaderH;
+      }
+      let col = 0;
+      for (const e of gbucket.entries) {
+        const x = contentPad + col * (size + gap);
+        roundRectPath(c, x, y, size, size, 14);
+        c.fillStyle = "#ffffff";
+        c.fill();
+        if (e.item.image_url) {
+          try {
+            const img = await loadImageAsync(e.item.image_url, true);
+            const pad = size * 0.08;
+            const innerW = size - pad*2, innerH = size - pad*2;
+            const scale = Math.min(innerW/img.width, innerH/img.height);
+            const w = img.width*scale, h = img.height*scale;
+            c.save();
+            roundRectPath(c, x, y, size, size, 14);
+            c.clip();
+            c.drawImage(img, x + (size-w)/2, y + (size-h)/2, w, h);
+            c.restore();
+          } catch {}
+        }
+        col++;
+        if (col >= cols) { col = 0; y += size + gap; }
+      }
+      if (col !== 0) y += size + gap;
+    }
+    y += sectionGap;
+  }
+
+  try {
+    const stamp = await loadImageAsync(STORY_STAMP_URL);
+    const stampW = 420;
+    const scale = stampW / stamp.width;
+    const stampH = stamp.height * scale;
+    c.drawImage(stamp, (W - stampW)/2, H - stampH - 26, stampW, stampH);
+  } catch {}
+
+  const blob: Blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error("toBlob failed")), "image/png");
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `wcf-weekly-${now.toISOString().slice(0,10)}.png`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 type Announcement = { id:number; figure_id:string; image_url:string; title:string; franchise_id:string; created_at:string };
 
 function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
@@ -3585,6 +3766,7 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
   const items = showAll ? allItems : favItems;
   const [index, setIndex] = useState(0);
   const [generatingStory, setGeneratingStory] = useState(false);
+  const [generatingWeekly, setGeneratingWeekly] = useState(false);
   useEffect(() => { setIndex(0); }, [showAll]);
   const item = items[index] ?? null;
   const ctx = item ? findFigureContext(data, Number(item.figure_id)) : null;
@@ -3597,6 +3779,22 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
           <div style={{display:"flex",gap:6,padding:"10px 12px 0",flexShrink:0}}>
             <button onClick={()=>setShowAll(false)} style={{flex:1,padding:"7px",borderRadius:8,border:"none",fontSize:11,fontWeight:700,cursor:"pointer",background:!showAll?"#0196e3":"var(--bg2)",color:!showAll?"#fff":"var(--text3)"}}>{t("newsFilterFavs")}</button>
             <button onClick={()=>setShowAll(true)} style={{flex:1,padding:"7px",borderRadius:8,border:"none",fontSize:11,fontWeight:700,cursor:"pointer",background:showAll?"#0196e3":"var(--bg2)",color:showAll?"#fff":"var(--text3)"}}>{t("newsFilterAll")}</button>
+          </div>
+        )}
+        {isAdmin && (
+          <div style={{padding:"10px 12px 0",flexShrink:0}}>
+            <button disabled={generatingWeekly} onClick={async()=>{
+                const weekAgo = Date.now() - 7*24*60*60*1000;
+                const weekItems = allItems.filter(a => new Date(a.created_at).getTime() >= weekAgo);
+                if (weekItems.length === 0) { alert(t("newsWeeklyEmpty")); return; }
+                setGeneratingWeekly(true);
+                try { await generateWeeklySummaryImage(weekItems, data); }
+                catch (e) { console.error("Weekly summary error:", e); alert(t("newsWeeklyError")); }
+                setGeneratingWeekly(false);
+              }}
+              style={{width:"100%",padding:"7px",borderRadius:8,border:"1px dashed rgba(255,255,255,0.35)",background:"rgba(255,255,255,0.06)",color:"var(--text3)",fontSize:11,fontWeight:600,cursor:generatingWeekly?"default":"pointer",opacity:generatingWeekly?0.6:1}}>
+              {generatingWeekly ? "…" : `📅 ${t("newsWeeklySummary")}`}
+            </button>
           </div>
         )}
         {item && (
