@@ -3607,24 +3607,28 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
   // single big one doesn't awkwardly strand a tiny leftover sliver of another.
   const franchiseList = [...byFranchise.values()].sort((a, b) => b.entries.length - a.entries.length);
   const pages: { blocks: typeof franchiseList; contentH: number }[] = [];
-  let currentPage: typeof franchiseList = [];
-  let currentHeight = 0;
   for (const bucket of franchiseList) {
     const h = blockHeight(bucket) + blockGap;
     if (h > standardContentHeight) {
-      if (currentPage.length > 0) { pages.push({ blocks: currentPage, contentH: currentHeight }); currentPage = []; currentHeight = 0; }
+      // Doesn't fit a standard page even alone \u2014 give it its own dedicated
+      // (taller) page rather than cropping or splitting it.
       pages.push({ blocks: [bucket], contentH: h });
       continue;
     }
-    if (currentPage.length > 0 && currentHeight + h > standardContentHeight) {
-      pages.push({ blocks: currentPage, contentH: currentHeight });
-      currentPage = [];
-      currentHeight = 0;
+    // First-fit: drop it into the first already-started page that still has
+    // room, so small leftover franchises fill gaps instead of each starting a
+    // near-empty page of their own.
+    let placed = false;
+    for (const page of pages) {
+      if (page.contentH + h <= standardContentHeight) {
+        page.blocks.push(bucket);
+        page.contentH += h;
+        placed = true;
+        break;
+      }
     }
-    currentPage.push(bucket);
-    currentHeight += h;
+    if (!placed) pages.push({ blocks: [bucket], contentH: h });
   }
-  if (currentPage.length > 0) pages.push({ blocks: currentPage, contentH: currentHeight });
 
   const now = new Date();
   const weekAgoDate = new Date(Date.now() - 7*24*60*60*1000);
