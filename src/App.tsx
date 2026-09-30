@@ -3567,25 +3567,13 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
     byFranchise.set(e.ctx.series.id, bucket);
   }
 
-  // Within each franchise, sub-group by studio (group) when present, otherwise by
-  // the figure's own set. Prefer showing a logo for the sub-group (studio logo, or
-  // the set's own logo) over text, falling back to the name only when no usable
-  // logo exists, and skipping a set logo that's just a duplicate of the franchise
-  // logo shown above it.
-  type SubGroup = { label: string; logo?: string; entries: Entry[] };
-  const buildSubGroups = (bucketEntries: Entry[], seriesLogoSrc?: string): SubGroup[] => {
-    const map = new Map<string, SubGroup>();
-    for (const e of bucketEntries) {
-      const key = e.ctx.group ? `g${e.ctx.group.id}` : `s${e.ctx.set.id}`;
-      const label = e.ctx.group ? e.ctx.group.name : e.ctx.set.name;
-      const logo = e.ctx.group
-        ? e.ctx.group.logo
-        : (e.ctx.set.seriesLogo && e.ctx.set.seriesLogo !== seriesLogoSrc ? e.ctx.set.seriesLogo : undefined);
-      const sg = map.get(key) ?? { label, logo, entries: [] };
-      sg.entries.push(e);
-      map.set(key, sg);
-    }
-    return [...map.values()];
+  // A figure's own "studio" logo: the group's logo when it belongs to a resin
+  // group, or the set's own logo when that differs from the franchise logo
+  // already shown in the block header (skip it when it's just a duplicate).
+  const studioLogoFor = (e: Entry, seriesLogoSrc?: string): string | undefined => {
+    if (e.ctx.group?.logo) return e.ctx.group.logo;
+    if (e.ctx.set.seriesLogo && e.ctx.set.seriesLogo !== seriesLogoSrc) return e.ctx.set.seriesLogo;
+    return undefined;
   };
 
   const W = 1080, H = 1080;
@@ -3628,31 +3616,25 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
   const contentHeight = H - footerH - contentTop - 10;
 
   const franchiseHeaderH = 50;
-  const subHeaderH = 34;
-  const blockGap = 18;
+  const blockGap = 22;
+  const tileLogoGap = 6;
+  const tileLogoH = 26;
 
   const franchiseList = [...byFranchise.values()];
 
-  const sizes = [130, 116, 100, 88, 76, 66, 58];
+  const sizes = [180, 160, 145, 130, 116, 100, 88, 76];
   let chosen: { size: number; gap: number; cols: number } | null = null;
   let chosenLeft: typeof franchiseList = [];
   let chosenRight: typeof franchiseList = [];
   let chosenHeight = 0;
 
-  const blockHeight = (bucket: { series: Series; entries: Entry[] }, cols: number, size: number, gap: number) => {
-    let h = franchiseHeaderH;
-    const seriesLogoSrc = bucket.series.logoHeader || bucket.series.logo;
-    for (const sg of buildSubGroups(bucket.entries, seriesLogoSrc)) {
-      h += subHeaderH;
-      const rows = Math.ceil(sg.entries.length / cols);
-      h += rows * (size + gap);
-    }
-    return h;
+  const blockHeight = (bucket: { entries: Entry[] }, cols: number, size: number, gap: number) => {
+    const cellH = size + tileLogoGap + tileLogoH;
+    const rows = Math.ceil(bucket.entries.length / cols);
+    return franchiseHeaderH + rows * (cellH + gap);
   };
 
-  for (const size of sizes) {
-    const gap = Math.round(size * 0.14);
-    const cols = Math.max(1, Math.floor((colWidth + gap) / (size + gap)));
+  const packColumns = (size: number, gap: number, cols: number) => {
     const withHeights = franchiseList.map(b => ({ bucket: b, h: blockHeight(b, cols, size, gap) }));
     withHeights.sort((a, b) => b.h - a.h);
     let leftH = 0, rightH = 0;
@@ -3661,7 +3643,13 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
       if (leftH <= rightH) { left.push(bucket); leftH += h + blockGap; }
       else { right.push(bucket); rightH += h + blockGap; }
     }
-    const total = Math.max(leftH, rightH);
+    return { left, right, total: Math.max(leftH, rightH) };
+  };
+
+  for (const size of sizes) {
+    const gap = Math.round(size * 0.12);
+    const cols = Math.max(1, Math.floor((colWidth + gap) / (size + gap)));
+    const { left, right, total } = packColumns(size, gap, cols);
     if (total <= contentHeight) {
       chosen = { size, gap, cols };
       chosenLeft = left; chosenRight = right;
@@ -3671,19 +3659,12 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
   }
   if (!chosen) {
     const size = sizes[sizes.length - 1];
-    const gap = Math.round(size * 0.14);
+    const gap = Math.round(size * 0.12);
     const cols = Math.max(1, Math.floor((colWidth + gap) / (size + gap)));
-    const withHeights = franchiseList.map(b => ({ bucket: b, h: blockHeight(b, cols, size, gap) }));
-    withHeights.sort((a, b) => b.h - a.h);
-    let leftH = 0, rightH = 0;
-    const left: typeof franchiseList = [], right: typeof franchiseList = [];
-    for (const { bucket, h } of withHeights) {
-      if (leftH <= rightH) { left.push(bucket); leftH += h + blockGap; }
-      else { right.push(bucket); rightH += h + blockGap; }
-    }
+    const { left, right, total } = packColumns(size, gap, cols);
     chosen = { size, gap, cols };
     chosenLeft = left; chosenRight = right;
-    chosenHeight = Math.max(leftH, rightH);
+    chosenHeight = total;
   }
 
   const { size, gap, cols } = chosen;
@@ -3697,7 +3678,7 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
       if (seriesLogoSrc) {
         try {
           const logo = await loadImageAsync(seriesLogoSrc, true);
-          const lh = 40, lw = Math.min(180, logo.width * (lh/logo.height));
+          const lh = 40, lw = Math.min(200, logo.width * (lh/logo.height));
           c.drawImage(logo, x, y, lw, lh);
           drewSeriesLogo = true;
         } catch {}
@@ -3710,50 +3691,39 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
       }
       y += franchiseHeaderH;
 
-      for (const sg of buildSubGroups(bucket.entries, seriesLogoSrc)) {
-        let drewSubLogo = false;
-        if (sg.logo) {
+      let col = 0;
+      for (const e of bucket.entries) {
+        const tx = x + col * (size + gap);
+        roundRectPath(c, tx, y, size, size, 12);
+        c.fillStyle = "#ffffff";
+        c.fill();
+        if (e.item.image_url) {
           try {
-            const logo = await loadImageAsync(sg.logo, true);
-            const lh = 28, lw = Math.min(140, logo.width * (lh/logo.height));
-            c.drawImage(logo, x + 4, y, lw, lh);
-            drewSubLogo = true;
+            const img = await loadImageAsync(e.item.image_url, true);
+            const pad = size * 0.08;
+            const innerW = size - pad*2, innerH = size - pad*2;
+            const scale = Math.min(innerW/img.width, innerH/img.height);
+            const w = img.width*scale, h = img.height*scale;
+            c.save();
+            roundRectPath(c, tx, y, size, size, 12);
+            c.clip();
+            c.drawImage(img, tx + (size-w)/2, y + (size-h)/2, w, h);
+            c.restore();
           } catch {}
         }
-        if (!drewSubLogo) {
-          c.textAlign = "left";
-          c.font = "600 17px Arial, sans-serif";
-          c.fillStyle = "rgba(255,255,255,0.8)";
-          c.fillText(sg.label, x + 6, y + 18);
+        const studioLogoSrc = studioLogoFor(e, seriesLogoSrc);
+        if (studioLogoSrc) {
+          try {
+            const slogo = await loadImageAsync(studioLogoSrc, true);
+            const slh = tileLogoH, slw = Math.min(size, slogo.width * (slh/slogo.height));
+            c.drawImage(slogo, tx + (size-slw)/2, y + size + tileLogoGap, slw, slh);
+          } catch {}
         }
-        y += subHeaderH;
-
-        let col = 0;
-        for (const e of sg.entries) {
-          const tx = x + col * (size + gap);
-          roundRectPath(c, tx, y, size, size, 12);
-          c.fillStyle = "#ffffff";
-          c.fill();
-          if (e.item.image_url) {
-            try {
-              const img = await loadImageAsync(e.item.image_url, true);
-              const pad = size * 0.08;
-              const innerW = size - pad*2, innerH = size - pad*2;
-              const scale = Math.min(innerW/img.width, innerH/img.height);
-              const w = img.width*scale, h = img.height*scale;
-              c.save();
-              roundRectPath(c, tx, y, size, size, 12);
-              c.clip();
-              c.drawImage(img, tx + (size-w)/2, y + (size-h)/2, w, h);
-              c.restore();
-            } catch {}
-          }
-          col++;
-          if (col >= cols) { col = 0; y += size + gap; }
-        }
-        if (col !== 0) y += size + gap;
+        col++;
+        if (col >= cols) { col = 0; y += size + tileLogoGap + tileLogoH + gap; }
       }
-      y += blockGap;
+      if (col !== 0) y += size + tileLogoGap + tileLogoH + gap;
+      y += blockGap - gap;
     }
   };
 
