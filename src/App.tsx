@@ -3573,6 +3573,7 @@ function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
 
 function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favItems: Announcement[]; allItems: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
   const { t } = useTr();
+  const isAdmin = useAdmin();
   const showSwitch = allItems.length > favItems.length;
   const [showAll, setShowAllState] = useState(() => {
     const saved = localStorage.getItem("wcf_news_filter");
@@ -3634,15 +3635,17 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
                     style={{padding:"7px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>
                     {t("newsSeeDetail")}
                   </button>
-                  <button disabled={generatingStory} onClick={async()=>{
-                      setGeneratingStory(true);
-                      try { await generateStoryImage(item, ctx); }
-                      catch (e) { console.error("Story image error:", e); alert(t("newsStoryError")); }
-                      setGeneratingStory(false);
-                    }}
-                    style={{padding:"7px 16px",borderRadius:20,border:"1px solid #0196e3",background:"transparent",color:"#0196e3",fontSize:12,fontWeight:600,cursor:generatingStory?"default":"pointer",opacity:generatingStory?0.6:1}}>
-                    {generatingStory ? "…" : `🖼️ ${t("newsDownloadStory")}`}
-                  </button>
+                  {isAdmin && (
+                    <button disabled={generatingStory} onClick={async()=>{
+                        setGeneratingStory(true);
+                        try { await generateStoryImage(item, ctx); }
+                        catch (e) { console.error("Story image error:", e); alert(t("newsStoryError")); }
+                        setGeneratingStory(false);
+                      }}
+                      style={{padding:"7px 16px",borderRadius:20,border:"1px solid #0196e3",background:"transparent",color:"#0196e3",fontSize:12,fontWeight:600,cursor:generatingStory?"default":"pointer",opacity:generatingStory?0.6:1}}>
+                      {generatingStory ? "…" : `🖼️ ${t("newsDownloadStory")}`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
