@@ -3576,125 +3576,122 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
     return undefined;
   };
 
-  const W = 1080, H = 1080;
-  const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = H;
-  const c = canvas.getContext("2d");
-  if (!c) throw new Error("Canvas not supported");
+  const W = 1080;
+  const contentPad = 40;
+  const contentTop = 130;
+  const footerH = 96;
+  const contentWidth = W - contentPad*2;
+  const standardH = 1080;
+  const standardContentHeight = standardH - footerH - contentTop - 10;
 
-  const grad = c.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, "#0196e3");
-  grad.addColorStop(1, "#6366f1");
-  c.fillStyle = grad;
-  c.fillRect(0, 0, W, H);
+  // Fixed, readable tile size: always 5 per row, sized to fill the width.
+  const cols = 5;
+  const gap = 22;
+  const size = (contentWidth - (cols - 1) * gap) / cols;
+  const tileLogoGap = 6;
+  const tileLogoH = 26;
+  const cellH = size + tileLogoGap + tileLogoH;
+  const franchiseHeaderH = 54;
+  const blockGap = 26;
 
-  c.save();
-  c.globalAlpha = 0.07;
-  c.fillStyle = "#ffffff";
-  c.beginPath(); c.arc(W*0.9, H*0.05, 200, 0, Math.PI*2); c.fill();
-  c.beginPath(); c.arc(W*0.05, H*0.98, 180, 0, Math.PI*2); c.fill();
-  c.restore();
+  const blockHeight = (bucket: { entries: Entry[] }) => {
+    const rows = Math.ceil(bucket.entries.length / cols);
+    return franchiseHeaderH + rows * (cellH + gap) - gap;
+  };
+
+  // Paginate: keep adding franchises to the current post while they still fit
+  // the fixed tile size within one standard square canvas; start a new post
+  // otherwise. A franchise is NEVER split across two posts — if one alone is
+  // too tall even for a page by itself, it gets its own dedicated (taller, 4:5)
+  // page instead of being cropped or split. Biggest franchises first so a
+  // single big one doesn't awkwardly strand a tiny leftover sliver of another.
+  const franchiseList = [...byFranchise.values()].sort((a, b) => b.entries.length - a.entries.length);
+  const pages: { blocks: typeof franchiseList; contentH: number }[] = [];
+  let currentPage: typeof franchiseList = [];
+  let currentHeight = 0;
+  for (const bucket of franchiseList) {
+    const h = blockHeight(bucket) + blockGap;
+    if (h > standardContentHeight) {
+      if (currentPage.length > 0) { pages.push({ blocks: currentPage, contentH: currentHeight }); currentPage = []; currentHeight = 0; }
+      pages.push({ blocks: [bucket], contentH: h });
+      continue;
+    }
+    if (currentPage.length > 0 && currentHeight + h > standardContentHeight) {
+      pages.push({ blocks: currentPage, contentH: currentHeight });
+      currentPage = [];
+      currentHeight = 0;
+    }
+    currentPage.push(bucket);
+    currentHeight += h;
+  }
+  if (currentPage.length > 0) pages.push({ blocks: currentPage, contentH: currentHeight });
 
   const now = new Date();
   const weekAgoDate = new Date(Date.now() - 7*24*60*60*1000);
   const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-  c.textAlign = "center";
-  c.fillStyle = "#ffffff";
-  c.font = "700 46px Arial, sans-serif";
-  c.fillText("New This Week", W/2, 66);
-  c.font = "500 24px Arial, sans-serif";
-  c.fillStyle = "rgba(255,255,255,0.85)";
-  c.fillText(`${fmt(weekAgoDate)} – ${fmt(now)}  ·  ${entries.length} figures`, W/2, 98);
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    const { blocks: pageBlocks, contentH } = pages[pageIndex];
+    const pageEntryCount = pageBlocks.reduce((n, b) => n + b.entries.length, 0);
+    // Cap page height at a 4:5 portrait (Instagram's tallest feed-friendly
+    // ratio) so an oversized single-franchise page still fits a normal post,
+    // extending only as far as actually needed for its content either way.
+    const maxH = Math.round(W * 5 / 4);
+    const H = Math.min(maxH, Math.max(standardH, contentTop + contentH + footerH + 10));
+    const contentHeight = H - footerH - contentTop - 10;
 
-  const contentPad = 40;
-  const contentTop = 130;
-  const footerH = 96;
-  const columnGap = 32;
-  const contentWidth = W - contentPad*2;
-  const colWidth = (contentWidth - columnGap) / 2;
-  const contentHeight = H - footerH - contentTop - 10;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const c = canvas.getContext("2d");
+    if (!c) throw new Error("Canvas not supported");
 
-  const franchiseHeaderH = 50;
-  const blockGap = 22;
-  const tileLogoGap = 6;
-  const tileLogoH = 26;
+    const grad = c.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, "#0196e3");
+    grad.addColorStop(1, "#6366f1");
+    c.fillStyle = grad;
+    c.fillRect(0, 0, W, H);
 
-  const franchiseList = [...byFranchise.values()];
+    c.save();
+    c.globalAlpha = 0.07;
+    c.fillStyle = "#ffffff";
+    c.beginPath(); c.arc(W*0.9, H*0.05, 200, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.arc(W*0.05, H*0.98, 180, 0, Math.PI*2); c.fill();
+    c.restore();
 
-  const sizes = [180, 160, 145, 130, 116, 100, 88, 76];
-  let chosen: { size: number; gap: number; cols: number } | null = null;
-  let chosenLeft: typeof franchiseList = [];
-  let chosenRight: typeof franchiseList = [];
-  let chosenHeight = 0;
+    c.textAlign = "center";
+    c.fillStyle = "#ffffff";
+    c.font = "700 46px Arial, sans-serif";
+    c.fillText("New This Week", W/2, 66);
+    c.font = "500 24px Arial, sans-serif";
+    c.fillStyle = "rgba(255,255,255,0.85)";
+    const pageTag = pages.length > 1 ? `  ·  Part ${pageIndex+1}/${pages.length}` : "";
+    c.fillText(`${fmt(weekAgoDate)} – ${fmt(now)}  ·  ${pageEntryCount} figures${pageTag}`, W/2, 98);
 
-  const blockHeight = (bucket: { entries: Entry[] }, cols: number, size: number, gap: number) => {
-    const cellH = size + tileLogoGap + tileLogoH;
-    const rows = Math.ceil(bucket.entries.length / cols);
-    return franchiseHeaderH + rows * (cellH + gap);
-  };
+    let y = contentTop + Math.max(0, (contentHeight - contentH) / 2);
 
-  const packColumns = (size: number, gap: number, cols: number) => {
-    const withHeights = franchiseList.map(b => ({ bucket: b, h: blockHeight(b, cols, size, gap) }));
-    withHeights.sort((a, b) => b.h - a.h);
-    let leftH = 0, rightH = 0;
-    const left: typeof franchiseList = [], right: typeof franchiseList = [];
-    for (const { bucket, h } of withHeights) {
-      if (leftH <= rightH) { left.push(bucket); leftH += h + blockGap; }
-      else { right.push(bucket); rightH += h + blockGap; }
-    }
-    return { left, right, total: Math.max(leftH, rightH) };
-  };
-
-  for (const size of sizes) {
-    const gap = Math.round(size * 0.12);
-    const cols = Math.max(1, Math.floor((colWidth + gap) / (size + gap)));
-    const { left, right, total } = packColumns(size, gap, cols);
-    if (total <= contentHeight) {
-      chosen = { size, gap, cols };
-      chosenLeft = left; chosenRight = right;
-      chosenHeight = total;
-      break;
-    }
-  }
-  if (!chosen) {
-    const size = sizes[sizes.length - 1];
-    const gap = Math.round(size * 0.12);
-    const cols = Math.max(1, Math.floor((colWidth + gap) / (size + gap)));
-    const { left, right, total } = packColumns(size, gap, cols);
-    chosen = { size, gap, cols };
-    chosenLeft = left; chosenRight = right;
-    chosenHeight = total;
-  }
-
-  const { size, gap, cols } = chosen;
-  const startY = contentTop + Math.max(0, (contentHeight - chosenHeight) / 2);
-
-  const drawColumn = async (blocks: typeof franchiseList, x: number) => {
-    let y = startY;
-    for (const bucket of blocks) {
+    for (const bucket of pageBlocks) {
       const seriesLogoSrc = bucket.series.logoHeader || bucket.series.logo;
       let drewSeriesLogo = false;
       if (seriesLogoSrc) {
         try {
           const logo = await loadImageAsync(seriesLogoSrc, true);
-          const lh = 40, lw = Math.min(200, logo.width * (lh/logo.height));
-          c.drawImage(logo, x, y, lw, lh);
+          const lh = 44, lw = Math.min(220, logo.width * (lh/logo.height));
+          c.drawImage(logo, contentPad, y, lw, lh);
           drewSeriesLogo = true;
         } catch {}
       }
       if (!drewSeriesLogo) {
         c.textAlign = "left";
         c.fillStyle = "#ffffff";
-        c.font = "700 24px Arial, sans-serif";
-        c.fillText(bucket.series.name, x, y + 26);
+        c.font = "700 26px Arial, sans-serif";
+        c.fillText(bucket.series.name, contentPad, y + 28);
       }
       y += franchiseHeaderH;
 
       let col = 0;
       for (const e of bucket.entries) {
-        const tx = x + col * (size + gap);
-        roundRectPath(c, tx, y, size, size, 12);
+        const tx = contentPad + col * (size + gap);
+        roundRectPath(c, tx, y, size, size, 14);
         c.fillStyle = "#ffffff";
         c.fill();
         if (e.item.image_url) {
@@ -3705,7 +3702,7 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
             const scale = Math.min(innerW/img.width, innerH/img.height);
             const w = img.width*scale, h = img.height*scale;
             c.save();
-            roundRectPath(c, tx, y, size, size, 12);
+            roundRectPath(c, tx, y, size, size, 14);
             c.clip();
             c.drawImage(img, tx + (size-w)/2, y + (size-h)/2, w, h);
             c.restore();
@@ -3720,33 +3717,32 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
           } catch {}
         }
         col++;
-        if (col >= cols) { col = 0; y += size + tileLogoGap + tileLogoH + gap; }
+        if (col >= cols) { col = 0; y += cellH + gap; }
       }
-      if (col !== 0) y += size + tileLogoGap + tileLogoH + gap;
+      if (col !== 0) y += cellH + gap;
       y += blockGap - gap;
     }
-  };
 
-  await drawColumn(chosenLeft, contentPad);
-  await drawColumn(chosenRight, contentPad + colWidth + columnGap);
+    try {
+      const stamp = await loadImageAsync(STORY_STAMP_URL);
+      const stampW = 420;
+      const scale = stampW / stamp.width;
+      const stampH = stamp.height * scale;
+      c.drawImage(stamp, (W - stampW)/2, H - stampH - 26, stampW, stampH);
+    } catch {}
 
-  try {
-    const stamp = await loadImageAsync(STORY_STAMP_URL);
-    const stampW = 420;
-    const scale = stampW / stamp.width;
-    const stampH = stamp.height * scale;
-    c.drawImage(stamp, (W - stampW)/2, H - stampH - 26, stampW, stampH);
-  } catch {}
-
-  const blob: Blob = await new Promise((resolve, reject) => {
-    canvas.toBlob(b => b ? resolve(b) : reject(new Error("toBlob failed")), "image/png");
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `wcf-weekly-${now.toISOString().slice(0,10)}.png`;
-  a.click();
-  URL.revokeObjectURL(url);
+    const blob: Blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error("toBlob failed")), "image/png");
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const suffix = pages.length > 1 ? `-part${pageIndex+1}` : "";
+    a.download = `wcf-weekly-${now.toISOString().slice(0,10)}${suffix}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+    if (pageIndex < pages.length - 1) await new Promise(r => setTimeout(r, 350));
+  }
 }
 
 type Announcement = { id:number; figure_id:string; image_url:string; title:string; franchise_id:string; created_at:string };
