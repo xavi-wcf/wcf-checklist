@@ -1820,11 +1820,11 @@ function MoveFigureModal({ figure, series, currentSetId, onMove, onClose }: { fi
   );
 }
 
-function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, onMoveFigure, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
+function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, currentGroupId, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, onMoveFigure, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   set:FigureSet; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
-  onMoveToGroup?:(gid:number)=>void; groups?:FigureGroup[];
+  onMoveToGroup?:(gid:number|null)=>void; groups?:FigureGroup[]; currentGroupId?:number;
   onAddFigure:(f:Omit<Figure,"id">&{id?:number})=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
@@ -1881,12 +1881,20 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
           <Btn small onClick={()=>setBulkAdd(true)} variant="primary">➕ Añadir varias</Btn>
           <Btn small onClick={()=>setEditSet(true)}>{t("editSetBtn")}</Btn>
           <Btn small onClick={onDuplicate}>📋 Duplicar</Btn>
-          {!!onMoveToGroup && !!groups && groups.length > 0 && (
+          {!!onMoveToGroup && !!groups && (currentGroupId !== undefined || groups.length > 0) && (
             <div style={{position:"relative"}}>
               <Btn small onClick={()=>setShowMoveMenu(m=>!m)}>📂 Mover a...</Btn>
               {showMoveMenu && (
                 <div style={{position:"absolute",bottom:"100%",left:0,zIndex:50,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 -4px 12px rgba(0,0,0,0.15)",minWidth:160,marginBottom:4,maxHeight:240,overflowY:"auto"}}>
-                  {groups.map(g=>(
+                  {currentGroupId !== undefined && (
+                    <div onClick={()=>{onMoveToGroup(null);setShowMoveMenu(false);}}
+                      style={{padding:"8px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",display:"flex",alignItems:"center",gap:8,borderBottom:"1px solid var(--border)"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      {t("moveFigureUngrouped")}
+                    </div>
+                  )}
+                  {groups.filter(g=>g.id!==currentGroupId).map(g=>(
                     <div key={g.id} onClick={()=>{onMoveToGroup(g.id);setShowMoveMenu(false);}}
                       style={{padding:"8px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",display:"flex",alignItems:"center",gap:8}}
                       onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
@@ -2155,7 +2163,7 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onReorderSets, onUpdateFigure, onDeleteFigure, onSwapCross, onMoveFigure, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
+function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onReorderSets, onUpdateFigure, onDeleteFigure, onSwapCross, onMoveFigure, onMoveSetToGroup, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   group:FigureGroup; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
@@ -2165,6 +2173,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   onReorderSets?:(sets:FigureSet[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
   onMoveFigure?:(figureId:number,destSetId:number,destGroupId?:number)=>void;
+  onMoveSetToGroup?:(stid:number,gid:number|null)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
   cardSize?:"s"|"m"|"l";
@@ -2227,6 +2236,8 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
                   onUpdateSet={(n,rd,sl)=>onUpdateSet(st.id,n,rd,sl)}
                   onDeleteSet={()=>onDeleteSet(st.id)}
                   onDuplicate={()=>onDuplicateSet(st.id)}
+                  onMoveToGroup={onMoveSetToGroup ? (gid)=>onMoveSetToGroup(st.id,gid) : undefined}
+                  groups={series.groups} currentGroupId={group.id}
                   series={series}
                   onAddFigure={(f)=>onAddFigure(st.id,f)}
                   onAddFigures={(fs)=>onAddFigures(st.id,fs)}
@@ -5248,9 +5259,26 @@ function MainApp() {
   const addGroup = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:[...s.groups,{id:newId(),name:"Nuevo grupo",logo:"",sets:[]}]}:s));
   const updateGroup = (sid:number,gid:number,name:string,logo:string) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.map(g=>g.id===gid?{...g,name,logo}:g)}:s));
   const deleteGroup = (sid:number,gid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.filter(g=>g.id!==gid)}:s));
-  const moveSetToGroup = (sid:number, stid:number, gid:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
-    const st = s.sets.find(x=>x.id===stid); if(!st) return s;
-    return {...s, sets:s.sets.filter(x=>x.id!==stid), groups:s.groups.map(g=>g.id===gid?{...g,sets:[...g.sets,st]}:g)};
+  const moveSetToGroup = (sid:number, stid:number, gid:number|null) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+    // Find the set wherever it currently lives: loose in the franchise or inside any group.
+    let st: FigureSet | undefined = s.sets.find(x=>x.id===stid);
+    let fromGroupId: number | null = null;
+    if (!st) {
+      for (const g of s.groups) {
+        const found = g.sets.find(x=>x.id===stid);
+        if (found) { st = found; fromGroupId = g.id; break; }
+      }
+    }
+    if (!st) return s;
+    if (fromGroupId === gid) return s; // already where it was asked to go
+    const moved = st;
+    const looseSets = s.sets.filter(x=>x.id!==stid);
+    const groupsWithout = s.groups.map(g=>({...g, sets:g.sets.filter(x=>x.id!==stid)}));
+    return {
+      ...s,
+      sets: gid === null ? [...looseSets, moved] : looseSets,
+      groups: groupsWithout.map(g=>g.id===gid ? {...g, sets:[...g.sets, moved]} : g),
+    };
   }));
   const addFigure = (sid:number,stid:number,f:Omit<Figure,"id">&{id?:number},gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
     const upd = (sets:FigureSet[]) => sets.map(st=>st.id===stid?{...st,figures:[...st.figures,{...f,id:f.id??newId()}]}:st);
@@ -5883,6 +5911,7 @@ function MainApp() {
                     onUpdateSet={(stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl,item.group.id)}
                     onDeleteSet={(stid)=>deleteSet(dbSeriesObj.id,stid,item.group.id)}
                     onDuplicateSet={(stid)=>duplicateSet(dbSeriesObj.id,stid,item.group.id)}
+                    onMoveSetToGroup={(stid,gid)=>moveSetToGroup(dbSeriesObj.id,stid,gid)}
                     onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f,item.group.id)}
                     onAddFigures={(stid,fs)=>addFigures(dbSeriesObj.id,stid,fs,item.group.id)}
                     onReorderFigures={(stid,figs)=>reorderFigures(dbSeriesObj.id,stid,figs,item.group.id)}
