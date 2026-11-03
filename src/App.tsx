@@ -892,7 +892,7 @@ function useAuth() {
   return { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut };
 }
 
-function useOwned(userId: string|null, userName?: string|null, userEmail?: string|null, userAvatar?: string|null) {
+function useOwned(userId: string|null, userName?: string|null, userAvatar?: string|null) {
   const [owned, setOwned] = useState<Set<number>>(new Set());
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [favourites, setFavourites] = useState<Set<number>>(new Set());
@@ -917,7 +917,7 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
               if (o.length > 0 || w.length > 0) {
                 supabase.from("wcf_progress").upsert({
                   user_id: userId, owned: o, wishlist: w,
-                  owner_name: userName ?? null, owner_email: userEmail ?? null, owner_avatar: userAvatar ?? null,
+                  owner_name: userName ?? null, owner_avatar: userAvatar ?? null,
                   updated_at: new Date().toISOString()
                 }, { onConflict: "user_id", ignoreDuplicates: false });
               }
@@ -943,7 +943,6 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
           owned: [...o],
           wishlist: [...w],
           owner_name: userName ?? null,
-          owner_email: userEmail ?? null,
           owner_avatar: userAvatar ?? null,
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id", ignoreDuplicates: false })
@@ -952,7 +951,7 @@ function useOwned(userId: string|null, userName?: string|null, userEmail?: strin
     // Always save to localStorage as fallback
     localStorage.setItem("wcf_owned", JSON.stringify([...o]));
     localStorage.setItem("wcf_wishlist", JSON.stringify([...w]));
-  }, [userId, userName, userEmail, userAvatar]);
+  }, [userId, userName, userAvatar]);
 
   const toggle = (id: number) => setOwned(prev => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id);
@@ -1072,12 +1071,12 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
         }
       });
 
-    supabase.from("wcf_progress").select("user_id,owned,owner_name,owner_email,owner_avatar")
+    supabase.from("wcf_progress").select("user_id,owned,owner_name,owner_avatar")
       .then(({ data: rows, error }) => {
         if (error || !rows) return;
         const full = rows
           .filter(r => r.user_id && Array.isArray(r.owned) && r.owned.length > 0)
-          .map(r => ({ userId: r.user_id as string, name: (r.owner_name || r.owner_email || "Anonymous") as string, count: (r.owned as unknown[]).length, ownedIds: r.owned as number[], avatar: (r.owner_avatar ?? null) as string|null }))
+          .map(r => ({ userId: r.user_id as string, name: (r.owner_name || "Anonymous") as string, count: (r.owned as unknown[]).length, ownedIds: r.owned as number[], avatar: (r.owner_avatar ?? null) as string|null }))
           .sort((a, b) => b.count - a.count);
         setTopCollectors(full.slice(0, 10));
         if (currentUserId) {
@@ -5639,7 +5638,7 @@ function useHasNewCollectionActivity(userId?: string | null) {
 function MainApp() {
   const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut } = useAuth();
   const { hasNew: hasNewCollectionActivity, markSeen: markCollectionActivitySeen } = useHasNewCollectionActivity(user?.id ?? null);
-  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, lastSeenAnnouncementId, markAnnouncementsSeen, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.email ?? null, user?.avatar ?? null);
+  const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, lastSeenAnnouncementId, markAnnouncementsSeen, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.avatar ?? null);
   const { data, setData, ready: dataReady } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
