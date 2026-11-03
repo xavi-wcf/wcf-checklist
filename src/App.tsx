@@ -9,7 +9,7 @@ const CHANGELOG = [
     id: 15,
     date: "2026-11-03",
     entries: [
-      "🎨 New: browse resin figures by studio — open Database → Studios to see everything a studio has released, and how much of it you own",
+      "🎨 New: browse resin figures by studio — open Database → Resins by Studio to see everything a studio has released, and how much of it you own",
       "🆕 Figures featured in the last few days now carry a NEW tag, so you can spot them while you browse",
       "📅 Monthly recap: a summary of the figures featured each month now shows up right here in What's new",
       "📲 Installing the app is now one tap away on iPhone and iPad too",
@@ -443,7 +443,8 @@ const T = {
   newsWeeklySummary: { es: "Resumen semanal", en: "Weekly summary", th: "สรุปประจำสัปดาห์", fr: "Résumé hebdomadaire", vi: "Tổng kết tuần", ja: "週間まとめ", zh: "每周汇总" },
   newsWeeklyEmpty: { es: "No se ha marcado ninguna figura como novedad esta semana.", en: "No figures were marked as new this week.", th: "ยังไม่มีการทำเครื่องหมายฟิกเกอร์ใหม่ในสัปดาห์นี้", fr: "Aucune figurine marquée comme nouvelle cette semaine.", vi: "Chưa có mô hình nào được đánh dấu là mới trong tuần này.", ja: "今週新着としてマークされたフィギュアはありません。", zh: "本周还没有标记为新品的手办。" },
   newBadge: { es: "NUEVO", en: "NEW", th: "ใหม่", fr: "NOUVEAU", vi: "MỚI", ja: "新着", zh: "新品" },
-  studiosTab: { es: "Estudios", en: "Studios", th: "สตูดิโอ", fr: "Studios", vi: "Studio", ja: "スタジオ", zh: "工作室" },
+  resinBySeries: { es: "🎨 Resinas por serie", en: "🎨 Resins by Series", th: "🎨 เรซินตามซีรีส์", fr: "🎨 Résines par série", vi: "🎨 Nhựa theo series", ja: "🎨 レジン（シリーズ別）", zh: "🎨 树脂（按系列）" },
+  resinByStudio: { es: "🏭 Resinas por estudio", en: "🏭 Resins by Studio", th: "🏭 เรซินตามสตูดิโอ", fr: "🏭 Résines par studio", vi: "🏭 Nhựa theo studio", ja: "🏭 レジン（スタジオ別）", zh: "🏭 树脂（按工作室）" },
   studiosSearch: { es: "Buscar estudio…", en: "Search studio…", th: "ค้นหาสตูดิโอ…", fr: "Rechercher un studio…", vi: "Tìm studio…", ja: "スタジオを検索…", zh: "搜索工作室…" },
   studiosBack: { es: "← Estudios", en: "← Studios", th: "← สตูดิโอ", fr: "← Studios", vi: "← Studio", ja: "← スタジオ", zh: "← 工作室" },
   studiosFigures: { es: "figuras", en: "figures", th: "ฟิกเกอร์", fr: "figurines", vi: "mô hình", ja: "体", zh: "件" },
@@ -1656,7 +1657,7 @@ function SeriesModal({ onSave, onClose, category, initial, apiKey }: { onSave:(n
 // ============================================================
 function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, onEdit, onDelete, onQuickUpload, onSwapImage, onReorderStart, onMove, onDetail, userPhotoCount }: {
   figure:Figure; color:string; isOwned:boolean; isWished:boolean;
-  onToggle:()=>void; onToggleWish:()=>void; onEdit:()=>void; onDelete:()=>void;
+  onToggle:()=>void; onToggleWish:()=>void; onEdit?:()=>void; onDelete?:()=>void;
   onQuickUpload?:(file:File)=>void;
   onSwapImage?:(fromId:number)=>void;
   onReorderStart?:()=>void;
@@ -1736,11 +1737,11 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
           title="Reorder">⠿</div>
       )}
       {isAdmin && hover && onEdit && (
-        <button onClick={e=>{e.stopPropagation();onEdit();}}
+        <button onClick={e=>{e.stopPropagation();onEdit?.();}}
           style={{position:"absolute",bottom:4,left:4,zIndex:5,background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",fontSize:11,cursor:"pointer"}}>✏️</button>
       )}
       {(hover || isMobileDevice) && <div style={{position:"absolute",top:4,left:4,zIndex:3,display:"flex",gap:4}}>
-        {isAdmin && hover && (
+        {isAdmin && hover && !!onDelete && (
           <button onClick={e=>{e.stopPropagation();setShowAdminMenu(m=>!m);}}
             style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 7px",fontSize:12,cursor:"pointer",lineHeight:1,fontWeight:700}}>⋮</button>
         )}
@@ -1781,7 +1782,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
                 🗂️ Move to set
               </button>
             )}
-            <button onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onDelete();}}
+            <button onClick={e=>{e.stopPropagation();setShowAdminMenu(false);onDelete?.();}}
               style={{padding:"5px 4px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:9,fontWeight:700}}>
               🗑 Delete
             </button>
@@ -3329,16 +3330,20 @@ type StudioFranchise = { name: string; series: Series; items: StudioEntry[] };
 type StudioInfo = { key: string; name: string; logo?: string; total: number; franchises: StudioFranchise[] };
 
 function buildStudios(data: Series[]): StudioInfo[] {
-  const map = new Map<string, { name: string; logo?: string; byFranchise: Map<string, StudioFranchise> }>();
+  const map = new Map<string, { name: string; logo?: string; byFranchise: Map<string, StudioFranchise>; seen: Set<number> }>();
   const add = (rawName: string, logo: string | undefined, series: Series, set: FigureSet) => {
     const name = cleanStudioName(rawName);
     if (!name || (set.figures ?? []).length === 0) return;
     const key = name.toLowerCase();
-    const studio = map.get(key) ?? { name, logo, byFranchise: new Map<string, StudioFranchise>() };
+    const studio = map.get(key) ?? { name, logo, byFranchise: new Map<string, StudioFranchise>(), seen: new Set<number>() };
     if (!studio.logo && logo) studio.logo = logo;
     const frKey = series.name.trim().toLowerCase();
     const fr = studio.byFranchise.get(frKey) ?? { name: series.name, series, items: [] };
-    for (const figure of set.figures) fr.items.push({ figure, set, series });
+    for (const figure of set.figures) {
+      if (studio.seen.has(figure.id)) continue;
+      studio.seen.add(figure.id);
+      fr.items.push({ figure, set, series });
+    }
     studio.byFranchise.set(frKey, fr);
     map.set(key, studio);
   };
@@ -3355,9 +3360,13 @@ function buildStudios(data: Series[]): StudioInfo[] {
     .sort((a, b) => b.total - a.total);
 }
 
-function StudiosBrowser({ data, owned, onOpenFigure }: { data: Series[]; owned: Set<number>; onOpenFigure: (ctx: StudioEntry) => void }) {
+function StudiosBrowser({ data, owned, wishlist, onToggle, onToggleWish, photoCounts, cardSize, onOpenFigure }: {
+  data: Series[]; owned: Set<number>; wishlist: Set<number>;
+  onToggle: (id: number) => void; onToggleWish: (id: number) => void;
+  photoCounts: Record<number, number>; cardSize: "s" | "m" | "l";
+  onOpenFigure: (ctx: StudioEntry) => void;
+}) {
   const { t } = useTr();
-  const newIds = useContext(NewFigureCtx);
   const studios = useMemo(() => buildStudios(data), [data]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -3418,22 +3427,12 @@ function StudiosBrowser({ data, owned, onOpenFigure }: { data: Series[]; owned: 
             </div>
             {isOpen && (
               <div style={{padding:"0 12px 12px"}}>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))",gap:8}}>
+                <div style={{display:"grid",gridTemplateColumns: cardSize==="s"?"repeat(auto-fill, minmax(90px, 1fr))" : cardSize==="l"?"repeat(auto-fill, minmax(160px, 1fr))" : "repeat(auto-fill, minmax(120px, 1fr))",gap:10}}>
                   {fr.items.slice(0, limit).map(entry => (
-                    <div key={entry.figure.id} onClick={()=>onOpenFigure(entry)}
-                      style={{cursor:"pointer",border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",background:"var(--bg)"}}>
-                      <div style={{position:"relative",aspectRatio:"1",background:"var(--missing-bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        {entry.figure.image
-                          ? <img src={entry.figure.image} alt={entry.figure.name} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                          : <span style={{fontSize:28}}>{entry.figure.emoji}</span>}
-                        {owned.has(entry.figure.id) && (
-                          <div style={{position:"absolute",bottom:4,left:4,width:18,height:18,borderRadius:"50%",background:"#0196e3",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>✓</div>
-                        )}
-                      </div>
-                      <div style={{padding:"4px 6px 6px",fontSize:10,fontWeight:600,lineHeight:1.25,height:"2.6em",overflow:"hidden"}}>
-                        {newIds.has(entry.figure.id) && <NewTag />}{entry.figure.name}
-                      </div>
-                    </div>
+                    <FigureCard key={entry.figure.id} figure={entry.figure} color={entry.series.color}
+                      isOwned={owned.has(entry.figure.id)} isWished={wishlist.has(entry.figure.id)}
+                      onToggle={()=>onToggle(entry.figure.id)} onToggleWish={()=>onToggleWish(entry.figure.id)}
+                      onDetail={()=>onOpenFigure(entry)} userPhotoCount={photoCounts[entry.figure.id] ?? 0} />
                   ))}
                 </div>
                 {fr.items.length > limit && (
@@ -6732,17 +6731,17 @@ function MainApp() {
                 {(["oficial","resina"] as CategoryType[]).map(cat=>(
                   <button key={cat} onClick={()=>{setDbActiveCategory(cat);setDbSelectedSeries(null);setDbStudioView(false);}}
                     style={{padding:"6px 14px",fontSize:12,fontWeight:(dbActiveCategory===cat && !dbStudioView)?700:400,border:"1px solid var(--border)",borderRadius:20,background:(dbActiveCategory===cat && !dbStudioView)?"var(--text)":"var(--bg)",color:(dbActiveCategory===cat && !dbStudioView)?"var(--bg)":"var(--text3)",cursor:"pointer"}}>
-                    {cat==="oficial"?t("official"):t("resin")} <span style={{opacity:0.6,fontSize:10}}>{catOwned(cat)}/{catTotal(cat)}</span>
+                    {cat==="oficial"?t("official"):t("resinBySeries")} <span style={{opacity:0.6,fontSize:10}}>{catOwned(cat)}/{catTotal(cat)}</span>
                   </button>
                 ))}
                 <button onClick={()=>{setDbStudioView(true);setDbSelectedSeries(null);}}
                   style={{padding:"6px 14px",fontSize:12,fontWeight:dbStudioView?700:400,border:"1px solid var(--border)",borderRadius:20,background:dbStudioView?"var(--text)":"var(--bg)",color:dbStudioView?"var(--bg)":"var(--text3)",cursor:"pointer"}}>
-                  🏭 {t("studiosTab")}
+                  {t("resinByStudio")} <span style={{opacity:0.6,fontSize:10}}>{catOwned("resina")}/{catTotal("resina")}</span>
                 </button>
                 {isAdmin && <Btn small onClick={()=>setShowAddSeries(true)} variant="primary">{t("newSeries")}</Btn>}
               </div>
               {dbStudioView
-                ? <StudiosBrowser data={data} owned={owned} onOpenFigure={(ctx)=>setDetailFigureCol(ctx)} />
+                ? <StudiosBrowser data={data} owned={owned} wishlist={wishlist} onToggle={toggleWithAuth} onToggleWish={toggleWishWithAuth} photoCounts={figuresWithPhotos} cardSize={dbSize} onOpenFigure={(ctx)=>setDetailFigureCol(ctx)} />
                 : dbFilteredSeries.length===0
                 ? <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}</div>
                 : <SeriesGrid
