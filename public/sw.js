@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wcf-checklist-v175';
+const CACHE_NAME = 'wcf-checklist-v176';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -1047,16 +1047,16 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
   const [myCollectorEntry, setMyCollectorEntry] = useState<LeaderboardEntry|null>(null);
 
   useEffect(() => {
-    supabase.from("wcf_photos").select("user_id,uploader_name,uploader_email,uploader_avatar").eq("approved", true)
+    supabase.from("wcf_photos").select("user_id,uploader_name,uploader_avatar").eq("approved", true)
       .then(({ data: rows, error }) => {
         if (error || !rows) return;
         const counts: Record<string, { name: string; count: number; avatar: string|null }> = {};
         for (const r of rows) {
           if (!r.user_id) continue;
-          if (!counts[r.user_id]) counts[r.user_id] = { name: r.uploader_name || r.uploader_email || "Anonymous", count: 0, avatar: r.uploader_avatar ?? null };
+          if (!counts[r.user_id]) counts[r.user_id] = { name: r.uploader_name || "Anonymous", count: 0, avatar: r.uploader_avatar ?? null };
           counts[r.user_id].count++;
           if (!counts[r.user_id].name || counts[r.user_id].name === "Anonymous") {
-            counts[r.user_id].name = r.uploader_name || r.uploader_email || "Anonymous";
+            counts[r.user_id].name = r.uploader_name || "Anonymous";
           }
           if (r.uploader_avatar) counts[r.user_id].avatar = r.uploader_avatar;
         }
@@ -4331,7 +4331,7 @@ function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, on
 // ============================================================
 //  FIGURE DETAIL MODAL
 // ============================================================
-type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_email?: string|null; uploader_name?: string|null; uploader_avatar?: string|null; };
+type UserPhoto = { id: string; figure_id: number; user_id: string; url: string; approved: boolean; created_at: string; uploader_name?: string|null; uploader_avatar?: string|null; };
 type CollectionPhoto = { id: string; user_id: string; url: string; approved: boolean; created_at: string; uploader_name?: string|null; uploader_avatar?: string|null; };
 
 function useFigurePhotos(figureId: number) {
@@ -4552,7 +4552,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
   useEffect(() => { setActiveVariant(0); }, [figure.id]);
   const displayedImage = variantImages[activeVariant] ?? figure.image;
 
-  const { email: uploaderEmail, name: uploaderName, avatar: uploaderAvatar } = useUserInfo();
+  const { name: uploaderName, avatar: uploaderAvatar } = useUserInfo();
 
   const handleUpload = async (file: File) => {
     if (!userId || !file) return;
@@ -4569,7 +4569,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
         // significa que la subida no vaya a funcionar en un segundo intento.
         url = await uploadToR2(compressed);
       }
-      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_email: uploaderEmail, uploader_name: uploaderName, uploader_avatar: uploaderAvatar, approved: false });
+      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_name: uploaderName, uploader_avatar: uploaderAvatar, approved: false });
       setUploadDone(true);
     } catch(e) {
       setUploadError(t("uploadNetworkError"));
@@ -4599,7 +4599,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
               </>
             )}
             <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:8,maxWidth:"80%",textAlign:"right"}}>
-              {t("uploadedBy")} {zoomPhoto.uploader_name ?? zoomPhoto.uploader_email ?? t("communityMember")}
+              {t("uploadedBy")} {zoomPhoto.uploader_name ?? t("communityMember")}
             </div>
           </div>
         </div>
@@ -5101,6 +5101,15 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
   const [approved, setApproved] = useState<(UserPhoto|CollectionPhoto)[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string|null>(null);
+  // Uploader emails are no longer stored with the photos; the admin looks them up by account.
+  const [accountEmails, setAccountEmails] = useState<Record<string, string>>({});
+  useEffect(() => {
+    supabase.rpc("admin_list_users").then(({ data: users }) => {
+      const map: Record<string, string> = {};
+      for (const u of (users ?? []) as { id: string; email: string | null }[]) if (u.email) map[u.id] = u.email;
+      setAccountEmails(map);
+    });
+  }, []);
 
   const figureNameMap = useMemo(() => buildFigureNameMap(data), [data]);
   const tableName = source === "figures" ? "wcf_photos" : "wcf_collection_photos";
@@ -5184,7 +5193,7 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
                   </div>
                 )}
                 <div style={{fontSize:11,color:"var(--text4)",marginBottom:8}}>
-                  👤 {p.uploader_name ?? (p as UserPhoto).uploader_email ?? "Unknown (uploaded before tracking was added)"}
+                  👤 {p.uploader_name ?? accountEmails[p.user_id] ?? "Unknown (uploaded before tracking was added)"}
                 </div>
                 {tab === "pending" ? (
                   <div style={{display:"flex",gap:8}}>
