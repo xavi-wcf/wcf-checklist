@@ -3362,6 +3362,7 @@ function StudiosBrowser({ data, owned, onOpenFigure }: { data: Series[]; owned: 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [limits, setLimits] = useState<Record<string, number>>({});
+  const [openFr, setOpenFr] = useState<Record<string, boolean>>({});
   const ownedIn = (items: StudioEntry[]) => items.reduce((n, e) => n + (owned.has(e.figure.id) ? 1 : 0), 0);
   const selected = selectedKey ? studios.find(s => s.key === selectedKey) ?? null : null;
 
@@ -3377,7 +3378,7 @@ function StudiosBrowser({ data, owned, onOpenFigure }: { data: Series[]; owned: 
           <div key={s.key} onClick={()=>setSelectedKey(s.key)}
             style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",border:"1px solid var(--border)",borderRadius:12,marginBottom:8,cursor:"pointer",background:"var(--bg)"}}>
             <div style={{width:96,flexShrink:0,display:"flex",justifyContent:"center"}}>
-              {s.logo ? <img src={s.logo} alt={s.name} loading="lazy" style={{maxWidth:96,maxHeight:34,objectFit:"contain"}} /> : <span style={{fontSize:24}}>🎨</span>}
+              {s.logo ? <img src={s.logo} alt={s.name} loading="lazy" style={{maxWidth:96,maxHeight:34,objectFit:"contain"}} /> : <span style={{fontSize:24}}>🏭</span>}
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.name}</div>
@@ -3403,36 +3404,45 @@ function StudiosBrowser({ data, owned, onOpenFigure }: { data: Series[]; owned: 
       {selected.franchises.map(fr => {
         const limitKey = `${selected.key}|${fr.name}`;
         const limit = limits[limitKey] ?? 60;
+        // Closed by default so the franchises can be scanned at a glance; a studio
+        // with a single franchise opens straight away.
+        const isOpen = openFr[limitKey] ?? selected.franchises.length === 1;
         const logoSrc = fr.series.logoHeader || fr.series.logo;
         return (
-          <div key={fr.name} style={{marginBottom:20}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-              {logoSrc ? <img src={logoSrc} alt={fr.name} style={{height:28,maxWidth:130,objectFit:"contain"}} /> : <span style={{fontSize:14,fontWeight:700}}>{fr.series.emoji} {fr.name}</span>}
-              <span style={{marginLeft:"auto",fontSize:11,color:"var(--text3)"}}>{ownedIn(fr.items)}/{fr.items.length}</span>
+          <div key={fr.name} style={{marginBottom:10,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden",background:"var(--bg)"}}>
+            <div onClick={()=>setOpenFr(o => ({ ...o, [limitKey]: !isOpen }))}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer"}}>
+              <span style={{fontSize:12,color:"var(--text3)",width:12,flexShrink:0}}>{isOpen ? "▾" : "▸"}</span>
+              {logoSrc ? <img src={logoSrc} alt={fr.name} title={fr.name} style={{height:28,maxWidth:130,objectFit:"contain"}} /> : <span style={{fontSize:14,fontWeight:700}}>{fr.series.emoji} {fr.name}</span>}
+              <span style={{marginLeft:"auto",fontSize:11,color:"var(--text3)",flexShrink:0}}>{ownedIn(fr.items)}/{fr.items.length}</span>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))",gap:8}}>
-              {fr.items.slice(0, limit).map(entry => (
-                <div key={entry.figure.id} onClick={()=>onOpenFigure(entry)}
-                  style={{cursor:"pointer",border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",background:"var(--bg)"}}>
-                  <div style={{position:"relative",aspectRatio:"1",background:"var(--missing-bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    {entry.figure.image
-                      ? <img src={entry.figure.image} alt={entry.figure.name} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                      : <span style={{fontSize:28}}>{entry.figure.emoji}</span>}
-                    {owned.has(entry.figure.id) && (
-                      <div style={{position:"absolute",bottom:4,left:4,width:18,height:18,borderRadius:"50%",background:"#0196e3",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>✓</div>
-                    )}
-                  </div>
-                  <div style={{padding:"4px 6px 6px",fontSize:10,fontWeight:600,lineHeight:1.25,height:"2.6em",overflow:"hidden"}}>
-                    {newIds.has(entry.figure.id) && <NewTag />}{entry.figure.name}
-                  </div>
+            {isOpen && (
+              <div style={{padding:"0 12px 12px"}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))",gap:8}}>
+                  {fr.items.slice(0, limit).map(entry => (
+                    <div key={entry.figure.id} onClick={()=>onOpenFigure(entry)}
+                      style={{cursor:"pointer",border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",background:"var(--bg)"}}>
+                      <div style={{position:"relative",aspectRatio:"1",background:"var(--missing-bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        {entry.figure.image
+                          ? <img src={entry.figure.image} alt={entry.figure.name} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          : <span style={{fontSize:28}}>{entry.figure.emoji}</span>}
+                        {owned.has(entry.figure.id) && (
+                          <div style={{position:"absolute",bottom:4,left:4,width:18,height:18,borderRadius:"50%",background:"#0196e3",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>✓</div>
+                        )}
+                      </div>
+                      <div style={{padding:"4px 6px 6px",fontSize:10,fontWeight:600,lineHeight:1.25,height:"2.6em",overflow:"hidden"}}>
+                        {newIds.has(entry.figure.id) && <NewTag />}{entry.figure.name}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {fr.items.length > limit && (
-              <button onClick={()=>setLimits(l => ({ ...l, [limitKey]: limit + 60 }))}
-                style={{width:"100%",marginTop:10,padding:"8px",borderRadius:10,border:"none",background:"var(--bg2)",color:"var(--text3)",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-                {t("studiosShowMore")} ({fr.items.length - limit})
-              </button>
+                {fr.items.length > limit && (
+                  <button onClick={()=>setLimits(l => ({ ...l, [limitKey]: limit + 60 }))}
+                    style={{width:"100%",marginTop:10,padding:"8px",borderRadius:10,border:"none",background:"var(--bg2)",color:"var(--text3)",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                    {t("studiosShowMore")} ({fr.items.length - limit})
+                  </button>
+                )}
+              </div>
             )}
           </div>
         );
@@ -6727,7 +6737,7 @@ function MainApp() {
                 ))}
                 <button onClick={()=>{setDbStudioView(true);setDbSelectedSeries(null);}}
                   style={{padding:"6px 14px",fontSize:12,fontWeight:dbStudioView?700:400,border:"1px solid var(--border)",borderRadius:20,background:dbStudioView?"var(--text)":"var(--bg)",color:dbStudioView?"var(--bg)":"var(--text3)",cursor:"pointer"}}>
-                  🎨 {t("studiosTab")}
+                  🏭 {t("studiosTab")}
                 </button>
                 {isAdmin && <Btn small onClick={()=>setShowAddSeries(true)} variant="primary">{t("newSeries")}</Btn>}
               </div>
