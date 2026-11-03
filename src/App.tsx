@@ -255,20 +255,44 @@ function FacebookIcon({ size = 18 }: { size?: number }) {
 const TRANSPARENT_DRAG_IMG = new Image();
 TRANSPARENT_DRAG_IMG.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
 
-async function sbGet(table: string) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main`, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-  });
-  const rows = await res.json();
-  return rows[0] ?? null;
+// Writes go out with the logged-in user's session token (not just the public key),
+// so the database can tell the admin apart from any other visitor.
+async function sbAuthToken(): Promise<string> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? SUPABASE_KEY;
+  } catch {
+    return SUPABASE_KEY;
+  }
 }
 
-async function sbUpsert(table: string, data: object) {
-  await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method: "POST",
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: "main", ...data, updated_at: new Date().toISOString() }),
-  });
+async function sbGet(table: string): Promise<{ ok: boolean; row: { data?: unknown } | null }> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!res.ok) return { ok: false, row: null };
+    const rows = await res.json();
+    return { ok: true, row: Array.isArray(rows) ? (rows[0] ?? null) : null };
+  } catch {
+    return { ok: false, row: null };
+  }
+}
+
+async function sbUpsert(table: string, data: object): Promise<boolean> {
+  try {
+    const token = await sbAuthToken();
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify({ id: "main", ...data, updated_at: new Date().toISOString() }),
+    });
+    if (!res.ok) console.error("Save failed:", res.status, await res.text().catch(() => ""));
+    return res.ok;
+  } catch (e) {
+    console.error("Save failed:", e);
+    return false;
+  }
 }
 
 // ============================================================
@@ -409,6 +433,9 @@ const T = {
   newsWeeklySummary: { es: "Resumen semanal", en: "Weekly summary", th: "สรุปประจำสัปดาห์", fr: "Résumé hebdomadaire", vi: "Tổng kết tuần", ja: "週間まとめ", zh: "每周汇总" },
   newsWeeklyEmpty: { es: "No se ha marcado ninguna figura como novedad esta semana.", en: "No figures were marked as new this week.", th: "ยังไม่มีการทำเครื่องหมายฟิกเกอร์ใหม่ในสัปดาห์นี้", fr: "Aucune figurine marquée comme nouvelle cette semaine.", vi: "Chưa có mô hình nào được đánh dấu là mới trong tuần này.", ja: "今週新着としてマークされたフィギュアはありません。", zh: "本周还没有标记为新品的手办。" },
   newsWeeklyError: { es: "No se pudo generar la imagen. Inténtalo de nuevo.", en: "Couldn't generate the image. Please try again.", th: "สร้างรูปภาพไม่สำเร็จ ลองอีกครั้ง", fr: "Impossible de générer l'image. Réessayez.", vi: "Không thể tạo hình ảnh. Vui lòng thử lại.", ja: "画像を生成できませんでした。もう一度お試しください。", zh: "生成图片失败，请重试。" },
+  newsWeeklyText: { es: "Texto del post", en: "Post text", th: "ข้อความโพสต์", fr: "Texte du post", vi: "Nội dung bài đăng", ja: "投稿テキスト", zh: "帖子文案" },
+  newsCopy: { es: "Copiar", en: "Copy", th: "คัดลอก", fr: "Copier", vi: "Sao chép", ja: "コピー", zh: "复制" },
+  newsCopied: { es: "¡Copiado!", en: "Copied!", th: "คัดลอกแล้ว!", fr: "Copié !", vi: "Đã sao chép!", ja: "コピーしました！", zh: "已复制！" },
   newsFilterFavs:  { es: "Favoritas",              en: "Favorites",                    th: "รายการโปรด" , fr: "Favoris" , vi: "Yêu thích" , ja: "お気に入り", zh: "收藏" },
   newsFilterAll:   { es: "Todas",                  en: "All",                          th: "ทั้งหมด" , fr: "Toutes" , vi: "Tất cả" , ja: "すべて", zh: "全部" },
   newsEmptyFavs:   { es: "No hay novedades en tus series favoritas ahora mismo.", en: "No news in your favorite series right now.", th: "ตอนนี้ยังไม่มีของใหม่ในซีรีส์โปรดของคุณ", fr: "Aucune nouveauté dans vos séries favorites pour le moment.", vi: "Hiện chưa có tin mới trong các series yêu thích của bạn.", ja: "現在お気に入りのシリーズに新着はありません。", zh: "你收藏的系列目前没有新品。" },
@@ -1067,20 +1094,34 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
 function useData() {
   const [data, setDataState] = useState<Series[]>([]);
   const [ready, setReady] = useState(false);
+  // Saving is only allowed once the catalogue has been loaded (or confirmed empty).
+  // A failed load must never end up overwriting the real catalogue with the defaults.
+  const canSave = useRef(false);
   useEffect(() => {
-    sbGet("wcf_data").then(row => {
+    sbGet("wcf_data").then(({ ok, row }) => {
       if (row && Array.isArray(row.data) && row.data.length > 0) {
         const migrated = row.data.map((s: Series) => ({ ...s, groups: s.groups ?? [] }));
         setDataState(migrated);
+        canSave.current = true;
       } else {
         setDataState(INITIAL_DATA);
-        sbUpsert("wcf_data", { data: INITIAL_DATA });
+        canSave.current = ok;
       }
       setReady(true);
     });
   }, []);
   const setData = (updater: Series[] | ((prev: Series[]) => Series[])) => {
-    setDataState(prev => { const next = typeof updater === "function" ? updater(prev) : updater; sbUpsert("wcf_data", { data: next }); return next; });
+    if (!canSave.current) {
+      alert("⚠️ El catálogo no se cargó bien, así que no se guardará ningún cambio. Recarga la página.");
+      return;
+    }
+    setDataState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      sbUpsert("wcf_data", { data: next }).then(saved => {
+        if (!saved) alert("⚠️ No se ha podido guardar el último cambio en el catálogo. Recarga la página y revisa antes de seguir editando.");
+      });
+      return next;
+    });
   };
   return { data, setData, ready };
 }
@@ -3429,7 +3470,7 @@ function loadImageAsync(src: string, crossOrigin?: boolean): Promise<HTMLImageEl
     // an "opaque" cache entry from an earlier plain (non-CORS) <img> load of the
     // same exact URL, which then fails CORS validation. A unique query string
     // forces a fresh network fetch under CORS mode every time.
-    img.src = crossOrigin ? src + (src.includes("?") ? "&" : "?") + "cb=" + Date.now() : src;
+    img.src = crossOrigin && !src.startsWith("data:") ? src + (src.includes("?") ? "&" : "?") + "cb=" + Date.now() : src;
   });
 }
 
@@ -3572,97 +3613,151 @@ async function generateStoryImage(item: Announcement, ctx: { figure: Figure; set
   URL.revokeObjectURL(url);
 }
 
-async function generateWeeklySummaryImage(weekItems: Announcement[], data: Series[]) {
-  type Entry = { item: Announcement; ctx: { figure: Figure; set: FigureSet; series: Series; group?: FigureGroup } };
-  const entries: Entry[] = [];
+type WeeklyEntry = { item: Announcement; ctx: { figure: Figure; set: FigureSet; series: Series; group?: FigureGroup } };
+type WeeklyBucket = { series: Series; entries: WeeklyEntry[] };
+type WeeklySegment = { bucket: WeeklyBucket; entries: WeeklyEntry[]; startCol: number; header: boolean };
+type WeeklyBand = { segments: WeeklySegment[]; used: number };
+type WeeklyPage = { buckets: WeeklyBucket[]; bands: WeeklyBand[]; height: number; sealed?: boolean };
+
+// Fixed geometry shared by the weekly image generator and its page planner.
+const WK = (() => {
+  const W = 1080, contentPad = 40, contentTop = 130, footerH = 96;
+  const cols = 5, gap = 22;
+  const size = (W - contentPad*2 - (cols - 1) * gap) / cols;
+  const tileLogoGap = 6, tileLogoH = 26;
+  const cellH = size + tileLogoGap + tileLogoH;
+  const headerH = 50;
+  const standardH = 1080, maxH = Math.round(W * 5 / 4);
+  return {
+    W, contentPad, contentTop, footerH, cols, gap, size, tileLogoGap, tileLogoH, cellH, headerH, standardH, maxH,
+    standardContentH: standardH - footerH - contentTop - 10,
+    maxContentH: maxH - footerH - contentTop - 10,
+  };
+})();
+
+// Groups this week's announcements by franchise NAME (so the official and the
+// resin "One Piece" end up in one block), keeping figures of the same studio/set
+// next to each other.
+function buildWeeklyBuckets(weekItems: Announcement[], data: Series[]): WeeklyBucket[] {
+  const map = new Map<string, WeeklyBucket>();
   for (const item of weekItems) {
     const ctx = findFigureContext(data, Number(item.figure_id));
-    if (ctx) entries.push({ item, ctx });
+    if (!ctx) continue;
+    const key = ctx.series.name.trim().toLowerCase();
+    const bucket = map.get(key) ?? { series: ctx.series, entries: [] };
+    if (!(bucket.series.logoHeader || bucket.series.logo) && (ctx.series.logoHeader || ctx.series.logo)) bucket.series = ctx.series;
+    bucket.entries.push({ item, ctx });
+    map.set(key, bucket);
   }
-  if (entries.length === 0) throw new Error("No figures resolved for this week");
+  const studioKey = (e: WeeklyEntry) => e.ctx.group ? `g${e.ctx.group.id}` : `s${e.ctx.set.id}`;
+  for (const b of map.values()) b.entries.sort((a, c) => studioKey(a).localeCompare(studioKey(c)));
+  return [...map.values()];
+}
 
-  const byFranchise = new Map<number, { series: Series; entries: Entry[] }>();
-  for (const e of entries) {
-    const bucket = byFranchise.get(e.ctx.series.id) ?? { series: e.ctx.series, entries: [] };
-    bucket.entries.push(e);
-    byFranchise.set(e.ctx.series.id, bucket);
+// Lays franchises out in rows ("bands") of 5 tiles. Small franchises (or the
+// leftover tiles of a bigger one) share a band, each with its own header, so
+// the page isn't mostly empty space.
+function layoutWeeklyBands(buckets: WeeklyBucket[]): { bands: WeeklyBand[]; height: number } {
+  const { cols, gap, cellH, headerH } = WK;
+  const bands: WeeklyBand[] = [];
+  const sorted = [...buckets].sort((a, b) => b.entries.length - a.entries.length);
+  for (const bucket of sorted) {
+    const full = Math.floor(bucket.entries.length / cols);
+    for (let i = 0; i < full; i++) {
+      bands.push({ segments: [{ bucket, entries: bucket.entries.slice(i * cols, (i + 1) * cols), startCol: 0, header: i === 0 }], used: cols });
+    }
+    const rest = bucket.entries.slice(full * cols);
+    if (rest.length === 0) continue;
+    let target = -1;
+    // A franchise's leftover tiles must stay below its own full rows, so only
+    // franchises that fit in a single row may slot into an earlier band.
+    if (full === 0) {
+      for (let i = 0; i < bands.length; i++) {
+        const free = cols - bands[i].used;
+        if (free >= rest.length && (target === -1 || free < cols - bands[target].used)) target = i;
+      }
+    }
+    if (target === -1) {
+      bands.push({ segments: [{ bucket, entries: rest, startCol: 0, header: full === 0 }], used: rest.length });
+    } else {
+      const band = bands[target];
+      band.segments.push({ bucket, entries: rest, startCol: band.used, header: true });
+      band.used += rest.length;
+    }
   }
+  // Inside a band: a header-less continuation stays first (right under its
+  // franchise's rows), the rest go smallest to largest so the widest block ends
+  // up on the right and a one-tile header never lands under the top-right logo.
+  for (const band of bands) {
+    const lead = band.segments[0].header ? [] : [band.segments[0]];
+    const others = band.segments.slice(lead.length).sort((a, b) => a.entries.length - b.entries.length);
+    band.segments = [...lead, ...others];
+    let col = 0;
+    for (const seg of band.segments) { seg.startCol = col; col += seg.entries.length; }
+  }
+  const height = bands.length === 0 ? 0
+    : bands.reduce((n, b) => n + (b.segments.some(sg => sg.header) ? headerH : 0) + cellH, 0) + (bands.length - 1) * gap;
+  return { bands, height };
+}
 
-  // A figure's own "studio" logo: the group's logo when it belongs to a resin
-  // group, or the set's own logo when that differs from the franchise logo
-  // already shown in the block header (skip it when it's just a duplicate).
-  const studioLogoFor = (e: Entry, seriesLogoSrc?: string): string | undefined => {
-    if (e.ctx.group?.logo) return e.ctx.group.logo;
-    if (e.ctx.set.seriesLogo && e.ctx.set.seriesLogo !== seriesLogoSrc) return e.ctx.set.seriesLogo;
-    return undefined;
-  };
-
-  const W = 1080;
-  const contentPad = 40;
-  const contentTop = 130;
-  const footerH = 96;
-  const contentWidth = W - contentPad*2;
-  const standardH = 1080;
-  const standardContentHeight = standardH - footerH - contentTop - 10;
-
-  // Fixed, readable tile size: always 5 per row, sized to fill the width.
-  const cols = 5;
-  const gap = 22;
-  const size = (contentWidth - (cols - 1) * gap) / cols;
-  const tileLogoGap = 6;
-  const tileLogoH = 26;
-  const cellH = size + tileLogoGap + tileLogoH;
-  const franchiseHeaderH = 54;
-  const blockGap = 26;
-
-  const blockHeight = (bucket: { entries: Entry[] }) => {
-    const rows = Math.ceil(bucket.entries.length / cols);
-    return franchiseHeaderH + rows * (cellH + gap) - gap;
-  };
-
-  // Paginate: keep adding franchises to the current post while they still fit
-  // the fixed tile size within one standard square canvas; start a new post
-  // otherwise. A franchise is NEVER split across two posts — if one alone is
-  // too tall even for a page by itself, it gets its own dedicated (taller, 4:5)
-  // page instead of being cropped or split. Biggest franchises first so a
-  // single big one doesn't awkwardly strand a tiny leftover sliver of another.
-  const franchiseList = [...byFranchise.values()].sort((a, b) => b.entries.length - a.entries.length);
-  const pages: { blocks: typeof franchiseList; contentH: number }[] = [];
-  for (const bucket of franchiseList) {
-    const h = blockHeight(bucket) + blockGap;
-    if (h > standardContentHeight) {
-      // Doesn't fit a standard page even alone \u2014 give it its own dedicated
-      // (taller) page rather than cropping or splitting it.
-      pages.push({ blocks: [bucket], contentH: h });
+// Splits the week into posts. A franchise is never split across two posts: it
+// goes whole into the first post that still has room. A franchise too big for a
+// standard square gets its own taller (up to 4:5) post; only one too big even
+// for that is cut into several posts.
+function planWeeklyPages(buckets: WeeklyBucket[]): WeeklyPage[] {
+  const { cols, gap, cellH, headerH, standardContentH, maxContentH } = WK;
+  const pages: WeeklyPage[] = [];
+  const sorted = [...buckets].sort((a, b) => b.entries.length - a.entries.length);
+  for (const bucket of sorted) {
+    const alone = layoutWeeklyBands([bucket]);
+    if (alone.height > standardContentH) {
+      if (alone.height <= maxContentH) { pages.push({ buckets: [bucket], ...alone, sealed: true }); continue; }
+      const perPage = Math.max(1, Math.floor((maxContentH - headerH + gap) / (cellH + gap))) * cols;
+      for (let i = 0; i < bucket.entries.length; i += perPage) {
+        const chunk: WeeklyBucket = { series: bucket.series, entries: bucket.entries.slice(i, i + perPage) };
+        pages.push({ buckets: [chunk], ...layoutWeeklyBands([chunk]), sealed: true });
+      }
       continue;
     }
-    // First-fit: drop it into the first already-started page that still has
-    // room, so small leftover franchises fill gaps instead of each starting a
-    // near-empty page of their own.
     let placed = false;
     for (const page of pages) {
-      if (page.contentH + h <= standardContentHeight) {
-        page.blocks.push(bucket);
-        page.contentH += h;
+      if (page.sealed) continue;
+      const trial = layoutWeeklyBands([...page.buckets, bucket]);
+      if (trial.height <= standardContentH) {
+        page.buckets.push(bucket); page.bands = trial.bands; page.height = trial.height;
         placed = true;
         break;
       }
     }
-    if (!placed) pages.push({ blocks: [bucket], contentH: h });
+    if (!placed) pages.push({ buckets: [bucket], ...alone });
   }
+  return pages;
+}
+
+// The small logo shown under a tile: the studio's (group) logo, or the set's own
+// logo when it differs from the franchise logo already shown in the header.
+function weeklyStudioLogoFor(e: WeeklyEntry, seriesLogoSrc?: string): string | undefined {
+  if (e.ctx.group?.logo) return e.ctx.group.logo;
+  if (e.ctx.set.seriesLogo && e.ctx.set.seriesLogo !== seriesLogoSrc) return e.ctx.set.seriesLogo;
+  return undefined;
+}
+
+const fmtWeeklyDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+async function generateWeeklySummaryImage(weekItems: Announcement[], data: Series[]) {
+  const buckets = buildWeeklyBuckets(weekItems, data);
+  if (buckets.length === 0) throw new Error("No figures resolved for this week");
+  const pages = planWeeklyPages(buckets);
+  const { W, contentPad, contentTop, footerH, gap, size, tileLogoGap, tileLogoH, cellH, headerH, standardH, maxH } = WK;
 
   const now = new Date();
   const weekAgoDate = new Date(Date.now() - 7*24*60*60*1000);
-  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-    const { blocks: pageBlocks, contentH } = pages[pageIndex];
-    const pageEntryCount = pageBlocks.reduce((n, b) => n + b.entries.length, 0);
-    // Cap page height at a 4:5 portrait (Instagram's tallest feed-friendly
-    // ratio) so an oversized single-franchise page still fits a normal post,
-    // extending only as far as actually needed for its content either way.
-    const maxH = Math.round(W * 5 / 4);
-    const H = Math.min(maxH, Math.max(standardH, contentTop + contentH + footerH + 10));
+    const page = pages[pageIndex];
+    const pageEntryCount = page.bands.reduce((n, b) => n + b.segments.reduce((m, sg) => m + sg.entries.length, 0), 0);
+    // Standard square, growing only as far as this page's content needs (max 4:5).
+    const H = Math.min(maxH, Math.max(standardH, contentTop + page.height + footerH + 10));
     const contentHeight = H - footerH - contentTop - 10;
 
     const canvas = document.createElement("canvas");
@@ -3690,7 +3785,7 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
     c.font = "500 24px Arial, sans-serif";
     c.fillStyle = "rgba(255,255,255,0.85)";
     const pageTag = pages.length > 1 ? `  ·  Part ${pageIndex+1}/${pages.length}` : "";
-    c.fillText(`${fmt(weekAgoDate)} – ${fmt(now)}  ·  ${pageEntryCount} figures${pageTag}`, W/2, 98);
+    c.fillText(`${fmtWeeklyDate(weekAgoDate)} – ${fmtWeeklyDate(now)}  ·  ${pageEntryCount} figures${pageTag}`, W/2, 98);
 
     // App logo (transparent PNG), overlaid top-right on the gradient.
     try {
@@ -3699,68 +3794,76 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
       c.drawImage(appLogo, W - contentPad - lw, 16, lw, lh);
     } catch {}
 
-    let y = contentTop + Math.max(0, (contentHeight - contentH) / 2);
+    let y = contentTop + Math.max(0, (contentHeight - page.height) / 2);
 
-    for (const bucket of pageBlocks) {
-      const seriesLogoSrc = bucket.series.logoHeader || bucket.series.logo;
-      let drewSeriesLogo = false;
-      if (seriesLogoSrc) {
-        try {
-          const logo = await loadImageAsync(seriesLogoSrc, true);
-          const lh = 44, lw = Math.min(220, logo.width * (lh/logo.height));
-          c.drawImage(logo, contentPad, y, lw, lh);
-          drewSeriesLogo = true;
-        } catch {}
-      }
-      if (!drewSeriesLogo) {
-        c.textAlign = "left";
-        c.fillStyle = "#ffffff";
-        c.font = "700 26px Arial, sans-serif";
-        c.fillText(bucket.series.name, contentPad, y + 28);
-      }
-      y += franchiseHeaderH;
+    for (const band of page.bands) {
+      const bandHasHeader = band.segments.some(sg => sg.header);
+      const tilesY = y + (bandHasHeader ? headerH : 0);
+      for (const seg of band.segments) {
+        const sx = contentPad + seg.startCol * (size + gap);
+        const segW = seg.entries.length * size + (seg.entries.length - 1) * gap;
+        const seriesLogoSrc = seg.bucket.series.logoHeader || seg.bucket.series.logo;
 
-      let col = 0;
-      for (const e of bucket.entries) {
-        const tx = contentPad + col * (size + gap);
-        roundRectPath(c, tx, y, size, size, 14);
-        c.fillStyle = "#ffffff";
-        c.fill();
-        if (e.item.image_url) {
-          try {
-            const img = await loadImageAsync(e.item.image_url, true);
-            const pad = size * 0.08;
-            const innerW = size - pad*2, innerH = size - pad*2;
-            const scale = Math.min(innerW/img.width, innerH/img.height);
-            const w = img.width*scale, h = img.height*scale;
-            c.save();
-            roundRectPath(c, tx, y, size, size, 14);
-            c.clip();
-            c.drawImage(img, tx + (size-w)/2, y + (size-h)/2, w, h);
-            c.restore();
-          } catch {}
+        if (seg.header) {
+          let drew = false;
+          if (seriesLogoSrc) {
+            try {
+              const logo = await loadImageAsync(seriesLogoSrc, true);
+              const scale = Math.min(44 / logo.height, (segW - 4) / logo.width);
+              const lw = logo.width * scale, lh = logo.height * scale;
+              c.drawImage(logo, sx, y + headerH - 6 - lh, lw, lh);
+              drew = true;
+            } catch {}
+          }
+          if (!drew) {
+            c.textAlign = "left";
+            c.fillStyle = "#ffffff";
+            let fs = 26;
+            c.font = `700 ${fs}px Arial, sans-serif`;
+            while (fs > 14 && c.measureText(seg.bucket.series.name).width > segW) { fs -= 1; c.font = `700 ${fs}px Arial, sans-serif`; }
+            c.fillText(seg.bucket.series.name, sx, y + headerH - 12);
+          }
         }
-        const studioLogoSrc = studioLogoFor(e, seriesLogoSrc);
-        if (studioLogoSrc) {
-          try {
-            const slogo = await loadImageAsync(studioLogoSrc, true);
-            const slh = tileLogoH, slw = Math.min(size, slogo.width * (slh/slogo.height));
-            c.drawImage(slogo, tx + (size-slw)/2, y + size + tileLogoGap, slw, slh);
-          } catch {}
+
+        for (let i = 0; i < seg.entries.length; i++) {
+          const e = seg.entries[i];
+          const tx = sx + i * (size + gap);
+          roundRectPath(c, tx, tilesY, size, size, 14);
+          c.fillStyle = "#ffffff";
+          c.fill();
+          if (e.item.image_url) {
+            try {
+              const img = await loadImageAsync(e.item.image_url, true);
+              const pad = size * 0.08;
+              const innerW = size - pad*2, innerH = size - pad*2;
+              const scale = Math.min(innerW/img.width, innerH/img.height);
+              const w = img.width*scale, h = img.height*scale;
+              c.save();
+              roundRectPath(c, tx, tilesY, size, size, 14);
+              c.clip();
+              c.drawImage(img, tx + (size-w)/2, tilesY + (size-h)/2, w, h);
+              c.restore();
+            } catch {}
+          }
+          const studioLogoSrc = weeklyStudioLogoFor(e, seriesLogoSrc);
+          if (studioLogoSrc) {
+            try {
+              const slogo = await loadImageAsync(studioLogoSrc, true);
+              const slh = tileLogoH, slw = Math.min(size, slogo.width * (slh/slogo.height));
+              c.drawImage(slogo, tx + (size-slw)/2, tilesY + size + tileLogoGap, slw, slh);
+            } catch {}
+          }
         }
-        col++;
-        if (col >= cols) { col = 0; y += cellH + gap; }
       }
-      if (col !== 0) y += cellH + gap;
-      y += blockGap - gap;
+      y += (bandHasHeader ? headerH : 0) + cellH + gap;
     }
 
     try {
       const stamp = await loadImageAsync(STORY_STAMP_URL);
-      const stampW = 420;
+      const stampW = 380;
       const scale = stampW / stamp.width;
       const stampH = stamp.height * scale;
-      c.drawImage(stamp, (W - stampW)/2, H - stampH - 26, stampW, stampH);
+      c.drawImage(stamp, (W - stampW)/2, H - stampH - 16, stampW, stampH);
     } catch {}
 
     const blob: Blob = await new Promise((resolve, reject) => {
@@ -3775,6 +3878,154 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
     URL.revokeObjectURL(url);
     if (pageIndex < pages.length - 1) await new Promise(r => setTimeout(r, 350));
   }
+}
+
+// ---- Ready-to-post captions (English) built from the same weekly data ----
+function weeklyEmojiFor(series: Series): string {
+  const n = series.name.toLowerCase();
+  const map: [RegExp, string][] = [
+    [/dragon ball/, "🐉"], [/one piece/, "🏴‍☠️"], [/naruto/, "🍥"], [/jujutsu/, "🧿"], [/hunter/, "🎯"],
+    [/king of fighters/, "🥊"], [/bleach/, "⚔️"], [/full ?metal/, "⚗️"], [/demon slayer|kimetsu/, "🗡️"],
+    [/hero academia/, "💥"], [/chainsaw/, "🪚"], [/kaiju/, "🦖"], [/blue lock/, "⚽"], [/jojo/, "✨"],
+    [/gintama/, "🍡"], [/gundam/, "🤖"], [/kamen rider/, "🦗"], [/attack on titan|shingeki/, "🛡️"],
+    [/lupin/, "🎩"], [/yu ?yu|hakusho/, "👊"], [/slime|tensei/, "💧"],
+  ];
+  for (const [re, em] of map) if (re.test(n)) return em;
+  return series.emoji && series.emoji !== "⭐" ? series.emoji : "✨";
+}
+
+function weeklyHashtag(series: Series): string {
+  return "#" + series.name.replace(/[^A-Za-z0-9 ]/g, " ").split(/\s+/)
+    .filter(w => w && w.toLowerCase() !== "the")
+    .map(w => w.length === 1 ? w.toLowerCase() : w[0].toUpperCase() + w.slice(1))
+    .join("");
+}
+
+function cleanStudioName(raw: string): string {
+  const base = raw.replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
+  return base.split(" ")
+    .map(w => /^[A-Z]{4,}$/.test(w) ? w[0] + w.slice(1).toLowerCase() : w)
+    .join(" ")
+    .replace(/\bstudio\b/i, "Studio");
+}
+
+function buildWeeklyCaptions(weekItems: Announcement[], data: Series[]): { instagram: string; facebook: string } | null {
+  const buckets = buildWeeklyBuckets(weekItems, data);
+  if (buckets.length === 0) return null;
+  const pageCount = planWeeklyPages(buckets).length;
+  const sorted = [...buckets].sort((a, b) => b.entries.length - a.entries.length);
+  const total = sorted.reduce((n, b) => n + b.entries.length, 0);
+
+  // Resin pieces are credited to their studio (the group, or the set for resin
+  // franchises without groups); everything else counts as official.
+  const studios = new Map<string, string>();
+  let official = 0;
+  for (const b of sorted) {
+    for (const e of b.entries) {
+      const raw = e.ctx.group ? e.ctx.group.name : (e.ctx.series.category === "resina" ? e.ctx.set.name : "");
+      if (!raw) { official++; continue; }
+      const name = cleanStudioName(raw);
+      if (!studios.has(name.toLowerCase())) studios.set(name.toLowerCase(), name);
+    }
+  }
+  const studioNames = [...studios.values()];
+  const joinList = (a: string[]) => a.length <= 1 ? (a[0] ?? "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+
+  const manyFranchises = sorted.length >= 4 ? `${sorted.length} franchises in a single week! ` : "";
+  const tags = [...new Set(sorted.map(b => weeklyHashtag(b.series)))].join(" ");
+  const swipeIG = pageCount > 1 ? "Swipe ➡️ to see them all. " : "";
+  const plural = (n: number) => n === 1 ? "figure" : "figures";
+
+  const igDetail = (manyFranchises
+    + (studioNames.length ? `Resin from ${joinList(studioNames)} ✨ ` : "")
+    + (official > 0 ? `Plus ${official} official WCF!` : "")).trim();
+  const instagram = [
+    "🆕 New This Week on WCF Checklist!",
+    "",
+    `${total} new ${plural(total)} just landed in the catalogue 👇`,
+    "",
+    sorted.map(b => `${weeklyEmojiFor(b.series)} ${b.series.name}: ${b.entries.length}`).join("\n"),
+    "",
+    ...(igDetail ? [igDetail, ""] : []),
+    `${swipeIG}Which one are you adding to your collection? ✅`,
+    "",
+    "🔗 Link in bio",
+    "",
+    `#WCF #WorldCollectableFigure #NewThisWeek ${tags}${studioNames.length ? " #WCFResin" : ""} #AnimeCollector #WCFChecklist #AnimeFigures`,
+  ].join("\n");
+
+  const now = new Date();
+  const weekAgoDate = new Date(Date.now() - 7*24*60*60*1000);
+  const fbDetail = (manyFranchises
+    + (studioNames.length ? `Resin pieces from ${joinList(studioNames)}. ` : "")
+    + (official > 0 ? `We also added ${official} official WCF. ` : "")
+    + (pageCount > 1 ? "Swipe through the images to see the full recap." : "")).trim();
+  const facebook = [
+    "🆕 New This Week on WCF Checklist!",
+    "",
+    `${total} new ${plural(total)} were added to the catalogue between ${fmtWeeklyDate(weekAgoDate)} and ${fmtWeeklyDate(now)}.`,
+    "",
+    sorted.map(b => `${weeklyEmojiFor(b.series)} ${b.series.name}: ${b.entries.length} new ${plural(b.entries.length)}`).join("\n"),
+    "",
+    ...(fbDetail ? [fbDetail, ""] : []),
+    "Which one are you most excited about? Let us know in the comments 👇",
+    "",
+    "🔗 Track your collection at wcfchecklist.com",
+    "",
+    `#WCF #NewThisWeek ${tags} #WCFChecklist #AnimeFigures`,
+  ].join("\n");
+
+  return { instagram, facebook };
+}
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }
+}
+
+function WeeklyTextModal({ instagram, facebook, onClose }: { instagram: string; facebook: string; onClose: ()=>void }) {
+  const { t } = useTr();
+  const [copied, setCopied] = useState<"ig" | "fb" | null>(null);
+  const copy = async (which: "ig" | "fb", text: string) => {
+    await copyToClipboard(text);
+    setCopied(which);
+    setTimeout(() => setCopied(null), 1500);
+  };
+  const block = (which: "ig" | "fb", label: string, text: string) => (
+    <div style={{marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <div style={{fontSize:13,fontWeight:700}}>{label}</div>
+        <button onClick={()=>copy(which, text)}
+          style={{padding:"5px 14px",borderRadius:16,border:"none",background:copied===which?"#16a34a":"#0196e3",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+          {copied===which ? t("newsCopied") : t("newsCopy")}
+        </button>
+      </div>
+      <textarea readOnly value={text} onFocus={e=>e.currentTarget.select()} rows={15}
+        style={{width:"100%",boxSizing:"border-box",fontSize:12,lineHeight:1.45,padding:10,borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",resize:"vertical",fontFamily:"inherit"}} />
+    </div>
+  );
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:330,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:16,width:"100%",maxWidth:520,maxHeight:"90vh",overflowY:"auto",padding:18,boxShadow:"0 8px 32px rgba(0,0,0,0.35)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontSize:15,fontWeight:700}}>📝 {t("newsWeeklyText")}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--text3)"}}>×</button>
+        </div>
+        {block("ig", "Instagram", instagram)}
+        {block("fb", "Facebook", facebook)}
+      </div>
+    </div>
+  );
 }
 
 type Announcement = { id:number; figure_id:string; image_url:string; title:string; franchise_id:string; created_at:string };
@@ -3815,6 +4066,7 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
   const [index, setIndex] = useState(0);
   const [generatingStory, setGeneratingStory] = useState(false);
   const [generatingWeekly, setGeneratingWeekly] = useState(false);
+  const [weeklyText, setWeeklyText] = useState<{ instagram: string; facebook: string } | null>(null);
   useEffect(() => { setIndex(0); }, [showAll]);
   const item = items[index] ?? null;
   const ctx = item ? findFigureContext(data, Number(item.figure_id)) : null;
@@ -3830,7 +4082,7 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
           </div>
         )}
         {isAdmin && (
-          <div style={{padding:"10px 12px 0",flexShrink:0}}>
+          <div style={{padding:"10px 12px 0",flexShrink:0,display:"flex",gap:6}}>
             <button disabled={generatingWeekly} onClick={async()=>{
                 const weekAgo = Date.now() - 7*24*60*60*1000;
                 const weekItems = allItems.filter(a => new Date(a.created_at).getTime() >= weekAgo);
@@ -3840,9 +4092,20 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
                 catch (e) { console.error("Weekly summary error:", e); alert(t("newsWeeklyError")); }
                 setGeneratingWeekly(false);
               }}
-              style={{width:"100%",padding:"7px",borderRadius:8,border:"1px dashed rgba(255,255,255,0.35)",background:"rgba(255,255,255,0.06)",color:"var(--text3)",fontSize:11,fontWeight:600,cursor:generatingWeekly?"default":"pointer",opacity:generatingWeekly?0.6:1}}>
+              style={{flex:1,padding:"7px",borderRadius:8,border:"1px dashed rgba(255,255,255,0.35)",background:"rgba(255,255,255,0.06)",color:"var(--text3)",fontSize:11,fontWeight:600,cursor:generatingWeekly?"default":"pointer",opacity:generatingWeekly?0.6:1}}>
               {generatingWeekly ? "…" : `📅 ${t("newsWeeklySummary")}`}
             </button>
+            <button onClick={()=>{
+                const weekAgo = Date.now() - 7*24*60*60*1000;
+                const weekItems = allItems.filter(a => new Date(a.created_at).getTime() >= weekAgo);
+                const captions = buildWeeklyCaptions(weekItems, data);
+                if (!captions) { alert(t("newsWeeklyEmpty")); return; }
+                setWeeklyText(captions);
+              }}
+              style={{flex:1,padding:"7px",borderRadius:8,border:"1px dashed rgba(255,255,255,0.35)",background:"rgba(255,255,255,0.06)",color:"var(--text3)",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+              {`📝 ${t("newsWeeklyText")}`}
+            </button>
+            {weeklyText && <WeeklyTextModal instagram={weeklyText.instagram} facebook={weeklyText.facebook} onClose={()=>setWeeklyText(null)} />}
           </div>
         )}
         {item && (
