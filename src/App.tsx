@@ -6,6 +6,16 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 // ============================================================
 const CHANGELOG = [
   {
+    id: 15,
+    date: "2026-11-03",
+    entries: [
+      "🎨 New: browse resin figures by studio — open Database → Studios to see everything a studio has released, and how much of it you own",
+      "🆕 Figures featured in the last few days now carry a NEW tag, so you can spot them while you browse",
+      "📅 Monthly recap: a summary of the figures featured each month now shows up right here in What's new",
+      "📲 Installing the app is now one tap away on iPhone and iPad too",
+    ]
+  },
+  {
     id: 14,
     date: "2026-09-23",
     entries: [
@@ -432,6 +442,16 @@ const T = {
   newsStoryError:  { es: "No se pudo generar la imagen. Inténtalo de nuevo.", en: "Couldn't generate the image. Please try again.", th: "สร้างรูปภาพไม่สำเร็จ ลองอีกครั้ง", fr: "Impossible de générer l'image. Réessayez.", vi: "Không thể tạo hình ảnh. Vui lòng thử lại.", ja: "画像を生成できませんでした。もう一度お試しください。", zh: "生成图片失败，请重试。" },
   newsWeeklySummary: { es: "Resumen semanal", en: "Weekly summary", th: "สรุปประจำสัปดาห์", fr: "Résumé hebdomadaire", vi: "Tổng kết tuần", ja: "週間まとめ", zh: "每周汇总" },
   newsWeeklyEmpty: { es: "No se ha marcado ninguna figura como novedad esta semana.", en: "No figures were marked as new this week.", th: "ยังไม่มีการทำเครื่องหมายฟิกเกอร์ใหม่ในสัปดาห์นี้", fr: "Aucune figurine marquée comme nouvelle cette semaine.", vi: "Chưa có mô hình nào được đánh dấu là mới trong tuần này.", ja: "今週新着としてマークされたフィギュアはありません。", zh: "本周还没有标记为新品的手办。" },
+  newBadge: { es: "NUEVO", en: "NEW", th: "ใหม่", fr: "NOUVEAU", vi: "MỚI", ja: "新着", zh: "新品" },
+  studiosTab: { es: "Estudios", en: "Studios", th: "สตูดิโอ", fr: "Studios", vi: "Studio", ja: "スタジオ", zh: "工作室" },
+  studiosSearch: { es: "Buscar estudio…", en: "Search studio…", th: "ค้นหาสตูดิโอ…", fr: "Rechercher un studio…", vi: "Tìm studio…", ja: "スタジオを検索…", zh: "搜索工作室…" },
+  studiosBack: { es: "← Estudios", en: "← Studios", th: "← สตูดิโอ", fr: "← Studios", vi: "← Studio", ja: "← スタジオ", zh: "← 工作室" },
+  studiosFigures: { es: "figuras", en: "figures", th: "ฟิกเกอร์", fr: "figurines", vi: "mô hình", ja: "体", zh: "件" },
+  studiosFigure: { es: "figura", en: "figure", th: "ฟิกเกอร์", fr: "figurine", vi: "mô hình", ja: "体", zh: "件" },
+  studiosFranchise: { es: "serie", en: "franchise", th: "ซีรีส์", fr: "série", vi: "series", ja: "シリーズ", zh: "系列" },
+  studiosFranchises: { es: "series", en: "franchises", th: "ซีรีส์", fr: "séries", vi: "series", ja: "シリーズ", zh: "系列" },
+  studiosShowMore: { es: "Ver más", en: "Show more", th: "ดูเพิ่มเติม", fr: "Voir plus", vi: "Xem thêm", ja: "もっと見る", zh: "查看更多" },
+  studiosEmpty: { es: "No se encontraron estudios.", en: "No studios found.", th: "ไม่พบสตูดิโอ", fr: "Aucun studio trouvé.", vi: "Không tìm thấy studio.", ja: "スタジオが見つかりません。", zh: "未找到工作室。" },
   newsWeeklyError: { es: "No se pudo generar la imagen. Inténtalo de nuevo.", en: "Couldn't generate the image. Please try again.", th: "สร้างรูปภาพไม่สำเร็จ ลองอีกครั้ง", fr: "Impossible de générer l'image. Réessayez.", vi: "Không thể tạo hình ảnh. Vui lòng thử lại.", ja: "画像を生成できませんでした。もう一度お試しください。", zh: "生成图片失败，请重试。" },
   newsWeeklyText: { es: "Texto del post", en: "Post text", th: "ข้อความโพสต์", fr: "Texte du post", vi: "Nội dung bài đăng", ja: "投稿テキスト", zh: "帖子文案" },
   newsCopy: { es: "Copiar", en: "Copy", th: "คัดลอก", fr: "Copier", vi: "Sao chép", ja: "コピー", zh: "复制" },
@@ -641,6 +661,8 @@ function LangProvider({ value, children }: { value: { t: (key: TKey, ...args: un
 const useTr = () => useContext(LangCtx);
 
 const AdminCtx = createContext(false);
+// Ids of figures featured as news in the last few days (they get a NEW tag).
+const NewFigureCtx = createContext<Set<number>>(new Set());
 const useAdmin = () => useContext(AdminCtx);
 
 const UserInfoCtx = createContext<{email:string|null; name:string|null; avatar:string|null}>({email:null, name:null, avatar:null});
@@ -1422,6 +1444,14 @@ function ImageUploader({ apiKey: _apiKey, currentUrl, onUploaded, label, aspectR
 // ============================================================
 //  UI HELPERS
 // ============================================================
+function NewTag() {
+  const { t } = useTr();
+  return (
+    <span style={{display:"inline-block",background:"#dc2626",color:"#fff",fontSize:8,fontWeight:800,lineHeight:1,padding:"2px 4px",borderRadius:4,marginRight:4,verticalAlign:"1px",letterSpacing:0.3}}>
+      {t("newBadge")}
+    </span>
+  );
+}
 function ProgressBar({ value, total, color }: { value:number; total:number; color:string }) {
   const pct = total ? Math.round(value/total*100) : 0;
   return (
@@ -1636,6 +1666,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
 }) {
   const { t } = useTr();
   const isAdmin = useAdmin();
+  const isNew = useContext(NewFigureCtx).has(figure.id);
   const [imgError,setImgError]=useState(false); const [hover,setHover]=useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const retryCount = useRef(0);
@@ -1762,7 +1793,7 @@ function FigureCard({ figure, color, isOwned, isWished, onToggle, onToggleWish, 
         )}
       </div>
       <div style={{padding:"8px 10px 10px"}}>
-        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:(figure.altImages?.length ?? 0) > 0 ? 4 : 5}}>{figure.name}</div>
+        <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:(figure.altImages?.length ?? 0) > 0 ? 4 : 5}}>{isNew && <NewTag />}{figure.name}</div>
         {(figure.altImages?.length ?? 0) > 0 && (
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,marginBottom:5}}>
             {["A", ...(figure.altImages ?? []).map((_,i)=>["B","C"][i])].map(letter => (
@@ -2065,6 +2096,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
 function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, onToggle, onToggleWish, onEdit, compact=false, hideIcons=false, communityOwned=0, communityWished=0, userId, userPhotoCount=0 }: { figure:Figure; series:Series; set:FigureSet; groupName?:string; isOwned:boolean; isWished:boolean; onToggle:()=>void; onToggleWish:()=>void; onEdit?:(f:Omit<Figure,"id">)=>void; compact?:boolean; hideIcons?:boolean; communityOwned?:number; communityWished?:number; userId?:string; userPhotoCount?:number }) {
   const { t, lang } = useTr();
   const isAdmin = useAdmin();
+  const isNew = useContext(NewFigureCtx).has(figure.id);
   const [imgError,setImgError]=useState(false); const hasImage = !!figure.image && !imgError;
   const retryCount = useRef(0);
   const [hover, setHover]=useState(false);
@@ -2133,7 +2165,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
         </div>
         {compact ? <>
           {/* Line 2 — figure name, 1 line, shrinking font */}
-          <div style={{fontWeight:600,lineHeight:1.3,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontSize:figure.name.length>14?9:figure.name.length>10?10:11}}>{figure.name}</div>
+          <div style={{fontWeight:600,lineHeight:1.3,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontSize:figure.name.length>14?9:figure.name.length>10?10:11}}>{isNew && <NewTag />}{figure.name}</div>
           {/* Line 3 — group (resina) or set name */}
           <div style={{fontSize:9,color:"var(--text4)",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
             {series.category==="resina" && groupName ? groupName : set.name}
@@ -2143,7 +2175,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
             {series.category==="resina" ? `📅 ${set.name}` : (set.releaseDate ? `📅 ${formatDateFull(set.releaseDate)}` : "")}
           </div>
         </> : <>
-          <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{figure.name}</div>
+          <div style={{fontSize:12,fontWeight:600,lineHeight:1.3,marginBottom:3,height:"2.6em",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{isNew && <NewTag />}{figure.name}</div>
           <div style={{fontSize:11,color:"var(--text4)",marginBottom:2}}>{groupName && series.category==="resina" ? `${groupName} ${set.name}` : set.name}</div>
           {set.releaseDate && <div style={{fontSize:11,color:"var(--text4)",marginBottom:4}}>📅 {formatDate(set.releaseDate)}</div>}
           <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:isOwned?series.color:isWished?"#d97706":"var(--text4)",fontWeight:(isOwned||isWished)?600:400,cursor:"pointer"}}>
@@ -3291,6 +3323,124 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
 // ============================================================
 //  SERIES GRID — draggable card grid
 // ============================================================
+// ---- Browse resin figures by studio ----
+type StudioEntry = { figure: Figure; set: FigureSet; series: Series };
+type StudioFranchise = { name: string; series: Series; items: StudioEntry[] };
+type StudioInfo = { key: string; name: string; logo?: string; total: number; franchises: StudioFranchise[] };
+
+function buildStudios(data: Series[]): StudioInfo[] {
+  const map = new Map<string, { name: string; logo?: string; byFranchise: Map<string, StudioFranchise> }>();
+  const add = (rawName: string, logo: string | undefined, series: Series, set: FigureSet) => {
+    const name = cleanStudioName(rawName);
+    if (!name || (set.figures ?? []).length === 0) return;
+    const key = name.toLowerCase();
+    const studio = map.get(key) ?? { name, logo, byFranchise: new Map<string, StudioFranchise>() };
+    if (!studio.logo && logo) studio.logo = logo;
+    const frKey = series.name.trim().toLowerCase();
+    const fr = studio.byFranchise.get(frKey) ?? { name: series.name, series, items: [] };
+    for (const figure of set.figures) fr.items.push({ figure, set, series });
+    studio.byFranchise.set(frKey, fr);
+    map.set(key, studio);
+  };
+  for (const series of data) {
+    if (series.category !== "resina") continue;
+    for (const group of series.groups ?? []) for (const set of group.sets ?? []) add(group.name, group.logo, series, set);
+    for (const set of series.sets ?? []) add(set.name, set.seriesLogo, series, set);
+  }
+  return [...map.entries()]
+    .map(([key, s]) => {
+      const franchises = [...s.byFranchise.values()].sort((a, b) => b.items.length - a.items.length);
+      return { key, name: s.name, logo: s.logo, franchises, total: franchises.reduce((n, f) => n + f.items.length, 0) };
+    })
+    .sort((a, b) => b.total - a.total);
+}
+
+function StudiosBrowser({ data, owned, onOpenFigure }: { data: Series[]; owned: Set<number>; onOpenFigure: (ctx: StudioEntry) => void }) {
+  const { t } = useTr();
+  const newIds = useContext(NewFigureCtx);
+  const studios = useMemo(() => buildStudios(data), [data]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [limits, setLimits] = useState<Record<string, number>>({});
+  const ownedIn = (items: StudioEntry[]) => items.reduce((n, e) => n + (owned.has(e.figure.id) ? 1 : 0), 0);
+  const selected = selectedKey ? studios.find(s => s.key === selectedKey) ?? null : null;
+
+  if (!selected) {
+    const q = query.trim().toLowerCase();
+    const list = q ? studios.filter(s => s.name.toLowerCase().includes(q)) : studios;
+    return (
+      <div>
+        <input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("studiosSearch")}
+          style={{width:"100%",boxSizing:"border-box",padding:"8px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:10}} />
+        {list.length === 0 && <div style={{textAlign:"center",padding:"3rem 1rem",color:"var(--text4)",fontSize:14}}>{t("studiosEmpty")}</div>}
+        {list.map(s => (
+          <div key={s.key} onClick={()=>setSelectedKey(s.key)}
+            style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",border:"1px solid var(--border)",borderRadius:12,marginBottom:8,cursor:"pointer",background:"var(--bg)"}}>
+            <div style={{width:96,flexShrink:0,display:"flex",justifyContent:"center"}}>
+              {s.logo ? <img src={s.logo} alt={s.name} loading="lazy" style={{maxWidth:96,maxHeight:34,objectFit:"contain"}} /> : <span style={{fontSize:24}}>🎨</span>}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.name}</div>
+              <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>{s.total} {s.total === 1 ? t("studiosFigure") : t("studiosFigures")} · {s.franchises.length} {s.franchises.length === 1 ? t("studiosFranchise") : t("studiosFranchises")}</div>
+              <ProgressBar value={ownedIn(s.franchises.flatMap(f => f.items))} total={s.total} color="#0196e3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <button onClick={()=>setSelectedKey(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)",marginBottom:12}}>{t("studiosBack")}</button>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+        {selected.logo && <img src={selected.logo} alt={selected.name} style={{maxWidth:110,maxHeight:40,objectFit:"contain"}} />}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:800}}>{selected.name}</div>
+          <ProgressBar value={ownedIn(selected.franchises.flatMap(f => f.items))} total={selected.total} color="#0196e3" />
+        </div>
+      </div>
+      {selected.franchises.map(fr => {
+        const limitKey = `${selected.key}|${fr.name}`;
+        const limit = limits[limitKey] ?? 60;
+        const logoSrc = fr.series.logoHeader || fr.series.logo;
+        return (
+          <div key={fr.name} style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              {logoSrc ? <img src={logoSrc} alt={fr.name} style={{height:28,maxWidth:130,objectFit:"contain"}} /> : <span style={{fontSize:14,fontWeight:700}}>{fr.series.emoji} {fr.name}</span>}
+              <span style={{marginLeft:"auto",fontSize:11,color:"var(--text3)"}}>{ownedIn(fr.items)}/{fr.items.length}</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))",gap:8}}>
+              {fr.items.slice(0, limit).map(entry => (
+                <div key={entry.figure.id} onClick={()=>onOpenFigure(entry)}
+                  style={{cursor:"pointer",border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",background:"var(--bg)"}}>
+                  <div style={{position:"relative",aspectRatio:"1",background:"var(--missing-bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {entry.figure.image
+                      ? <img src={entry.figure.image} alt={entry.figure.name} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                      : <span style={{fontSize:28}}>{entry.figure.emoji}</span>}
+                    {owned.has(entry.figure.id) && (
+                      <div style={{position:"absolute",bottom:4,left:4,width:18,height:18,borderRadius:"50%",background:"#0196e3",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>✓</div>
+                    )}
+                  </div>
+                  <div style={{padding:"4px 6px 6px",fontSize:10,fontWeight:600,lineHeight:1.25,height:"2.6em",overflow:"hidden"}}>
+                    {newIds.has(entry.figure.id) && <NewTag />}{entry.figure.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {fr.items.length > limit && (
+              <button onClick={()=>setLimits(l => ({ ...l, [limitKey]: limit + 60 }))}
+                style={{width:"100%",marginTop:10,padding:"8px",borderRadius:10,border:"none",background:"var(--bg2)",color:"var(--text3)",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                {t("studiosShowMore")} ({fr.items.length - limit})
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   series: Series[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
   onSelect:(id:number)=>void; onReorder:(from:number,to:number)=>void;
@@ -3394,11 +3544,9 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
 // ============================================================
 //  CHANGELOG MODAL
 // ============================================================
-function ChangelogModal({ onClose }: { onClose:()=>void }) {
+function ChangelogModal({ onClose, digests }: { onClose:()=>void; digests: MonthlyDigest[] }) {
   const { t, lang } = useTr();
   const [showAll, setShowAll] = useState(false);
-  const sorted = [...CHANGELOG].sort((a,b)=>b.id-a.id);
-  const latest = sorted[0];
   const MONTHS_FULL: Record<string,string[]> = {
     es:["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
     en:["January","February","March","April","May","June","July","August","September","October","November","December"],
@@ -3409,7 +3557,23 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
     th:["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],
   };
   const formatDate = (d:string) => { const [y,m,day]=d.split("-"); return `${parseInt(day)} ${MONTHS_FULL[lang][parseInt(m)-1]} ${y}`; };
-  const items = showAll ? sorted : [latest];
+  const regular = CHANGELOG.map(c => ({ key: `c${c.id}`, sortDate: c.date, label: formatDate(c.date), entries: c.entries }))
+    .sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+  // Monthly recap, sorted as if published on the 1st of the following month.
+  const recaps = digests.map(d => {
+    const nextMonth = d.month === 12 ? 1 : d.month + 1;
+    const nextYear = d.month === 12 ? d.year + 1 : d.year;
+    const top = d.byFranchise.slice(0, 8).map(f => `　　${f.name} → ${f.count}`);
+    const more = d.byFranchise.length - 8;
+    return {
+      key: `d${d.id}`,
+      sortDate: `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`,
+      label: `${MONTHS_FULL[lang][d.month - 1]} ${d.year}`,
+      entries: [`📅 ${d.total} new WCF featured this month`, ...top, ...(more > 0 ? [`　　…and ${more} more`] : [])],
+    };
+  }).sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+  const everything = [...regular, ...recaps].sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+  const items = showAll ? everything : [regular[0], recaps[0]].filter(Boolean).sort((a, b) => b.sortDate.localeCompare(a.sortDate));
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
@@ -3422,8 +3586,8 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
         </div>
         <div style={{overflowY:"auto",flex:1}}>
           {items.map(entry=>(
-            <div key={entry.id} style={{marginBottom:16}}>
-              <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,fontWeight:600}}>{formatDate(entry.date)}</div>
+            <div key={entry.key} style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,fontWeight:600}}>{entry.label}</div>
               {entry.entries.map((e,i)=>(
                 <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"5px 0",borderBottom:"1px solid var(--border)"}}>
                   <span style={{color:"#0174b0",flexShrink:0,marginTop:1}}>•</span>
@@ -3439,7 +3603,7 @@ function ChangelogModal({ onClose }: { onClose:()=>void }) {
           <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" style={{display:"flex",textDecoration:"none"}} title="Facebook"><FacebookIcon size={20} /></a>
         </div>
         <div style={{display:"flex",gap:8,marginTop:12,flexShrink:0}}>
-          {!showAll && CHANGELOG.length>1 && (
+          {!showAll && everything.length>items.length && (
             <button onClick={()=>setShowAll(true)}
               style={{flex:1,padding:"9px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text3)",cursor:"pointer",fontSize:12}}>
               {t("changelogHistory")}
@@ -4048,6 +4212,46 @@ function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
   const allItems = !favouritesReady ? [] : all;
   const maxId = all.reduce((m,a)=>Math.max(m,a.id), 0);
   return { favItems, allItems, maxId, loaded: loaded && favouritesReady };
+}
+
+const isStandaloneDisplay = () =>
+  window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+// ---- Monthly recap of the figures featured as news (shown inside "What's new") ----
+type MonthlyDigest = { id: number; year: number; month: number; total: number; byFranchise: { name: string; count: number }[] };
+
+function useMonthlyDigests(data: Series[]): MonthlyDigest[] {
+  const [rows, setRows] = useState<{ franchise_id: string; created_at: string }[]>([]);
+  useEffect(() => {
+    supabase.from("wcf_announcements").select("franchise_id,created_at").eq("active", true)
+      .gte("created_at", new Date(Date.now() - 130*24*60*60*1000).toISOString()).limit(2000)
+      .then(({ data: r, error }) => { if (!error && r) setRows(r as { franchise_id: string; created_at: string }[]); });
+  }, []);
+  return useMemo(() => {
+    if (rows.length === 0 || data.length === 0) return [];
+    const nameById = new Map(data.map(s => [String(s.id), s.name.trim()]));
+    const now = new Date();
+    const currentKey = now.getFullYear() * 100 + now.getMonth() + 1;
+    const months = new Map<number, Map<string, number>>();
+    for (const r of rows) {
+      const d = new Date(r.created_at);
+      const key = d.getFullYear() * 100 + d.getMonth() + 1;
+      if (key >= currentKey) continue; // completed months only
+      const name = nameById.get(String(r.franchise_id));
+      if (!name) continue;
+      const m = months.get(key) ?? new Map<string, number>();
+      m.set(name, (m.get(name) ?? 0) + 1);
+      months.set(key, m);
+    }
+    return [...months.entries()]
+      .map(([key, m]) => {
+        const byFranchise = [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+        return { id: key, year: Math.floor(key / 100), month: key % 100, total: byFranchise.reduce((n, f) => n + f.count, 0), byFranchise };
+      })
+      .filter(d => d.total >= 3)
+      .sort((a, b) => b.id - a.id)
+      .slice(0, 3);
+  }, [rows, data]);
 }
 
 function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favItems: Announcement[]; allItems: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
@@ -5687,18 +5891,24 @@ function MainApp() {
   }, [authReady, user]);
   const [installPrompt, setInstallPrompt] = useState<Event|null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const [showIOSBanner, setShowIOSBanner] = useState(() => isIOS && !localStorage.getItem("wcf_ios_banner_dismissed") && !window.matchMedia('(display-mode: standalone)').matches);
+  const [isInstalled, setIsInstalled] = useState(() => isStandaloneDisplay());
+  // iPadOS 13+ reports itself as a Mac, so it's detected by its touch screen.
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const [showIOSBanner, setShowIOSBanner] = useState(() => isIOS && !localStorage.getItem("wcf_ios_banner_dismissed") && !isStandaloneDisplay());
 
   useEffect(() => {
     // Check if already installed as PWA
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (isStandaloneDisplay()) {
       setIsInstalled(true);
     }
     const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); setShowInstallBanner(true); };
+    const onInstalled = () => { setIsInstalled(true); setInstallPrompt(null); setShowInstallBanner(false); setShowIOSBanner(false); };
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const latestId = Math.max(...CHANGELOG.map(c=>c.id));
@@ -5717,6 +5927,12 @@ function MainApp() {
     }
   }, [newsLoaded]);
   const closeNewsModal = () => { markAnnouncementsSeen(newsMaxId); setShowNewsModal(false); };
+  const newFigureIds = useMemo(() => new Set(newsAllItems.map(a => Number(a.figure_id))), [newsAllItems]);
+  const digests = useMonthlyDigests(data);
+  useEffect(() => {
+    // A new monthly recap opens "What's new" once.
+    if (digests.length > 0 && parseInt(localStorage.getItem("wcf_digest_seen") ?? "0") < digests[0].id) setShowChangelog(true);
+  }, [digests]);
   const apiKey = imgbbKey;
 
   const requireLogin = (fn: ()=>void) => {
@@ -5841,6 +6057,7 @@ function MainApp() {
     if(scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [dbSelectedSeries]);
   const [dbActiveCategory, setDbActiveCategory] = useState<CategoryType>("oficial");
+  const [dbStudioView, setDbStudioView] = useState(false);
 
   // Favourites — stored in localStorage
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
@@ -6027,8 +6244,11 @@ function MainApp() {
             {newsItems.some(a=>a.id>lastSeenAnnouncementId) && <span style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:"#ff4d4f",border:"1px solid #fff"}} />}
           </button>
         )}
-        {!isInstalled && installPrompt && (
-          <button onClick={()=>{ (installPrompt as any).prompt(); }}
+        {!isInstalled && (installPrompt || isIOS) && (
+          <button onClick={()=>{
+              if (installPrompt) { (installPrompt as any).prompt(); }
+              else { localStorage.removeItem("wcf_ios_banner_dismissed"); setShowIOSBanner(true); }
+            }}
             style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:12}} title={t("installBtn")}>📲</button>
         )}
         <button onClick={()=>window.open("https://ko-fi.com/wcf_checklist","_blank")}
@@ -6500,14 +6720,20 @@ function MainApp() {
             <>
               <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
                 {(["oficial","resina"] as CategoryType[]).map(cat=>(
-                  <button key={cat} onClick={()=>{setDbActiveCategory(cat);setDbSelectedSeries(null);}}
-                    style={{padding:"6px 14px",fontSize:12,fontWeight:dbActiveCategory===cat?700:400,border:"1px solid var(--border)",borderRadius:20,background:dbActiveCategory===cat?"var(--text)":"var(--bg)",color:dbActiveCategory===cat?"var(--bg)":"var(--text3)",cursor:"pointer"}}>
+                  <button key={cat} onClick={()=>{setDbActiveCategory(cat);setDbSelectedSeries(null);setDbStudioView(false);}}
+                    style={{padding:"6px 14px",fontSize:12,fontWeight:(dbActiveCategory===cat && !dbStudioView)?700:400,border:"1px solid var(--border)",borderRadius:20,background:(dbActiveCategory===cat && !dbStudioView)?"var(--text)":"var(--bg)",color:(dbActiveCategory===cat && !dbStudioView)?"var(--bg)":"var(--text3)",cursor:"pointer"}}>
                     {cat==="oficial"?t("official"):t("resin")} <span style={{opacity:0.6,fontSize:10}}>{catOwned(cat)}/{catTotal(cat)}</span>
                   </button>
                 ))}
+                <button onClick={()=>{setDbStudioView(true);setDbSelectedSeries(null);}}
+                  style={{padding:"6px 14px",fontSize:12,fontWeight:dbStudioView?700:400,border:"1px solid var(--border)",borderRadius:20,background:dbStudioView?"var(--text)":"var(--bg)",color:dbStudioView?"var(--bg)":"var(--text3)",cursor:"pointer"}}>
+                  🎨 {t("studiosTab")}
+                </button>
                 {isAdmin && <Btn small onClick={()=>setShowAddSeries(true)} variant="primary">{t("newSeries")}</Btn>}
               </div>
-              {dbFilteredSeries.length===0
+              {dbStudioView
+                ? <StudiosBrowser data={data} owned={owned} onOpenFigure={(ctx)=>setDetailFigureCol(ctx)} />
+                : dbFilteredSeries.length===0
                 ? <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSeriesCat1")}</div>
                 : <SeriesGrid
                     series={dbFilteredSeries}
@@ -6646,12 +6872,14 @@ function MainApp() {
       <UserInfoCtx.Provider value={{email: user?.email ?? null, name: user?.name ?? null, avatar: user?.avatar ?? null}}>
       <AdminCtx.Provider value={isAdmin}>
         <SeriesDataCtx.Provider value={data}>
+          <NewFigureCtx.Provider value={newFigureIds}>
           <DragCtx.Provider value={{dragging:dragState, setDragging:setDragState}}>
             {appContent}
-            {showChangelog && <ChangelogModal onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); setShowChangelog(false); }} />}
+            {showChangelog && <ChangelogModal digests={digests} onClose={()=>{ localStorage.setItem("wcf_changelog_seen", String(latestId)); if (digests.length > 0) localStorage.setItem("wcf_digest_seen", String(digests[0].id)); setShowChangelog(false); }} />}
             {showNewsModal && <NewsModal favItems={newsItems} allItems={newsAllItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={closeNewsModal} />}
             {showNewsHistory && <NewsModal favItems={newsItems} allItems={newsAllItems} data={data} onOpenDetail={(figureId)=>{ const ctx = findFigureContext(data, Number(figureId)); if (ctx) setDetailFigureCol(ctx); }} onClose={()=>setShowNewsHistory(false)} />}
           </DragCtx.Provider>
+          </NewFigureCtx.Provider>
         </SeriesDataCtx.Provider>
       </AdminCtx.Provider>
       </UserInfoCtx.Provider>
