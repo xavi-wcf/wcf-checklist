@@ -4870,6 +4870,231 @@ function AdminAnalyticsPanel({ onClose, data }: { onClose: ()=>void; data: Serie
   );
 }
 
+// ============================================================
+//  ADMIN INBOX: user feedback + registered users
+// ============================================================
+type AdminFeedbackRow = { id: string; type: string | null; message: string | null; email: string | null; created_at: string };
+type AdminUserRow = { id: string; email: string | null; full_name: string | null; created_at: string; last_sign_in_at: string | null };
+
+const ADMIN_FEEDBACK_SEEN_KEY = "wcf_admin_feedback_seen";
+
+function adminTimeAgo(iso: string | null): string {
+  if (!iso) return "never";
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d} d ago`;
+  const mo = Math.floor(d / 30);
+  return mo < 12 ? `${mo} mo ago` : `${Math.floor(mo / 12)} y ago`;
+}
+
+const adminDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+
+// Feedback received since the admin last opened the inbox (kept per device).
+function useNewFeedbackCount(enabled: boolean) {
+  const [count, setCount] = useState(0);
+  const refresh = useCallback(() => {
+    if (!enabled) return;
+    const seen = localStorage.getItem(ADMIN_FEEDBACK_SEEN_KEY);
+    let q = supabase.from("wcf_feedback").select("id", { count: "exact", head: true });
+    if (seen) q = q.gt("created_at", seen);
+    q.then(({ count: c }) => setCount(c ?? 0));
+  }, [enabled]);
+  useEffect(() => { refresh(); }, [refresh]);
+  return { count, refresh };
+}
+
+function AdminStat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div style={{flex:1,minWidth:84,background:"var(--bg2)",borderRadius:10,padding:"8px 10px",textAlign:"center"}}>
+      <div style={{fontSize:18,fontWeight:800}}>{value}</div>
+      <div style={{fontSize:10,color:"var(--text3)"}}>{label}</div>
+    </div>
+  );
+}
+
+const adminFeedbackKind = (t: string | null): "bug" | "suggestion" | "other" => (t === "bug" || t === "suggestion") ? t : "other";
+const ADMIN_KIND_LABEL = { bug: "🐞 Bug", suggestion: "💡 Suggestion", other: "💬 Other" } as const;
+
+function AdminFeedbackTab() {
+  const [rows, setRows] = useState<AdminFeedbackRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "bug" | "suggestion" | "other">("all");
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const prevSeen = useRef<string | null>(localStorage.getItem(ADMIN_FEEDBACK_SEEN_KEY));
+
+  useEffect(() => {
+    supabase.from("wcf_feedback").select("*").order("created_at", { ascending: false }).limit(300)
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
+        else {
+          setRows((data ?? []) as AdminFeedbackRow[]);
+          localStorage.setItem(ADMIN_FEEDBACK_SEEN_KEY, new Date().toISOString());
+        }
+        setLoading(false);
+      });
+  }, []);
+
+  const remove = async (id: string) => {
+    const { data, error: err } = await supabase.from("wcf_feedback").delete().eq("id", id).select("id");
+    if (err || !data || data.length === 0) { alert("Couldn't delete this message."); return; }
+    setRows(prev => prev.filter(r => r.id !== id));
+    setConfirmId(null);
+  };
+
+  const counts = {
+    all: rows.length,
+    bug: rows.filter(r => adminFeedbackKind(r.type) === "bug").length,
+    suggestion: rows.filter(r => adminFeedbackKind(r.type) === "suggestion").length,
+    other: rows.filter(r => adminFeedbackKind(r.type) === "other").length,
+  };
+  const shown = rows.filter(r => filter === "all" || adminFeedbackKind(r.type) === filter);
+  const chip = (key: "all" | "bug" | "suggestion" | "other", label: string) => (
+    <button key={key} onClick={()=>setFilter(key)}
+      style={{padding:"5px 11px",borderRadius:16,border:"none",fontSize:12,fontWeight:600,cursor:"pointer",background:filter===key?"#0196e3":"var(--bg2)",color:filter===key?"#fff":"var(--text3)"}}>
+      {label} {counts[key]}
+    </button>
+  );
+
+  if (loading) return <div style={{textAlign:"center",padding:"30px 0",color:"var(--text4)",fontSize:13}}>Loading…</div>;
+  if (error) return <div style={{padding:16,fontSize:13,color:"#dc2626"}}>Couldn't load the feedback: {error}</div>;
+  return (
+    <div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+        {chip("all", "All")}{chip("bug", "🐞 Bugs")}{chip("suggestion", "💡 Suggestions")}{chip("other", "💬 Other")}
+      </div>
+      {shown.length === 0 && <div style={{textAlign:"center",padding:"30px 0",color:"var(--text4)",fontSize:13}}>Nothing here yet.</div>}
+      {shown.map(r => {
+        const kind = adminFeedbackKind(r.type);
+        const isNew = !!prevSeen.current && new Date(r.created_at).getTime() > new Date(prevSeen.current).getTime();
+        const msg = r.message ?? "";
+        return (
+          <div key={r.id} style={{border:"1px solid var(--border)",borderRadius:12,padding:"10px 12px",marginBottom:10,background:"var(--bg)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
+              <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"var(--bg2)"}}>{ADMIN_KIND_LABEL[kind]}</span>
+              {isNew && <span style={{fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:10,background:"#dc2626",color:"#fff"}}>NEW</span>}
+              <span style={{fontSize:11,color:"var(--text4)",marginLeft:"auto"}}>{new Date(r.created_at).toLocaleString()}</span>
+            </div>
+            <div style={{fontSize:13,lineHeight:1.45,whiteSpace:"pre-wrap",wordBreak:"break-word",marginBottom:8}}>{msg}</div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              {r.email
+                ? <a href={`mailto:${r.email}?subject=${encodeURIComponent("Re: your WCF Checklist feedback")}&body=${encodeURIComponent(`Hi,\n\nThanks for your feedback:\n\n"${msg.slice(0, 300)}"\n\n`)}`}
+                    style={{fontSize:12,color:"#0196e3",textDecoration:"none",fontWeight:600}}>✉️ {r.email}</a>
+                : <span style={{fontSize:12,color:"var(--text4)"}}>Anonymous</span>}
+              <span style={{marginLeft:"auto"}}>
+                {confirmId === r.id ? (
+                  <>
+                    <button onClick={()=>remove(r.id)} style={{padding:"4px 10px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",marginRight:6}}>Delete</button>
+                    <button onClick={()=>setConfirmId(null)} style={{padding:"4px 10px",borderRadius:8,border:"none",background:"var(--bg2)",color:"var(--text3)",fontSize:11,cursor:"pointer"}}>Cancel</button>
+                  </>
+                ) : (
+                  <button onClick={()=>setConfirmId(r.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,opacity:0.6}} title="Delete">🗑️</button>
+                )}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AdminUsersTab() {
+  const [rows, setRows] = useState<AdminUserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(50);
+
+  useEffect(() => {
+    supabase.rpc("admin_list_users").then(({ data, error: err }) => {
+      if (err) setError(err.message);
+      else setRows((data ?? []) as AdminUserRow[]);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <div style={{textAlign:"center",padding:"30px 0",color:"var(--text4)",fontSize:13}}>Loading…</div>;
+  if (error) return (
+    <div style={{padding:16,fontSize:13,lineHeight:1.5}}>
+      <div style={{color:"#dc2626",fontWeight:700,marginBottom:6}}>Couldn't load the users.</div>
+      <div style={{color:"var(--text3)"}}>Make sure the <code>admin_list_users</code> function exists in Supabase and that you're signed in with the admin email.</div>
+      <div style={{color:"var(--text4)",fontSize:11,marginTop:8}}>{error}</div>
+    </div>
+  );
+
+  const weekAgo = Date.now() - 7*24*60*60*1000;
+  const joinedWeek = rows.filter(u => new Date(u.created_at).getTime() >= weekAgo).length;
+  const activeWeek = rows.filter(u => u.last_sign_in_at && new Date(u.last_sign_in_at).getTime() >= weekAgo).length;
+  const q = query.trim().toLowerCase();
+  const filtered = q ? rows.filter(u => `${u.full_name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(q)) : rows;
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+        <AdminStat label="Registered" value={rows.length} />
+        <AdminStat label="Joined (7 d)" value={joinedWeek} />
+        <AdminStat label="Active (7 d)" value={activeWeek} />
+      </div>
+      <input value={query} onChange={e=>{setQuery(e.target.value); setLimit(50);}} placeholder="Search name or email…"
+        style={{width:"100%",boxSizing:"border-box",padding:"8px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:10}} />
+      {rows.length === 0 && <div style={{textAlign:"center",padding:"24px 8px",color:"var(--text4)",fontSize:12}}>No users returned. If that's unexpected, check you're signed in with the admin email.</div>}
+      {filtered.slice(0, limit).map(u => {
+        const label = u.full_name || u.email || "?";
+        return (
+          <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 4px",borderBottom:"1px solid var(--border)"}}>
+            <div style={{width:34,height:34,borderRadius:"50%",background:"#0196e3",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0}}>
+              {label[0].toUpperCase()}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.full_name || "—"}</div>
+              <div style={{fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.email ?? "no email"}</div>
+            </div>
+            <div style={{textAlign:"right",fontSize:11,color:"var(--text3)",flexShrink:0,lineHeight:1.4}}>
+              <div>Joined {adminDate(u.created_at)}</div>
+              <div style={{color:"var(--text4)"}}>{u.last_sign_in_at ? `Seen ${adminTimeAgo(u.last_sign_in_at)}` : "Never signed in"}</div>
+            </div>
+          </div>
+        );
+      })}
+      {filtered.length > limit && (
+        <button onClick={()=>setLimit(l => l + 50)} style={{width:"100%",marginTop:10,padding:"8px",borderRadius:10,border:"none",background:"var(--bg2)",color:"var(--text3)",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+          Show more ({filtered.length - limit} left)
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AdminPanel({ onClose }: { onClose: () => void }) {
+  const [tab, setTab] = useState<"feedback" | "users">("feedback");
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    flex: 1, padding: "10px 6px", border: "none", borderBottom: active ? "2px solid #0196e3" : "2px solid transparent",
+    background: "transparent", color: active ? "#0196e3" : "var(--text3)", fontSize: 13, fontWeight: 700, cursor: "pointer",
+  });
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:320,display:"flex",alignItems:"center",justifyContent:"center",padding:12}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:16,width:"100%",maxWidth:600,height:"min(85vh,720px)",display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 8px 32px rgba(0,0,0,0.35)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px 4px"}}>
+          <div style={{fontSize:16,fontWeight:800}}>🛠️ Feedback & users</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:"var(--text3)",lineHeight:1}}>×</button>
+        </div>
+        <div style={{display:"flex",borderBottom:"1px solid var(--border)"}}>
+          <button onClick={()=>setTab("feedback")} style={tabBtn(tab === "feedback")}>💬 Feedback</button>
+          <button onClick={()=>setTab("users")} style={tabBtn(tab === "users")}>👥 Users</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:14}}>
+          {tab === "feedback" ? <AdminFeedbackTab /> : <AdminUsersTab />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Series[] }) {
   const [source, setSource] = useState<"figures"|"collections">("figures");
   const [tab, setTab] = useState<"pending"|"approved">("pending");
@@ -5612,11 +5837,13 @@ function MainApp() {
   // Favourites — stored in localStorage
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMyCollection, setShowMyCollection] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const { count: pendingPhotosCount, refresh: refreshPendingCount } = usePendingPhotosCount(isAdmin);
+  const { count: newFeedbackCount, refresh: refreshNewFeedback } = useNewFeedbackCount(isAdmin);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -5850,6 +6077,19 @@ function MainApp() {
                     onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     📊 Analytics
+                  </div>
+                )}
+                {isAdmin && (
+                  <div onClick={()=>{setShowUserMenu(false);setShowAdminPanel(true);}}
+                    style={{padding:"10px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",whiteSpace:"nowrap",textAlign:"left",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}
+                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <span>💬 Feedback & users</span>
+                    {newFeedbackCount > 0 && (
+                      <span style={{background:"#dc2626",color:"#fff",fontSize:10,fontWeight:700,borderRadius:9,minWidth:17,height:17,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",lineHeight:1}}>
+                        {newFeedbackCount > 99 ? "99+" : newFeedbackCount}
+                      </span>
+                    )}
                   </div>
                 )}
                 <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" onClick={()=>setShowUserMenu(false)}
@@ -6351,6 +6591,7 @@ function MainApp() {
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
+      {showAdminPanel && <AdminPanel onClose={()=>{setShowAdminPanel(false);refreshNewFeedback();}} />}
       {showAnalytics && <AdminAnalyticsPanel onClose={()=>setShowAnalytics(false)} data={data} />}
       {showMyCollection && user && (
         <MyCollectionPanel userId={user.id} uploaderName={user.name ?? user.email ?? "?"} uploaderAvatar={user.avatar} onClose={()=>setShowMyCollection(false)} />
