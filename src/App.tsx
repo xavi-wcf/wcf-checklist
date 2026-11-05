@@ -941,7 +941,7 @@ function useOwned(userId: string|null, userName?: string|null, userAvatar?: stri
                 supabase.from("wcf_progress").upsert({
                   user_id: userId, owned: o, wishlist: w,
                   owner_name: userName ?? null, owner_avatar: userAvatar ?? null,
-                  updated_at: new Date().toISOString()
+                  updated_at: new Date().toISOString(), last_seen: new Date().toISOString()
                 }, { onConflict: "user_id", ignoreDuplicates: false });
               }
             } catch {}
@@ -968,6 +968,7 @@ function useOwned(userId: string|null, userName?: string|null, userAvatar?: stri
           owner_name: userName ?? null,
           owner_avatar: userAvatar ?? null,
           updated_at: new Date().toISOString(),
+          last_seen: new Date().toISOString(),
         }, { onConflict: "user_id", ignoreDuplicates: false })
         .then(({ error }) => { if (error) console.error("Save error:", error); });
     }
@@ -989,7 +990,7 @@ function useOwned(userId: string|null, userName?: string|null, userAvatar?: stri
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id);
     localStorage.setItem("wcf_favourites", JSON.stringify([...n]));
     if (userId) supabase.from("wcf_progress")
-      .update({ favourites: [...n], updated_at: new Date().toISOString() })
+      .update({ favourites: [...n], updated_at: new Date().toISOString(), last_seen: new Date().toISOString() })
       .eq("user_id", userId)
       .then(({ error }) => { if (error) console.error("Fav save error:", error); });
     return n;
@@ -5086,7 +5087,7 @@ function AdminAnalyticsPanel({ onClose, data }: { onClose: ()=>void; data: Serie
 //  ADMIN INBOX: user feedback + registered users
 // ============================================================
 type AdminFeedbackRow = { id: string; type: string | null; message: string | null; email: string | null; created_at: string };
-type AdminUserRow = { id: string; email: string | null; full_name: string | null; created_at: string; last_sign_in_at: string | null };
+type AdminUserRow = { id: string; email: string | null; full_name: string | null; created_at: string; last_sign_in_at: string | null; last_active_at?: string | null; has_progress?: boolean };
 
 const ADMIN_FEEDBACK_SEEN_KEY = "wcf_admin_feedback_seen";
 
@@ -5241,7 +5242,12 @@ function AdminUsersTab() {
 
   const weekAgo = Date.now() - 7*24*60*60*1000;
   const joinedWeek = rows.filter(u => new Date(u.created_at).getTime() >= weekAgo).length;
-  const activeWeek = rows.filter(u => u.last_sign_in_at && new Date(u.last_sign_in_at).getTime() >= weekAgo).length;
+  // Sign-in dates only change when someone logs in, so the database function also
+  // folds in the last time they opened the app or changed their collection.
+  const lastActive = (u: AdminUserRow) => u.last_active_at ?? u.last_sign_in_at;
+  const activeWeek = rows.filter(u => { const a = lastActive(u); return !!a && new Date(a).getTime() >= weekAgo; }).length;
+  const hasProgressInfo = rows.some(u => u.has_progress !== undefined);
+  const noCollection = rows.filter(u => u.has_progress === false).length;
   const q = query.trim().toLowerCase();
   const filtered = q ? rows.filter(u => `${u.full_name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(q)) : rows;
 
@@ -5251,7 +5257,9 @@ function AdminUsersTab() {
         <AdminStat label="Registered" value={rows.length} />
         <AdminStat label="Joined (7 d)" value={joinedWeek} />
         <AdminStat label="Active (7 d)" value={activeWeek} />
+        {hasProgressInfo && <AdminStat label="No collection yet" value={noCollection} />}
       </div>
+      <div style={{fontSize:10,color:"var(--text4)",margin:"-4px 0 10px"}}>Active = signed in, opened the app or changed their collection.</div>
       <input value={query} onChange={e=>{setQuery(e.target.value); setLimit(50);}} placeholder="Search name or email…"
         style={{width:"100%",boxSizing:"border-box",padding:"8px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:10}} />
       {rows.length === 0 && <div style={{textAlign:"center",padding:"24px 8px",color:"var(--text4)",fontSize:12}}>No users returned. If that's unexpected, check you're signed in with the admin email.</div>}
@@ -5268,7 +5276,7 @@ function AdminUsersTab() {
             </div>
             <div style={{textAlign:"right",fontSize:11,color:"var(--text3)",flexShrink:0,lineHeight:1.4}}>
               <div>Joined {adminDate(u.created_at)}</div>
-              <div style={{color:"var(--text4)"}}>{u.last_sign_in_at ? `Seen ${adminTimeAgo(u.last_sign_in_at)}` : "Never signed in"}</div>
+              <div style={{color:"var(--text4)"}}>{lastActive(u) ? `Seen ${adminTimeAgo(lastActive(u) ?? null)}` : "Never signed in"}</div>
             </div>
           </div>
         );
