@@ -4963,66 +4963,80 @@ function findFigureContext(data: Series[], figureId: number): { figure: Figure; 
 // ============================================================
 //  ADMIN ANALYTICS PANEL
 // ============================================================
-function useAdminAnalytics(data: Series[]) {
-  const [rows, setRows] = useState<{ created_at: string|null; last_seen: string|null; owned: number[]; wishlist: number[] }[]>([]);
-  const [loading, setLoading] = useState(true);
+type AnalyticsRow = { created_at: string|null; last_seen: string|null; owned: number[]; wishlist: number[] };
 
-  useEffect(() => {
-    supabase.from("wcf_progress").select("created_at,last_seen,owned,wishlist")
-      .then(({ data: rows_ }) => { setRows((rows_ as any) ?? []); setLoading(false); });
-  }, []);
-
-  const totalUsers = rows.length;
-  const now = Date.now();
-  const activeLast7 = rows.filter(r => r.last_seen && now - new Date(r.last_seen).getTime() < 7 * 86400000).length;
-  const activeLast30 = rows.filter(r => r.last_seen && now - new Date(r.last_seen).getTime() < 30 * 86400000).length;
+// Users, signups and activity come from the registered accounts when the admin function
+// is available; "first save" dates are only a fallback (they are not real signups).
+function computeAnalytics(rows: AnalyticsRow[], accounts: AdminUserRow[] | null, data: Series[], nowMs: number) {
+  const hasAccounts = accounts !== null && accounts.length > 0;
+  const totalUsers = hasAccounts ? accounts!.length : rows.length;
+  const within = (iso: string | null | undefined, days: number) => !!iso && nowMs - new Date(iso).getTime() < days * 86400000;
+  const activeOf = (a: AdminUserRow) => a.last_active_at ?? a.last_sign_in_at;
+  const activeLast7 = hasAccounts ? accounts!.filter(a => within(activeOf(a), 7)).length : rows.filter(r => within(r.last_seen, 7)).length;
+  const activeLast30 = hasAccounts ? accounts!.filter(a => within(activeOf(a), 30)).length : rows.filter(r => within(r.last_seen, 30)).length;
   const convertedUsers = rows.filter(r => (r.owned?.length ?? 0) > 0 || (r.wishlist?.length ?? 0) > 0).length;
   const conversionRate = totalUsers > 0 ? Math.round((convertedUsers / totalUsers) * 100) : 0;
 
-  // Altas por semana, últimas 12 semanas
-  const weeklySignups = useMemo(() => {
-    const buckets: { label: string; count: number }[] = [];
-    const today = new Date();
-    for (let i = 11; i >= 0; i--) {
-      const start = new Date(today);
-      start.setHours(0,0,0,0);
-      start.setDate(today.getDate() - i * 7 - today.getDay());
-      const end = new Date(start);
-      end.setDate(start.getDate() + 7);
-      const label = `${start.getDate()}/${start.getMonth() + 1}`;
-      const count = rows.filter(r => {
-        if (!r.created_at) return false;
-        const d = new Date(r.created_at);
-        return d >= start && d < end;
-      }).length;
-      buckets.push({ label, count });
-    }
-    return buckets;
-  }, [rows]);
+  // Signups per week, last 12 weeks (weeks start on Sunday)
+  const signupDates = hasAccounts ? accounts!.map(a => a.created_at) : rows.map(r => r.created_at);
+  const weeklySignups: { label: string; count: number }[] = [];
+  const today = new Date(nowMs);
+  for (let i = 11; i >= 0; i--) {
+    const start = new Date(today);
+    start.setHours(0,0,0,0);
+    start.setDate(today.getDate() - i * 7 - today.getDay());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    const label = `${start.getDate()}/${start.getMonth() + 1}`;
+    const count = signupDates.filter(c => {
+      if (!c) return false;
+      const d = new Date(c);
+      return d >= start && d < end;
+    }).length;
+    weeklySignups.push({ label, count });
+  }
 
-  // Franquicias más marcadas (por número de figuras obtenidas)
-  const topFranchises = useMemo(() => {
-    const figureToSeriesName = new Map<number, string>();
-    for (const s of data) {
-      for (const st of [...s.sets, ...s.groups.flatMap(g => g.sets)]) {
-        for (const f of st.figures) figureToSeriesName.set(f.id, s.name);
-      }
+  // Most-owned franchises (by number of figures marked as owned)
+  const figureToSeriesName = new Map<number, string>();
+  for (const s of data) {
+    for (const st of [...s.sets, ...s.groups.flatMap(g => g.sets)]) {
+      for (const f of st.figures) figureToSeriesName.set(f.id, s.name);
     }
-    const counts: Record<string, number> = {};
-    for (const r of rows) {
-      for (const fid of r.owned ?? []) {
-        const name = figureToSeriesName.get(fid);
-        if (name) counts[name] = (counts[name] ?? 0) + 1;
-      }
+  }
+  const counts: Record<string, number> = {};
+  for (const r of rows) {
+    for (const fid of r.owned ?? []) {
+      const name = figureToSeriesName.get(fid);
+      if (name) counts[name] = (counts[name] ?? 0) + 1;
     }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count }));
-  }, [rows, data]);
+  }
+  const topFranchises = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count }));
 
-  return { loading, totalUsers, activeLast7, activeLast30, conversionRate, convertedUsers, weeklySignups, topFranchises };
+  return { hasAccounts, totalUsers, activeLast7, activeLast30, conversionRate, convertedUsers, weeklySignups, topFranchises };
+}
+
+function useAdminAnalytics(data: Series[]) {
+  const [rows, setRows] = useState<AnalyticsRow[]>([]);
+  const [accounts, setAccounts] = useState<AdminUserRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("wcf_progress").select("created_at,last_seen,owned,wishlist"),
+      fetchAdminUsers(),
+    ]).then(([progress, users]) => {
+      setRows((progress.data as AnalyticsRow[] | null) ?? []);
+      setAccounts(users.error ? null : users.rows);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const stats = useMemo(() => computeAnalytics(rows, accounts, data, Date.now()), [rows, accounts, data]);
+  return { loading, ...stats };
 }
 
 function AdminAnalyticsPanel({ onClose, data }: { onClose: ()=>void; data: Series[] }) {
-  const { loading, totalUsers, activeLast7, activeLast30, conversionRate, convertedUsers, weeklySignups, topFranchises } = useAdminAnalytics(data);
+  const { loading, hasAccounts, totalUsers, activeLast7, activeLast30, conversionRate, convertedUsers, weeklySignups, topFranchises } = useAdminAnalytics(data);
 
   const MetricCard = ({ label, value }: { label:string; value:string|number }) => (
     <div style={{flex:1,minWidth:110,background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 14px"}}>
@@ -5044,13 +5058,13 @@ function AdminAnalyticsPanel({ onClose, data }: { onClose: ()=>void; data: Serie
           ) : (
             <>
               <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:24}}>
-                <MetricCard label="Total users" value={totalUsers} />
+                <MetricCard label={hasAccounts ? "Registered users" : "Users with saved data"} value={totalUsers} />
                 <MetricCard label="Active (7d)" value={activeLast7} />
                 <MetricCard label="Active (30d)" value={activeLast30} />
-                <MetricCard label={`Conversion (${convertedUsers}/${totalUsers})`} value={`${conversionRate}%`} />
+                <MetricCard label={`${hasAccounts ? "Started a collection" : "Conversion"} (${convertedUsers}/${totalUsers})`} value={`${conversionRate}%`} />
               </div>
 
-              <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>New signups — last 12 weeks</div>
+              <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:8}}>{hasAccounts ? "New signups — last 12 weeks" : "First saves — last 12 weeks (not real signups)"}</div>
               <div style={{width:"100%",height:180,marginBottom:24}}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeklySignups} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -5105,6 +5119,20 @@ function adminTimeAgo(iso: string | null): string {
 }
 
 const adminDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+
+// Reads every account through the admin function. A single API response is capped at
+// 1000 rows, so it pages until the end; otherwise counts would silently stop at 1000.
+async function fetchAdminUsers(): Promise<{ rows: AdminUserRow[]; error: string | null }> {
+  const all: AdminUserRow[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.rpc("admin_list_users").range(from, from + 999);
+    if (error) return { rows: [], error: error.message };
+    const page = (data ?? []) as AdminUserRow[];
+    all.push(...page);
+    if (page.length < 1000) break;
+  }
+  return { rows: all, error: null };
+}
 
 // Feedback received since the admin last opened the inbox (kept per device).
 function useNewFeedbackCount(enabled: boolean) {
@@ -5224,9 +5252,9 @@ function AdminUsersTab() {
   const [limit, setLimit] = useState(50);
 
   useEffect(() => {
-    supabase.rpc("admin_list_users").then(({ data, error: err }) => {
-      if (err) setError(err.message);
-      else setRows((data ?? []) as AdminUserRow[]);
+    fetchAdminUsers().then(({ rows: r, error: err }) => {
+      if (err) setError(err);
+      else setRows(r);
       setLoading(false);
     });
   }, []);
@@ -5325,9 +5353,9 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
   // Uploader emails are no longer stored with the photos; the admin looks them up by account.
   const [accountEmails, setAccountEmails] = useState<Record<string, string>>({});
   useEffect(() => {
-    supabase.rpc("admin_list_users").then(({ data: users }) => {
+    fetchAdminUsers().then(({ rows: users }) => {
       const map: Record<string, string> = {};
-      for (const u of (users ?? []) as { id: string; email: string | null }[]) if (u.email) map[u.id] = u.email;
+      for (const u of users) if (u.email) map[u.id] = u.email;
       setAccountEmails(map);
     });
   }, []);
