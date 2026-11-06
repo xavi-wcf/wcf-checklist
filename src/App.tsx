@@ -276,17 +276,55 @@ async function sbAuthToken(): Promise<string> {
   }
 }
 
-async function sbGet(table: string): Promise<{ ok: boolean; row: { data?: unknown } | null }> {
+async function sbGet(table: string, timeoutMs = 15000): Promise<{ ok: boolean; row: { data?: unknown } | null }> {
+  // A blocked or very slow connection must not leave the app waiting forever.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      signal: ctrl.signal,
     });
     if (!res.ok) return { ok: false, row: null };
     const rows = await res.json();
     return { ok: true, row: Array.isArray(rows) ? (rows[0] ?? null) : null };
   } catch {
     return { ok: false, row: null };
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+// Tiny IndexedDB key-value store (best effort) used to keep the last catalogue on the device.
+function idbOpen(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("wcf-cache", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("kv");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbGet<T>(key: string): Promise<T | null> {
+  try {
+    const db = await idbOpen();
+    return await new Promise<T | null>(resolve => {
+      const r = db.transaction("kv").objectStore("kv").get(key);
+      r.onsuccess = () => resolve((r.result as T) ?? null);
+      r.onerror = () => resolve(null);
+    });
+  } catch { return null; }
+}
+async function idbSet(key: string, value: unknown): Promise<void> {
+  try {
+    const db = await idbOpen();
+    await new Promise<void>(resolve => {
+      const tx = db.transaction("kv", "readwrite");
+      tx.objectStore("kv").put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    });
+  } catch { /* the cache is optional */ }
 }
 
 async function sbUpsert(table: string, data: object): Promise<boolean> {
@@ -453,6 +491,12 @@ const T = {
   studiosFranchises: { es: "series", en: "franchises", th: "ซีรีส์", fr: "séries", vi: "series", ja: "シリーズ", zh: "系列" },
   studiosShowMore: { es: "Ver más", en: "Show more", th: "ดูเพิ่มเติม", fr: "Voir plus", vi: "Xem thêm", ja: "もっと見る", zh: "查看更多" },
   studiosEmpty: { es: "No se encontraron estudios.", en: "No studios found.", th: "ไม่พบสตูดิโอ", fr: "Aucun studio trouvé.", vi: "Không tìm thấy studio.", ja: "スタジオが見つかりません。", zh: "未找到工作室。" },
+  catalogueLoadFailed: { es: "No se pudo cargar el catálogo. Comprueba tu conexión e inténtalo de nuevo.", en: "We couldn't load the catalogue. Check your connection and try again.", th: "โหลดแคตตาล็อกไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง", fr: "Impossible de charger le catalogue. Vérifiez votre connexion et réessayez.", vi: "Không tải được danh mục. Hãy kiểm tra kết nối và thử lại.", ja: "カタログを読み込めませんでした。接続を確認して、もう一度お試しください。", zh: "无法加载图鉴。请检查网络连接后重试。" },
+  catalogueOffline: { es: "Mostrando el último catálogo guardado (sin conexión). Puede estar desactualizado.", en: "Showing the last saved catalogue (offline). It may be out of date.", th: "กำลังแสดงแคตตาล็อกที่บันทึกไว้ล่าสุด (ออฟไลน์) อาจไม่เป็นปัจจุบัน", fr: "Affichage du dernier catalogue enregistré (hors ligne). Il peut être obsolète.", vi: "Đang hiển thị danh mục đã lưu gần nhất (ngoại tuyến). Có thể đã cũ.", ja: "最後に保存されたカタログを表示中（オフライン）。内容が古い可能性があります。", zh: "正在显示上次保存的图鉴（离线）。内容可能已过期。" },
+  retryBtn: { es: "Reintentar", en: "Retry", th: "ลองอีกครั้ง", fr: "Réessayer", vi: "Thử lại", ja: "再試行", zh: "重试" },
+  filterCategory: { es: "Categoría", en: "Category", th: "หมวดหมู่", fr: "Catégorie", vi: "Danh mục", ja: "カテゴリ", zh: "类别" },
+  filterSeries: { es: "Series", en: "Series", th: "ซีรีส์", fr: "Séries", vi: "Series", ja: "シリーズ", zh: "系列" },
+  filterStatus: { es: "Estado", en: "Status", th: "สถานะ", fr: "Statut", vi: "Trạng thái", ja: "ステータス", zh: "状态" },
   newsWeeklyError: { es: "No se pudo generar la imagen. Inténtalo de nuevo.", en: "Couldn't generate the image. Please try again.", th: "สร้างรูปภาพไม่สำเร็จ ลองอีกครั้ง", fr: "Impossible de générer l'image. Réessayez.", vi: "Không thể tạo hình ảnh. Vui lòng thử lại.", ja: "画像を生成できませんでした。もう一度お試しください。", zh: "生成图片失败，请重试。" },
   newsWeeklyText: { es: "Texto del post", en: "Post text", th: "ข้อความโพสต์", fr: "Texte du post", vi: "Nội dung bài đăng", ja: "投稿テキスト", zh: "帖子文案" },
   newsCopy: { es: "Copiar", en: "Copy", th: "คัดลอก", fr: "Copier", vi: "Sao chép", ja: "コピー", zh: "复制" },
@@ -578,6 +622,7 @@ const T = {
   galleryBtn:          { es: "🖼️ Galería", en: "🖼️ Gallery", th: "🖼️ แกลเลอรี", fr: "🖼️ Galerie", vi: "🖼️ Thư viện", ja: "🖼️ ギャラリー", zh: "🖼️ 相册" },
   cameraBtn:           { es: "📷 Cámara", en: "📷 Camera", th: "📷 กล้อง", fr: "📷 Appareil photo", vi: "📷 Máy ảnh", ja: "📷 カメラ", zh: "📷 相机" },
   photosReviewedNote:  { es: "Las fotos se revisan antes de publicarse", en: "Photos are reviewed before appearing", th: "รูปภาพจะถูกตรวจสอบก่อนแสดง", fr: "Les photos sont vérifiées avant publication", vi: "Ảnh sẽ được duyệt trước khi hiển thị", ja: "写真は表示前に審査されます", zh: "照片在显示前会经过审核" },
+  uploadSaveError: { es: "La foto se subió pero no se pudo guardar. Inténtalo de nuevo más tarde o avísanos desde el feedback.", en: "Your photo was uploaded but couldn't be saved. Please try again later or let us know through feedback.", th: "อัปโหลดรูปแล้วแต่บันทึกไม่สำเร็จ โปรดลองใหม่ภายหลังหรือแจ้งเราผ่านฟีดแบ็ก", fr: "Votre photo a été envoyée mais n'a pas pu être enregistrée. Réessayez plus tard ou prévenez-nous via le feedback.", vi: "Ảnh đã được tải lên nhưng không thể lưu. Vui lòng thử lại sau hoặc báo cho chúng tôi qua phản hồi.", ja: "写真はアップロードされましたが、保存できませんでした。後でもう一度お試しいただくか、フィードバックでお知らせください。", zh: "照片已上传，但未能保存。请稍后重试，或通过反馈告知我们。" },
   uploadNetworkError:  { es: "Error de red al subir. Inténtalo de nuevo.", en: "Network error while uploading. Try again.", th: "เกิดข้อผิดพลาดเครือข่ายขณะอัปโหลด ลองใหม่อีกครั้ง", fr: "Erreur réseau lors de l'envoi. Réessaie.", vi: "Lỗi mạng khi tải lên. Vui lòng thử lại.", ja: "アップロード中にネットワークエラーが発生しました。再試行してください。", zh: "上传时发生网络错误，请重试。" },
   loginToSharePhoto:   { es: "Inicia sesión para compartir tu foto de esta figura", en: "Log in to share your photo of this figure", th: "เข้าสู่ระบบเพื่อแชร์รูปตัวเลขนี้", fr: "Connecte-toi pour partager ta photo de cette figurine", vi: "Đăng nhập để chia sẻ ảnh của nhân vật này", ja: "ログインしてこのフィギュアの写真をシェア", zh: "登录以分享你这个人偶的照片" },
   orContinueWithEmail: { es: "o continúa con tu email", en: "or continue with email", th: "หรือดำเนินการต่อด้วยอีเมล", fr: "ou continue avec ton email", vi: "hoặc tiếp tục bằng email", ja: "またはメールで続ける", zh: "或使用邮箱继续" },
@@ -1045,13 +1090,17 @@ type LeaderboardEntry = { userId: string; name: string; count: number; ownedIds?
 
 function usePendingPhotosCount(isAdmin: boolean) {
   const [count, setCount] = useState(0);
+  const [failed, setFailed] = useState(false);
   const load = useCallback(() => {
     Promise.all([
       supabase.from("wcf_photos").select("id", { count: "exact", head: true }).eq("approved", false),
       supabase.from("wcf_collection_photos").select("id", { count: "exact", head: true }).eq("approved", false),
     ]).then(([figuresRes, collectionsRes]) => {
+      const err = figuresRes.error ?? collectionsRes.error;
+      if (err) { console.error("Pending photos check failed:", err); setFailed(true); return; }
+      setFailed(false);
       setCount((figuresRes.count ?? 0) + (collectionsRes.count ?? 0));
-    });
+    }).catch(e => { console.error("Pending photos check failed:", e); setFailed(true); });
   }, []);
   useEffect(() => {
     if (!isAdmin) return;
@@ -1059,7 +1108,7 @@ function usePendingPhotosCount(isAdmin: boolean) {
     const interval = setInterval(load, 60000); // refresca cada minuto
     return () => clearInterval(interval);
   }, [isAdmin, load]);
-  return { count, refresh: load };
+  return { count, refresh: load, failed };
 }
 
 function useCommunityLeaderboards(currentUserId?: string|null) {
@@ -1114,25 +1163,54 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
   return { topUploaders, topCollectors, myUploaderRank, myCollectorRank, myUploaderEntry, myCollectorEntry };
 }
 
+type CatalogueStatus = "ok" | "cached" | "failed";
+
+// Loads the catalogue and never falls back to the built-in sample data just because the
+// network failed: it uses the last copy saved on this device, or reports the failure.
+async function loadCatalogue(
+  get: (timeoutMs: number) => Promise<{ ok: boolean; row: { data?: unknown } | null }>,
+  readCache: () => Promise<Series[] | null>,
+  writeCache: (rows: Series[]) => void,
+  onInterim: (rows: Series[]) => void,
+): Promise<{ status: CatalogueStatus; data: Series[]; canSave: boolean }> {
+  const migrate = (rows: Series[]) => rows.map(s => ({ ...s, groups: s.groups ?? [] }));
+  const fromResult = (r: { ok: boolean; row: { data?: unknown } | null }): { data: Series[]; canSave: boolean } | null => {
+    const d = r.row?.data;
+    if (Array.isArray(d) && d.length > 0) { writeCache(d as Series[]); return { data: migrate(d as Series[]), canSave: true }; }
+    // The table answered but is empty: show the defaults, but never allow saving over it.
+    return r.ok ? { data: INITIAL_DATA, canSave: false } : null;
+  };
+  let got = fromResult(await get(10000));
+  if (got) return { status: "ok", ...got };
+  const cached = await readCache();
+  const haveCache = Array.isArray(cached) && cached.length > 0;
+  if (haveCache) onInterim(migrate(cached!)); // show the saved copy right away while we retry
+  got = fromResult(await get(20000));
+  if (got) return { status: "ok", ...got };
+  return haveCache
+    ? { status: "cached", data: migrate(cached!), canSave: false }
+    : { status: "failed", data: [], canSave: false };
+}
+
 function useData() {
   const [data, setDataState] = useState<Series[]>([]);
   const [ready, setReady] = useState(false);
-  // Saving is only allowed once the catalogue has been loaded (or confirmed empty).
-  // A failed load must never end up overwriting the real catalogue with the defaults.
+  const [status, setStatus] = useState<CatalogueStatus>("ok");
+  // Saving is only allowed once the real catalogue has been loaded.
   const canSave = useRef(false);
-  useEffect(() => {
-    sbGet("wcf_data").then(({ ok, row }) => {
-      if (row && Array.isArray(row.data) && row.data.length > 0) {
-        const migrated = row.data.map((s: Series) => ({ ...s, groups: s.groups ?? [] }));
-        setDataState(migrated);
-        canSave.current = true;
-      } else {
-        setDataState(INITIAL_DATA);
-        canSave.current = ok;
-      }
-      setReady(true);
-    });
+  const load = useCallback(async () => {
+    const result = await loadCatalogue(
+      ms => sbGet("wcf_data", ms),
+      () => idbGet<Series[]>("catalogue"),
+      rows => { void idbSet("catalogue", rows); },
+      rows => { setDataState(rows); setStatus("cached"); setReady(true); },
+    );
+    setDataState(result.data);
+    setStatus(result.status);
+    canSave.current = result.canSave;
+    setReady(true);
   }, []);
+  useEffect(() => { void load(); }, [load]);
   const setData = (updater: Series[] | ((prev: Series[]) => Series[])) => {
     if (!canSave.current) {
       alert("⚠️ El catálogo no se cargó bien, así que no se guardará ningún cambio. Recarga la página.");
@@ -1146,7 +1224,7 @@ function useData() {
       return next;
     });
   };
-  return { data, setData, ready };
+  return { data, setData, ready, status, reload: load };
 }
 
 
@@ -1446,6 +1524,20 @@ function ImageUploader({ apiKey: _apiKey, currentUrl, onUploaded, label, aspectR
 // ============================================================
 //  UI HELPERS
 // ============================================================
+function CatalogueBanner({ status, onRetry }: { status: "cached" | "failed"; onRetry: () => Promise<void> }) {
+  const { t } = useTr();
+  const [busy, setBusy] = useState(false);
+  const failed = status === "failed";
+  return (
+    <div style={{background:failed?"#fef2f2":"#fffbeb",color:failed?"#991b1b":"#92400e",borderBottom:"1px solid var(--border)",padding:"8px 14px",fontSize:12,lineHeight:1.35,display:"flex",alignItems:"center",gap:10}}>
+      <span style={{flex:1}}>{failed ? "⚠️ " : "📴 "}{t(failed ? "catalogueLoadFailed" : "catalogueOffline")}</span>
+      <button disabled={busy} onClick={async()=>{ setBusy(true); await onRetry(); setBusy(false); }}
+        style={{flexShrink:0,padding:"5px 12px",borderRadius:14,border:"none",background:failed?"#dc2626":"#d97706",color:"#fff",fontSize:11,fontWeight:700,cursor:busy?"default":"pointer",opacity:busy?0.6:1}}>
+        {busy ? "…" : t("retryBtn")}
+      </button>
+    </div>
+  );
+}
 function NewTag() {
   const { t } = useTr();
   return (
@@ -2689,7 +2781,14 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
       try { url = await uploadToR2(compressed); }
       catch { url = await uploadToR2(compressed); } // reintento automático
       const nextOrder = photos.length; // se añade al final del orden actual
-      await supabase.from("wcf_collection_photos").insert({ user_id: userId, url, uploader_name: uploaderName, uploader_avatar: uploaderAvatar ?? null, approved: false, sort_order: nextOrder });
+      const { error: insertError } = await supabase.from("wcf_collection_photos").insert({ user_id: userId, url, uploader_name: uploaderName, uploader_avatar: uploaderAvatar ?? null, approved: false, sort_order: nextOrder });
+      if (insertError) {
+        // supabase-js doesn't throw on a rejected insert: without this check the user saw "done" and nothing was saved.
+        console.error("Collection photo insert failed:", insertError);
+        setError(t("uploadSaveError"));
+        setUploading(false);
+        return;
+      }
       reload();
     } catch (e) {
       setError(t("uploadNetworkError"));
@@ -4783,7 +4882,14 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
         // significa que la subida no vaya a funcionar en un segundo intento.
         url = await uploadToR2(compressed);
       }
-      await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_name: uploaderName, uploader_avatar: uploaderAvatar, approved: false });
+      const { error: insertError } = await supabase.from("wcf_photos").insert({ figure_id: figure.id, user_id: userId, url, uploader_name: uploaderName, uploader_avatar: uploaderAvatar, approved: false });
+      if (insertError) {
+        // supabase-js doesn't throw on a rejected insert: without this check the user saw "done" and nothing was saved.
+        console.error("Figure photo insert failed:", insertError);
+        setUploadError(t("uploadSaveError"));
+        setUploading(false);
+        return;
+      }
       setUploadDone(true);
     } catch(e) {
       setUploadError(t("uploadNetworkError"));
@@ -5897,7 +6003,7 @@ function MainApp() {
   const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut } = useAuth();
   const { hasNew: hasNewCollectionActivity, markSeen: markCollectionActivitySeen } = useHasNewCollectionActivity(user?.id ?? null);
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, lastSeenAnnouncementId, markAnnouncementsSeen, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.avatar ?? null);
-  const { data, setData, ready: dataReady } = useData();
+  const { data, setData, ready: dataReady, status: catalogueStatus, reload: reloadCatalogue } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
 
@@ -6112,7 +6218,7 @@ function MainApp() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMyCollection, setShowMyCollection] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const { count: pendingPhotosCount, refresh: refreshPendingCount } = usePendingPhotosCount(isAdmin);
+  const { count: pendingPhotosCount, refresh: refreshPendingCount, failed: pendingCheckFailed } = usePendingPhotosCount(isAdmin);
   const { count: newFeedbackCount, refresh: refreshNewFeedback } = useNewFeedbackCount(isAdmin);
 
   useEffect(() => {
@@ -6306,8 +6412,11 @@ function MainApp() {
                 ? <img src={user.avatar} alt={user.name} style={{width:28,height:28,borderRadius:"50%",objectFit:"cover"}} />
                 : <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff"}}>{user.name?.[0]??user.email?.[0]??"?"}</div>
               }
-              {hasNewCollectionActivity && (
+              {(hasNewCollectionActivity || (isAdmin && pendingPhotosCount + newFeedbackCount > 0)) && (
                 <span style={{position:"absolute",top:-1,right:-1,width:9,height:9,borderRadius:"50%",background:"#ef4444",border:"1.5px solid var(--bg)"}} />
+              )}
+              {isAdmin && pendingCheckFailed && (
+                <span style={{position:"absolute",bottom:-1,right:-1,width:9,height:9,borderRadius:"50%",background:"#f59e0b",border:"1.5px solid var(--bg)"}} />
               )}
             </button>
             {showUserMenu && (
@@ -6337,7 +6446,9 @@ function MainApp() {
                     onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span>📸 Photo moderation</span>
-                    {pendingPhotosCount > 0 && (
+                    {pendingCheckFailed ? (
+                      <span title="Couldn't check pending photos (see the browser console)" style={{fontSize:13,lineHeight:1}}>⚠️</span>
+                    ) : pendingPhotosCount > 0 && (
                       <span style={{background:"#dc2626",color:"#fff",fontSize:10,fontWeight:700,borderRadius:9,minWidth:17,height:17,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",lineHeight:1}}>
                         {pendingPhotosCount > 99 ? "99+" : pendingPhotosCount}
                       </span>
@@ -6394,6 +6505,7 @@ function MainApp() {
         )}
       </div>
 
+      {catalogueStatus !== "ok" && <CatalogueBanner status={catalogueStatus} onRetry={reloadCatalogue} />}
       {/* INSTALL BANNER */}
       {showInstallBanner && (
         <div style={{background:"#0174b0",padding:"8px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -6440,12 +6552,12 @@ function MainApp() {
         {showFilters && <div style={{display:"flex",gap:4,marginTop:6}}>
           {activeTab==="collection" && <>
             <select value={colCategory} onChange={e=>setColCategory(e.target.value as typeof colCategory)} style={{...selectStyle,fontSize:11}}>
-              <option value="all">Categoría</option>
+              <option value="all">{t("filterCategory")}</option>
               <option value="oficial">{t("officialBadge")}</option>
               <option value="resina">{t("resinBadge")}</option>
             </select>
             <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={{...selectStyle,fontSize:11}}>
-              <option value="all">Series</option>
+              <option value="all">{t("filterSeries")}</option>
               {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={{...selectStyle,fontSize:11}}>
@@ -6460,12 +6572,12 @@ function MainApp() {
           </>}
           {activeTab==="database" && <>
             <select value={dbCategory} onChange={e=>setDbCategory(e.target.value as typeof dbCategory)} style={{...selectStyle,fontSize:11}}>
-              <option value="all">Categoría</option>
+              <option value="all">{t("filterCategory")}</option>
               <option value="oficial">{t("officialBadge")}</option>
               <option value="resina">{t("resinBadge")}</option>
             </select>
             <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={{...selectStyle,fontSize:11}}>
-              <option value="all">Series</option>
+              <option value="all">{t("filterSeries")}</option>
               {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={{...selectStyle,fontSize:11}}>
@@ -6478,7 +6590,7 @@ function MainApp() {
               <option value="l">L</option>
             </select>
             <select value={dbFilter} onChange={e=>setDbFilter(e.target.value as typeof dbFilter)} style={{...selectStyle,fontSize:11}}>
-              <option value="all">Estado</option>
+              <option value="all">{t("filterStatus")}</option>
               <option value="owned">✅</option>
               <option value="wishlist">💛</option>
               <option value="missing">❌</option>
