@@ -265,6 +265,50 @@ function FacebookIcon({ size = 18 }: { size?: number }) {
 const TRANSPARENT_DRAG_IMG = new Image();
 TRANSPARENT_DRAG_IMG.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
 
+// ---- Reaching Supabase from networks where *.supabase.co is blocked or unstable ----
+// Requests go straight to Supabase as always. If that fails at the network level, the same
+// request is retried through our own domain (/sb/*, forwarded by Vercel to Supabase). After
+// repeated failures that the proxy then answers, the proxy is used directly for a day.
+const SB_PROXY_BASE = "/sb";
+const SB_PROXY_KEY = "wcf_sb_proxy_until";
+let sbDirectFailures = 0;
+
+function sbProxyActive(): boolean {
+  try { return Number(localStorage.getItem(SB_PROXY_KEY) ?? 0) > Date.now(); } catch { return false; }
+}
+
+async function sbFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (typeof input !== "string" || !input.startsWith(SUPABASE_URL)) return fetch(input, init);
+  const viaProxy = SB_PROXY_BASE + input.slice(SUPABASE_URL.length);
+  if (sbProxyActive()) return fetch(viaProxy, init);
+
+  const method = (init?.method ?? "GET").toUpperCase();
+  const isRead = method === "GET" || method === "HEAD";
+  // Only waits for the server to start answering; a blocked connection never does.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 7000);
+  init?.signal?.addEventListener("abort", () => ctrl.abort());
+  try {
+    const res = await fetch(input, { ...init, signal: ctrl.signal });
+    sbDirectFailures = 0;
+    return res;
+  } catch (err) {
+    const abortedByCaller = !!init?.signal?.aborted;
+    const timedOut = ctrl.signal.aborted && !abortedByCaller;
+    // A write that timed out may already have reached the server: only reads are retried then.
+    if (abortedByCaller || (timedOut && !isRead)) throw err;
+    sbDirectFailures += 1;
+    const res = await fetch(viaProxy, init);
+    const isHtml = (res.headers.get("content-type") ?? "").includes("text/html"); // proxy not configured: the app's own page came back
+    if (sbDirectFailures >= 2 && !isHtml) {
+      try { localStorage.setItem(SB_PROXY_KEY, String(Date.now() + 24*60*60*1000)); } catch { /* ignore */ }
+    }
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Writes go out with the logged-in user's session token (not just the public key),
 // so the database can tell the admin apart from any other visitor.
 async function sbAuthToken(): Promise<string> {
@@ -281,7 +325,7 @@ async function sbGet(table: string, timeoutMs = 15000): Promise<{ ok: boolean; r
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
       signal: ctrl.signal,
     });
@@ -330,7 +374,7 @@ async function idbSet(key: string, value: unknown): Promise<void> {
 async function sbUpsert(table: string, data: object): Promise<boolean> {
   try {
     const token = await sbAuthToken();
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: "POST",
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
       body: JSON.stringify({ id: "main", ...data, updated_at: new Date().toISOString() }),
@@ -884,7 +928,7 @@ const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 //  SUPABASE AUTH CLIENT
 // ============================================================
 import { createClient } from "@supabase/supabase-js";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: sbFetch } });
 
 type AuthUser = { id: string; email?: string; name?: string; avatar?: string };
 
@@ -1180,12 +1224,12 @@ async function loadCatalogue(
     // The table answered but is empty: show the defaults, but never allow saving over it.
     return r.ok ? { data: INITIAL_DATA, canSave: false } : null;
   };
-  let got = fromResult(await get(10000));
+  let got = fromResult(await get(15000));
   if (got) return { status: "ok", ...got };
   const cached = await readCache();
   const haveCache = Array.isArray(cached) && cached.length > 0;
   if (haveCache) onInterim(migrate(cached!)); // show the saved copy right away while we retry
-  got = fromResult(await get(20000));
+  got = fromResult(await get(25000));
   if (got) return { status: "ok", ...got };
   return haveCache
     ? { status: "cached", data: migrate(cached!), canSave: false }
@@ -4500,7 +4544,7 @@ function FeedbackModal({ onClose, data, userEmail }: { onClose:()=>void; data?:o
     if (!msg.trim()) return;
     setSending(true);
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/wcf_feedback`, {
+      await sbFetch(`${SUPABASE_URL}/rest/v1/wcf_feedback`, {
         method: "POST",
         headers: {
           apikey: SUPABASE_KEY,

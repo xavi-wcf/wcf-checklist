@@ -3,6 +3,7 @@
     { "source": "/:path+/", "destination": "/:path", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/sb/:path*", "destination": "https://odtcnomhpvxhgzbpaevh.supabase.co/:path*" },
     { "source": "/c/:userId", "destination": "/api/collection-og?userId=:userId" },
     { "source": "/dragon-ball/oficial/:path*", "destination": "https://wcf-public.vercel.app/dragon-ball/oficial/:path*" },
     { "source": "/one-piece/oficial/:path*", "destination": "https://wcf-public.vercel.app/one-piece/oficial/:path*" },
@@ -33,5 +34,14 @@
     { "source": "/full-metal-alchemist/resina/:path*", "destination": "https://wcf-public.vercel.app/full-metal-alchemist/resina/:path*" },
     { "source": "/sitemap-index.xml", "destination": "https://wcf-public.vercel.app/sitemap-index.xml" },
     { "source": "/sitemap-:num.xml", "destination": "https://wcf-public.vercel.app/sitemap-:num.xml" }
+  ],
+  "headers": [
+    {
+      "source": "/sb/:path*",
+      "headers": [
+        { "key": "x-vercel-enable-rewrite-caching", "value": "0" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
   ]
 }

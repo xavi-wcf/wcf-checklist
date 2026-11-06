@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wcf-checklist-v182';
+const CACHE_NAME = 'wcf-checklist-v183';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -22,6 +22,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('supabase.co') ||
+      // /sb/* is our same-origin proxy to Supabase (see vercel.json): API data must never be cached here.
+      new URL(event.request.url).pathname.startsWith('/sb/') ||
       event.request.url.includes('imgbb.com') ||
       event.request.url.includes('ibb.com') ||
       event.request.url.includes('ibb.co') ||
