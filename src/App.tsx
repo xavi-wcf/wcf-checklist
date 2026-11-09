@@ -1988,6 +1988,17 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
+// Figures that live in ANOTHER series of the same category (official or resin) but carry this
+// series' name in their tags. Tags match by series name, case-insensitively.
+function crossoverFor<T extends { figure: Figure; series: Series }>(items: T[], target: Series): T[] {
+  const wanted = target.name.trim().toLowerCase();
+  return items.filter(({ figure, series }) =>
+    series.id !== target.id &&
+    series.category === target.category &&
+    !!figure.tags?.split(",").map(tg => tg.trim().toLowerCase()).includes(wanted)
+  );
+}
+
 // Moves a figure to any set of any series (also inside the same one). The figure keeps its id, so
 // owned/wishlist marks and photos stay with it. Returns null (and changes nothing) if the figure or
 // the destination set can't be found, so a figure is never removed without a place to land.
@@ -6914,13 +6925,9 @@ function MainApp() {
               {dbSeriesObj.sets.length===0 && (!dbSeriesObj.groups||dbSeriesObj.groups.length===0) && (
                 <div style={{textAlign:"center",padding:"3rem",color:"var(--text4)",fontSize:14}}>{t("noSets1")}<br/>{t("noSets2")}</div>
               )}
-              {/* Crossover figures — only shown for oficial series */}
-              {dbSeriesObj.category === "oficial" && (() => {
-                const crossover = allFlat.filter(({figure, series}) =>
-                  series.id !== dbSeriesObj.id &&
-                  series.category === "oficial" &&
-                  figure.tags?.split(",").map(tg=>tg.trim()).some(tg=>tg.toLowerCase()===dbSeriesObj.name.toLowerCase())
-                );
+              {/* Crossover figures: tagged with this series but living in another one of the same category (official or resin) */}
+              {(() => {
+                const crossover = crossoverFor(allFlat, dbSeriesObj);
                 if (crossover.length === 0) return null;
                 return (
                   <div style={{marginTop:24}}>
@@ -6930,9 +6937,9 @@ function MainApp() {
                       <span style={{fontSize:11,color:"var(--text4)"}}>({t("crossoverSub")})</span>
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:10}}>
-                      {crossover.map(({figure, set, series}) => (
+                      {crossover.map(({figure, set, series, groupName}) => (
                         <div key={figure.id} style={{position:"relative"}}>
-                          <SearchResultCard figure={figure} series={series} set={set}
+                          <SearchResultCard figure={figure} series={series} set={set} groupName={groupName}
                             isOwned={owned.has(figure.id)} isWished={wishlist.has(figure.id)&&!owned.has(figure.id)}
                             onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
                             communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0} userId={user?.id} userPhotoCount={figuresWithPhotos[figure.id]??0} />
