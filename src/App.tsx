@@ -696,6 +696,8 @@ const T = {
   addVersionBtn:       { es: "Añadir versión", en: "Add version", th: "เพิ่มเวอร์ชัน", fr: "Ajouter une version", vi: "Thêm phiên bản", ja: "バージョンを追加", zh: "添加版本" },
   altVersionsHint:     { es: "Para figuras con piezas intercambiables (ej. 2 cabezas). Aparecerán como botones A/B/C en la ficha.", en: "For figures with interchangeable parts (e.g. 2 heads). They'll appear as A/B/C buttons on the figure page.", th: "สำหรับฟิกเกอร์ที่มีชิ้นส่วนสลับได้ (เช่น 2 หัว) จะแสดงเป็นปุ่ม A/B/C ในหน้ารายละเอียด", fr: "Pour les figurines avec pièces interchangeables (ex. 2 têtes). Elles apparaîtront comme boutons A/B/C sur la fiche.", vi: "Dành cho mô hình có bộ phận thay thế (ví dụ 2 đầu). Sẽ hiện thành nút A/B/C trên trang chi tiết.", ja: "パーツ交換可能なフィギュア用（例：頭2種）。詳細ページにA/B/Cボタンとして表示されます。", zh: "适用于可更换部件的人偶（例如2个头）。将在详情页显示为A/B/C按钮。" },
   moveFigureBtn:       { es: "Mover a otro set", en: "Move to another set", th: "ย้ายไปยังชุดอื่น", fr: "Déplacer vers un autre set", vi: "Chuyển sang bộ khác", ja: "他のセットに移動", zh: "移动到其他套装" },
+  moveFigureSeries: { es: "Serie de destino", en: "Destination series", th: "ซีรีส์ปลายทาง", fr: "Série de destination", vi: "Series đích", ja: "移動先のシリーズ", zh: "目标系列" },
+  moveFigureNote: { es: "Conserva tus marcas de «la tengo» / wishlist y sus fotos.", en: "Your owned / wishlist marks and its photos go with it.", th: "สถานะที่มี/รายการโปรด และรูปภาพจะย้ายไปด้วย", fr: "Vos marques « je l'ai » / wishlist et ses photos suivent.", vi: "Dấu đã có / yêu thích và ảnh sẽ đi theo.", ja: "所持・ウィッシュリストの印と写真も一緒に移動します。", zh: "已拥有/愿望清单标记和照片会一并转移。" },
   moveFigureTitle:     { es: "Mover figura a...", en: "Move figure to...", th: "ย้ายฟิกเกอร์ไปที่...", fr: "Déplacer la figurine vers...", vi: "Chuyển mô hình đến...", ja: "フィギュアを移動...", zh: "将人偶移动到..." },
   moveFigureUngrouped: { es: "Sin grupo", en: "Ungrouped", th: "ไม่มีกลุ่ม", fr: "Sans groupe", vi: "Không nhóm", ja: "グループなし", zh: "未分组" },
   moveFigureDone:      { es: "Figura movida correctamente", en: "Figure moved successfully", th: "ย้ายฟิกเกอร์เรียบร้อยแล้ว", fr: "Figurine déplacée avec succès", vi: "Đã chuyển mô hình thành công", ja: "フィギュアを移動しました", zh: "人偶已成功移动" },
@@ -1986,36 +1988,74 @@ function BulkAddModal({ onSave, onClose }: { onSave:(names:string[])=>void; onCl
 // ============================================================
 //  SET CARD
 // ============================================================
-function MoveFigureModal({ figure, series, currentSetId, onMove, onClose }: { figure: Figure; series: Series; currentSetId: number; onMove:(destSetId:number,destGroupId?:number)=>void; onClose:()=>void }) {
+// Moves a figure to any set of any series (also inside the same one). The figure keeps its id, so
+// owned/wishlist marks and photos stay with it. Returns null (and changes nothing) if the figure or
+// the destination set can't be found, so a figure is never removed without a place to land.
+function moveFigureAcrossSeries(data: Series[], srcSeriesId: number, figureId: number, destSeriesId: number, destSetId: number, destGroupId?: number): Series[] | null {
+  const destSeries = data.find(s => s.id === destSeriesId);
+  const destSets = destGroupId ? destSeries?.groups.find(g => g.id === destGroupId)?.sets : destSeries?.sets;
+  if (!destSets?.some(st => st.id === destSetId)) return null;
+  const found: { figure: Figure | null } = { figure: null };
+  const removeFrom = (sets: FigureSet[]) => sets.map(st => {
+    const idx = st.figures.findIndex(f => f.id === figureId);
+    if (idx === -1) return st;
+    found.figure = st.figures[idx];
+    return { ...st, figures: st.figures.filter(f => f.id !== figureId) };
+  });
+  const afterRemoval = data.map(s => s.id !== srcSeriesId ? s : { ...s, sets: removeFrom(s.sets), groups: s.groups.map(g => ({ ...g, sets: removeFrom(g.sets) })) });
+  const figure = found.figure;
+  if (!figure) return null;
+  const insertInto = (sets: FigureSet[]) => sets.map(st => st.id === destSetId ? { ...st, figures: [...st.figures, figure] } : st);
+  return afterRemoval.map(s => {
+    if (s.id !== destSeriesId) return s;
+    return destGroupId
+      ? { ...s, groups: s.groups.map(g => g.id === destGroupId ? { ...g, sets: insertInto(g.sets) } : g) }
+      : { ...s, sets: insertInto(s.sets) };
+  });
+}
+
+function MoveFigureModal({ figure, series, currentSetId, onMove, onClose }: { figure: Figure; series: Series; currentSetId: number; onMove:(destSeriesId:number,destSetId:number,destGroupId?:number)=>void; onClose:()=>void }) {
   const { t } = useTr();
+  const allSeries = useSeriesData();
+  const [destSeriesId, setDestSeriesId] = useState(series.id);
+  const dest = allSeries.find(s => s.id === destSeriesId) ?? series;
+  const sameSeries = dest.id === series.id;
+  const candidates = (sets: FigureSet[]) => sets.filter(st => !(sameSeries && st.id === currentSetId));
+  const btnStyle: React.CSSProperties = {display:"block",width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,marginBottom:6,color:"var(--text)"};
+  const heading: React.CSSProperties = {fontSize:10,fontWeight:700,color:"var(--text4)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6};
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
       <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:360,maxHeight:"75vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>{t("moveFigureTitle")}</div>
-        <div style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>{figure.emoji} {figure.name}</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>{figure.emoji} {figure.name}</div>
 
-        {series.sets.length > 0 && (
+        <div style={heading}>{t("moveFigureSeries")}</div>
+        <select value={destSeriesId} onChange={e=>setDestSeriesId(Number(e.target.value))}
+          style={{width:"100%",padding:"9px 10px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:sameSeries?14:6}}>
+          {(["oficial","resina"] as CategoryType[]).map(cat => (
+            <optgroup key={cat} label={cat === "oficial" ? t("officialBadge") : t("resinBadge")}>
+              {allSeries.filter(s => s.category === cat).map(s => <option key={s.id} value={s.id}>{s.emoji} {s.name}{cat === "resina" ? ` · ${t("resinBadge")}` : ""}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        {!sameSeries && <div style={{fontSize:11,color:"var(--text3)",marginBottom:14,lineHeight:1.4}}>{t("moveFigureNote")}</div>}
+
+        {candidates(dest.sets).length > 0 && (
           <div style={{marginBottom:14}}>
-            <div style={{fontSize:10,fontWeight:700,color:"var(--text4)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>{t("moveFigureUngrouped")}</div>
-            {series.sets.filter(st=>st.id!==currentSetId).map(st => (
-              <button key={st.id} onClick={()=>onMove(st.id)}
-                style={{display:"block",width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,marginBottom:6,color:"var(--text)"}}>
-                {st.name}
-              </button>
+            <div style={heading}>{t("moveFigureUngrouped")}</div>
+            {candidates(dest.sets).map(st => (
+              <button key={st.id} onClick={()=>onMove(dest.id, st.id)} style={btnStyle}>{st.name}</button>
             ))}
           </div>
         )}
 
-        {series.groups.map(g => (
+        {dest.groups.map(g => (
           <div key={g.id} style={{marginBottom:14}}>
-            <div style={{fontSize:10,fontWeight:700,color:"var(--text4)",textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>{g.name}</div>
-            {g.sets.filter(st=>st.id!==currentSetId).map(st => (
-              <button key={st.id} onClick={()=>onMove(st.id, g.id)}
-                style={{display:"block",width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",cursor:"pointer",fontSize:13,marginBottom:6,color:"var(--text)"}}>
-                {st.name}
-              </button>
+            <div style={heading}>{g.name}</div>
+            {candidates(g.sets).map(st => (
+              <button key={st.id} onClick={()=>onMove(dest.id, st.id, g.id)} style={btnStyle}>{st.name}</button>
             ))}
-            {g.sets.filter(st=>st.id!==currentSetId).length === 0 && (
+            {candidates(g.sets).length === 0 && (
               <div style={{fontSize:11,color:"var(--text4)",fontStyle:"italic"}}>—</div>
             )}
           </div>
@@ -2037,7 +2077,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
   onAddFigure:(f:Omit<Figure,"id">&{id?:number})=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
-  onMoveFigure?:(figureId:number,destSetId:number,destGroupId?:number)=>void;
+  onMoveFigure?:(figureId:number,destSeriesId:number,destSetId:number,destGroupId?:number)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
   cardSize?:"s"|"m"|"l";
@@ -2203,7 +2243,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
           figure={movingFigure}
           series={series}
           currentSetId={set.id}
-          onMove={(destSetId, destGroupId) => { onMoveFigure(movingFigure.id, destSetId, destGroupId); setMovingFigure(null); }}
+          onMove={(destSeriesId, destSetId, destGroupId) => { onMoveFigure(movingFigure.id, destSeriesId, destSetId, destGroupId); setMovingFigure(null); }}
           onClose={()=>setMovingFigure(null)}
         />
       )}
@@ -2382,7 +2422,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
   onReorderFigures:(stid:number,figures:Figure[])=>void;
   onReorderSets?:(sets:FigureSet[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
-  onMoveFigure?:(figureId:number,destSetId:number,destGroupId?:number)=>void;
+  onMoveFigure?:(figureId:number,destSeriesId:number,destSetId:number,destGroupId?:number)=>void;
   onMoveSetToGroup?:(stid:number,gid:number|null)=>void;
   communityOwned?:Record<number,number>; communityWished?:Record<number,number>;
   figuresWithPhotos?:Record<number,number>; userId?:string;
@@ -6312,27 +6352,17 @@ function MainApp() {
   // Mueve una figura entera (no solo su imagen) a otro set/grupo DENTRO DE LA MISMA FRANQUICIA.
   // Busca la figura en cualquier set (top-level o dentro de un grupo) de esa franquicia,
   // la extrae, y la añade al final del set de destino indicado.
-  const moveFigureToSet = (seriesId: number, figureId: number, destSetId: number, destGroupId?: number) => {
-    setData(d => d.map(s => {
-      if (s.id !== seriesId) return s;
-      let moved: Figure | null = null;
-      const removeFrom = (sets: FigureSet[]) => sets.map(st => {
-        const idx = st.figures.findIndex(f => f.id === figureId);
-        if (idx === -1) return st;
-        moved = st.figures[idx];
-        return { ...st, figures: st.figures.filter(f => f.id !== figureId) };
-      });
-      const setsAfterRemoval = removeFrom(s.sets);
-      const groupsAfterRemoval = s.groups.map(g => ({ ...g, sets: removeFrom(g.sets) }));
-      if (!moved) return s; // figura no encontrada en esta franquicia, no tocar nada
-      const insertInto = (sets: FigureSet[]) => sets.map(st =>
-        st.id === destSetId ? { ...st, figures: [...st.figures, moved as Figure] } : st
-      );
-      if (destGroupId) {
-        return { ...s, sets: setsAfterRemoval, groups: groupsAfterRemoval.map(g => g.id === destGroupId ? { ...g, sets: insertInto(g.sets) } : g) };
+  const moveFigureToSet = (srcSeriesId: number, figureId: number, destSeriesId: number, destSetId: number, destGroupId?: number) => {
+    setData(d => {
+      const next = moveFigureAcrossSeries(d, srcSeriesId, figureId, destSeriesId, destSetId, destGroupId);
+      if (!next) return d; // figure or destination not found: leave everything as it was
+      if (destSeriesId !== srcSeriesId) {
+        // A figure featured as news belongs to a franchise (used by the favourites filter): follow the move.
+        supabase.from("wcf_announcements").update({ franchise_id: String(destSeriesId) }).eq("figure_id", String(figureId))
+          .then(({ error }) => { if (error) console.error("Announcement franchise update failed:", error); });
       }
-      return { ...s, sets: insertInto(setsAfterRemoval), groups: groupsAfterRemoval };
-    }));
+      return next;
+    });
   };
   const totalAll = data.flatMap(allFigures).length;
   const seriesOwned = (s: Series) => allFlatWithTags.filter(x=>x.series.id===s.id&&(x.originalCategory??x.series.category)===s.category&&owned.has(x.figure.id)).length;
@@ -6851,7 +6881,7 @@ function MainApp() {
                     onUpdateFigure={(stid,fid,f)=>updateFigure(dbSeriesObj.id,stid,fid,f,item.group.id)}
                     onDeleteFigure={(stid,fid)=>deleteFigure(dbSeriesObj.id,stid,fid,item.group.id)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
-                    onMoveFigure={(fid,destSetId,destGroupId)=>moveFigureToSet(dbSeriesObj.id,fid,destSetId,destGroupId)}
+                    onMoveFigure={(fid,destSeriesId,destSetId,destGroupId)=>moveFigureToSet(dbSeriesObj.id,fid,destSeriesId,destSetId,destGroupId)}
                     series={dbSeriesObj}
                     communityOwned={communityOwned} communityWished={communityWished}
                     figuresWithPhotos={figuresWithPhotos} userId={user?.id}
@@ -6877,7 +6907,7 @@ function MainApp() {
                     onUpdateFigure={(fid,f)=>updateFigure(dbSeriesObj.id,item.set.id,fid,f)}
                     onDeleteFigure={(fid)=>deleteFigure(dbSeriesObj.id,item.set.id,fid)}
                     onSwapCross={(fromId,toId)=>swapFigureImages(fromId,toId)}
-                    onMoveFigure={(fid,destSetId,destGroupId)=>moveFigureToSet(dbSeriesObj.id,fid,destSetId,destGroupId)}
+                    onMoveFigure={(fid,destSeriesId,destSetId,destGroupId)=>moveFigureToSet(dbSeriesObj.id,fid,destSeriesId,destSetId,destGroupId)}
                   />
                 ));
               })()}
