@@ -3866,7 +3866,7 @@ function wrapTextLines(c: CanvasRenderingContext2D, text: string, maxWidth: numb
   return lines;
 }
 
-async function generateStoryImage(item: Announcement, ctx: { set: FigureSet; series: Series; group?: FigureGroup }, figureCount?: number) {
+async function generateStoryImage(item: Announcement, ctx: { set: FigureSet; series: Series; group?: FigureGroup }, figureCount?: number, releaseDate?: string) {
   const W = 1080, H = 1920;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -3910,7 +3910,10 @@ async function generateStoryImage(item: Announcement, ctx: { set: FigureSet; ser
     // Studio logo when the figure belongs to a resin group; otherwise fall back to
     // the set's own logo, but only if it actually differs from the franchise logo
     // above (most official sets just reuse the same one, so skip the duplicate).
-    const secondaryLogoSrc = ctx.group?.logo || (ctx.set.seriesLogo && ctx.set.seriesLogo !== seriesLogoSrc ? ctx.set.seriesLogo : undefined);
+    // An official set announcement already shows the series banner above: the set's own logo is just that
+    // banner again (stored as a separate copy, so the address check can't tell). Resin keeps its studio logo.
+    const isOfficialSet = figureCount !== undefined && !ctx.group && ctx.series.category !== "resina";
+    const secondaryLogoSrc = isOfficialSet ? undefined : (ctx.group?.logo || (ctx.set.seriesLogo && ctx.set.seriesLogo !== seriesLogoSrc ? ctx.set.seriesLogo : undefined));
     if (secondaryLogoSrc) {
       const secondaryLogo = await loadImageAsync(secondaryLogoSrc, true);
       const maxW = 320, maxH = 100;
@@ -3964,6 +3967,14 @@ async function generateStoryImage(item: Announcement, ctx: { set: FigureSet; ser
     : `${ctx.series.name}${ctx.group ? " — " + ctx.group.name : ""} — ${ctx.set.name}`;
   const subtitleLines = wrapTextLines(c, subtitle, 900).slice(0, 2);
   subtitleLines.forEach((l,i) => c.fillText(l, W/2, afterTitleY + i*44));
+  if (releaseDate) {
+    const [ry, rm] = releaseDate.split("-");
+    const rd = new Date(Number(ry), Number(rm) - 1, 1);
+    const when = isNaN(rd.getTime()) ? releaseDate : rd.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    c.font = "700 36px Arial, sans-serif";
+    c.fillStyle = "#ffd300";
+    c.fillText(`Release: ${when}`, W/2, afterTitleY + subtitleLines.length*44 + 20);
+  }
 
   try {
     const stamp = await loadImageAsync(STORY_STAMP_URL);
@@ -3983,6 +3994,14 @@ async function generateStoryImage(item: Announcement, ctx: { set: FigureSet; ser
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// "2026-11" -> "Nov 2026", with the month in the user's language (same style as the set header).
+const formatReleaseMonth = (d: string | undefined, lang: LangCode): string | null => {
+  if (!d) return null;
+  const [y, m] = d.split("-");
+  const month = T.months[lang][parseInt(m) - 1];
+  return month ? `${month} ${y}` : null;
+};
 
 function findSetContext(data: Series[], setId: number): { set: FigureSet; series: Series; group?: FigureGroup } | null {
   for (const series of data) {
@@ -4569,7 +4588,7 @@ function AnnounceSetModal({ ctx, apiKey, onSaveImage, onClose }: { ctx: { set: F
 }
 
 function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favItems: Announcement[]; allItems: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
-  const { t } = useTr();
+  const { t, lang } = useTr();
   const isAdmin = useAdmin();
   const showSwitch = allItems.length > favItems.length;
   const [showAll, setShowAllState] = useState(() => {
@@ -4652,22 +4671,7 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
               <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
               {ctx && (
                 <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
-                  {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""}{ctx.kind === "set" ? ` · ${ctx.figureIds.length} ${t("studiosFigures")}` : ` — ${ctx.set.name}`}
-                </div>
-              )}
-              {ctx && ctx.kind === "set" && (
-                <div style={{overflowX:"auto",marginTop:10,paddingBottom:4}}>
-                  <div style={{display:"flex",gap:8,width:"max-content",margin:"0 auto"}}>
-                    {ctx.set.figures.map(f => (
-                      <button key={f.id} title={f.name} onClick={()=>{ onOpenDetail(String(f.id)); onClose(); }}
-                        style={{flex:"0 0 auto",width:58,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg2)",padding:0,cursor:"pointer",overflow:"hidden",textAlign:"left"}}>
-                        {f.image
-                          ? <img src={f.image} alt={f.name} loading="lazy" style={{width:58,height:58,objectFit:"cover",display:"block"}} />
-                          : <div style={{width:58,height:58,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{f.emoji}</div>}
-                        <div style={{fontSize:8,fontWeight:600,padding:"2px 4px 3px",lineHeight:1.2,height:"2.5em",overflow:"hidden",color:"var(--text)"}}>{f.name}</div>
-                      </button>
-                    ))}
-                  </div>
+                  {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""}{ctx.kind === "set" ? ` · ${ctx.figureIds.length} ${t("studiosFigures")}${ctx.set.releaseDate ? ` · 📅 ${formatReleaseMonth(ctx.set.releaseDate, lang) ?? ""}` : ""}` : ` — ${ctx.set.name}`}
                 </div>
               )}
               {ctx && (
@@ -4681,7 +4685,7 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
                   {isAdmin && (
                     <button disabled={generatingStory} onClick={async()=>{
                         setGeneratingStory(true);
-                        try { await generateStoryImage(item, ctx, ctx.kind === "set" ? ctx.figureIds.length : undefined); }
+                        try { await generateStoryImage(item, ctx, ctx.kind === "set" ? ctx.figureIds.length : undefined, ctx.kind === "set" ? ctx.set.releaseDate : undefined); }
                         catch (e) { console.error("Story image error:", e); alert(t("newsStoryError")); }
                         setGeneratingStory(false);
                       }}
