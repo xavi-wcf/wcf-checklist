@@ -3910,10 +3910,11 @@ async function generateStoryImage(item: Announcement, ctx: { set: FigureSet; ser
     // Studio logo when the figure belongs to a resin group; otherwise fall back to
     // the set's own logo, but only if it actually differs from the franchise logo
     // above (most official sets just reuse the same one, so skip the duplicate).
-    // An official set announcement already shows the series banner above: the set's own logo is just that
-    // banner again (stored as a separate copy, so the address check can't tell). Resin keeps its studio logo.
-    const isOfficialSet = figureCount !== undefined && !ctx.group && ctx.series.category !== "resina";
-    const secondaryLogoSrc = isOfficialSet ? undefined : (ctx.group?.logo || (ctx.set.seriesLogo && ctx.set.seriesLogo !== seriesLogoSrc ? ctx.set.seriesLogo : undefined));
+    // Official stories show only the series banner above. Whatever second logo they would have (the set's own,
+    // or that of an arc/saga group) is that same banner again, stored as a separate copy, so the address check
+    // can't tell. Resin keeps its studio logo (a resin group is a studio).
+    const isOfficial = ctx.series.category !== "resina";
+    const secondaryLogoSrc = isOfficial ? undefined : (ctx.group?.logo || (ctx.set.seriesLogo && ctx.set.seriesLogo !== seriesLogoSrc ? ctx.set.seriesLogo : undefined));
     if (secondaryLogoSrc) {
       const secondaryLogo = await loadImageAsync(secondaryLogoSrc, true);
       const maxW = 320, maxH = 100;
@@ -4671,6 +4672,9 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
               <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
               {ctx && (
                 <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
+                  <span style={{display:"inline-block",fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:8,marginRight:6,verticalAlign:"1px",background:ctx.series.category === "resina" ? "#ede9fe" : "#e0f2fe",color:ctx.series.category === "resina" ? "#5b21b6" : "#075985"}}>
+                    {ctx.series.category === "resina" ? t("resinBadge") : t("officialBadge")}
+                  </span>
                   {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""}{ctx.kind === "set" ? ` · ${ctx.figureIds.length} ${t("studiosFigures")}${ctx.set.releaseDate ? ` · 📅 ${formatReleaseMonth(ctx.set.releaseDate, lang) ?? ""}` : ""}` : ` — ${ctx.set.name}`}
                 </div>
               )}
