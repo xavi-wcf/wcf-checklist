@@ -789,7 +789,7 @@ function useLang() {
 // ============================================================
 type CategoryType = "oficial" | "resina";
 interface Figure { id: number; name: string; emoji: string; image?: string; tags?: string; altImages?: string[]; }
-interface FigureSet { id: number; name: string; releaseDate?: string; seriesLogo?: string; figures: Figure[]; }
+interface FigureSet { id: number; name: string; releaseDate?: string; seriesLogo?: string; image?: string; figures: Figure[]; }
 interface FigureGroup { id: number; name: string; logo?: string; sets: FigureSet[]; }
 interface Series { id: number; name: string; emoji: string; logo?: string; logoHeader?: string; bgImage?: string; color: string; category: CategoryType; sets: FigureSet[]; groups: FigureGroup[]; }
 
@@ -2080,11 +2080,11 @@ function MoveFigureModal({ figure, series, currentSetId, onMove, onClose }: { fi
   );
 }
 
-function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, currentGroupId, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, onMoveFigure, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
+function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateSet, onDeleteSet, onDuplicate, onMoveToGroup, groups, currentGroupId, onAnnounce, onAddFigure, onAddFigures, onUpdateFigure, onDeleteFigure, onReorderFigures, onSwapCross, onMoveFigure, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   set:FigureSet; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateSet:(n:string,rd:string,sl:string)=>void; onDeleteSet:()=>void; onDuplicate:()=>void;
-  onMoveToGroup?:(gid:number|null)=>void; groups?:FigureGroup[]; currentGroupId?:number;
+  onMoveToGroup?:(gid:number|null)=>void; groups?:FigureGroup[]; currentGroupId?:number; onAnnounce?:()=>void;
   onAddFigure:(f:Omit<Figure,"id">&{id?:number})=>void; onAddFigures:(fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(id:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(id:number)=>void;
   onReorderFigures:(setId:number, figures:Figure[])=>void;
   onSwapCross?:(fromId:number,toId:number)=>void;
@@ -2141,6 +2141,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
           <Btn small onClick={()=>setBulkAdd(true)} variant="primary">➕ Añadir varias</Btn>
           <Btn small onClick={()=>setEditSet(true)}>{t("editSetBtn")}</Btn>
           <Btn small onClick={onDuplicate}>📋 Duplicar</Btn>
+          {onAnnounce && <Btn small onClick={onAnnounce}>📢 Anunciar</Btn>}
           {!!onMoveToGroup && !!groups && (currentGroupId !== undefined || groups.length > 0) && (
             <div style={{position:"relative"}}>
               <Btn small onClick={()=>setShowMoveMenu(m=>!m)}>📂 Mover a...</Btn>
@@ -2424,11 +2425,11 @@ function GroupModal({ title, initial, apiKey, onSave, onClose }: {
 // ============================================================
 //  GROUP CARD
 // ============================================================
-function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAddFigure, onAddFigures, onReorderFigures, onReorderSets, onUpdateFigure, onDeleteFigure, onSwapCross, onMoveFigure, onMoveSetToGroup, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
+function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, onToggleWish, onToggleAll, onUpdateGroup, onDeleteGroup, onAddSet, onUpdateSet, onDeleteSet, onDuplicateSet, onAnnounceSet, onAddFigure, onAddFigures, onReorderFigures, onReorderSets, onUpdateFigure, onDeleteFigure, onSwapCross, onMoveFigure, onMoveSetToGroup, communityOwned, communityWished, figuresWithPhotos, userId, cardSize }: {
   group:FigureGroup; color:string; series:Series; owned:Set<number>; wishlist:Set<number>; apiKey:string;
   onToggle:(id:number)=>void; onToggleWish:(id:number)=>void; onToggleAll:(ids:number[],markAs:boolean)=>void;
   onUpdateGroup:(name:string,logo:string)=>void; onDeleteGroup:()=>void; onAddSet:()=>void;
-  onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void;
+  onUpdateSet:(stid:number,n:string,rd:string,sl:string)=>void; onDeleteSet:(stid:number)=>void; onDuplicateSet:(stid:number)=>void; onAnnounceSet?:(stid:number)=>void;
   onAddFigure:(stid:number,f:Omit<Figure,"id">&{id?:number})=>void; onAddFigures:(stid:number,fs:Omit<Figure,"id">[])=>void; onUpdateFigure:(stid:number,fid:number,f:Omit<Figure,"id">)=>void; onDeleteFigure:(stid:number,fid:number)=>void;
   onReorderFigures:(stid:number,figures:Figure[])=>void;
   onReorderSets?:(sets:FigureSet[])=>void;
@@ -2497,6 +2498,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
                   onUpdateSet={(n,rd,sl)=>onUpdateSet(st.id,n,rd,sl)}
                   onDeleteSet={()=>onDeleteSet(st.id)}
                   onDuplicate={()=>onDuplicateSet(st.id)}
+                  onAnnounce={onAnnounceSet ? ()=>onAnnounceSet(st.id) : undefined}
                   onMoveToGroup={onMoveSetToGroup ? (gid)=>onMoveSetToGroup(st.id,gid) : undefined}
                   groups={series.groups} currentGroupId={group.id}
                   series={series}
@@ -3864,7 +3866,7 @@ function wrapTextLines(c: CanvasRenderingContext2D, text: string, maxWidth: numb
   return lines;
 }
 
-async function generateStoryImage(item: Announcement, ctx: { figure: Figure; set: FigureSet; series: Series; group?: FigureGroup }) {
+async function generateStoryImage(item: Announcement, ctx: { set: FigureSet; series: Series; group?: FigureGroup }, figureCount?: number) {
   const W = 1080, H = 1920;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -3957,7 +3959,9 @@ async function generateStoryImage(item: Announcement, ctx: { figure: Figure; set
 
   c.font = "500 34px Arial, sans-serif";
   c.fillStyle = "rgba(255,255,255,0.85)";
-  const subtitle = `${ctx.series.name}${ctx.group ? " — " + ctx.group.name : ""} — ${ctx.set.name}`;
+  const subtitle = figureCount !== undefined
+    ? `${ctx.series.name}${ctx.group ? " — " + ctx.group.name : ""} · ${figureCount} figures`
+    : `${ctx.series.name}${ctx.group ? " — " + ctx.group.name : ""} — ${ctx.set.name}`;
   const subtitleLines = wrapTextLines(c, subtitle, 900).slice(0, 2);
   subtitleLines.forEach((l,i) => c.fillText(l, W/2, afterTitleY + i*44));
 
@@ -3980,7 +3984,47 @@ async function generateStoryImage(item: Announcement, ctx: { figure: Figure; set
   URL.revokeObjectURL(url);
 }
 
-type WeeklyEntry = { item: Announcement; ctx: { figure: Figure; set: FigureSet; series: Series; group?: FigureGroup } };
+function findSetContext(data: Series[], setId: number): { set: FigureSet; series: Series; group?: FigureGroup } | null {
+  for (const series of data) {
+    const direct = (series.sets ?? []).find(st => st.id === setId);
+    if (direct) return { set: direct, series };
+    for (const group of series.groups ?? []) {
+      const inGroup = (group.sets ?? []).find(st => st.id === setId);
+      if (inGroup) return { set: inGroup, series, group };
+    }
+  }
+  return null;
+}
+
+// Turns an announcement (of a figure or of a set) into what it points at in the catalogue.
+type AnnouncementRef = { kind: "figure" | "set"; set: FigureSet; series: Series; group?: FigureGroup; figureIds: number[] };
+function resolveAnnouncement(data: Series[], a: Announcement): AnnouncementRef | null {
+  if (a.set_id) {
+    const s = findSetContext(data, Number(a.set_id));
+    return s ? { kind: "set", set: s.set, series: s.series, group: s.group, figureIds: s.set.figures.map(f => f.id) } : null;
+  }
+  const f = findFigureContext(data, Number(a.figure_id));
+  return f ? { kind: "figure", set: f.set, series: f.series, group: f.group, figureIds: [f.figure.id] } : null;
+}
+
+// Every figure that should carry the NEW tag: the announced figures plus all figures of announced sets.
+function newFigureIdsFrom(data: Series[], announcements: Announcement[]): Set<number> {
+  const ids = new Set<number>();
+  for (const a of announcements) {
+    const ref = resolveAnnouncement(data, a);
+    if (ref) ref.figureIds.forEach(id => ids.add(id));
+    else if (a.figure_id) ids.add(Number(a.figure_id)); // not found in the catalogue (yet)
+  }
+  return ids;
+}
+
+// Keeps the photo of a set on the set itself, so it can be reused later.
+function setSetImage(data: Series[], setId: number, image: string): Series[] {
+  const upd = (sets: FigureSet[]) => sets.map(st => st.id === setId ? { ...st, image } : st);
+  return data.map(s => ({ ...s, sets: upd(s.sets ?? []), groups: (s.groups ?? []).map(g => ({ ...g, sets: upd(g.sets ?? []) })) }));
+}
+
+type WeeklyEntry = { item: Announcement; ctx: { set: FigureSet; series: Series; group?: FigureGroup }; weight: number };
 type WeeklyBucket = { series: Series; entries: WeeklyEntry[] };
 type WeeklySegment = { bucket: WeeklyBucket; entries: WeeklyEntry[]; startCol: number; header: boolean };
 type WeeklyBand = { segments: WeeklySegment[]; used: number };
@@ -4007,13 +4051,19 @@ const WK = (() => {
 // next to each other.
 function buildWeeklyBuckets(weekItems: Announcement[], data: Series[]): WeeklyBucket[] {
   const map = new Map<string, WeeklyBucket>();
+  // A figure announced on its own is skipped when its whole set is announced too (the set tile covers it).
+  const announcedSets = new Set(weekItems.filter(a => a.set_id).map(a => String(a.set_id)));
+  const seenSets = new Set<string>();
   for (const item of weekItems) {
-    const ctx = findFigureContext(data, Number(item.figure_id));
-    if (!ctx) continue;
-    const key = ctx.series.name.trim().toLowerCase();
-    const bucket = map.get(key) ?? { series: ctx.series, entries: [] };
-    if (!(bucket.series.logoHeader || bucket.series.logo) && (ctx.series.logoHeader || ctx.series.logo)) bucket.series = ctx.series;
-    bucket.entries.push({ item, ctx });
+    const ref = resolveAnnouncement(data, item);
+    if (!ref) continue;
+    if (ref.kind === "figure" && announcedSets.has(String(ref.set.id))) continue;
+    if (ref.kind === "set") { if (seenSets.has(String(ref.set.id))) continue; seenSets.add(String(ref.set.id)); }
+    const key = ref.series.name.trim().toLowerCase();
+    const bucket = map.get(key) ?? { series: ref.series, entries: [] };
+    if (!(bucket.series.logoHeader || bucket.series.logo) && (ref.series.logoHeader || ref.series.logo)) bucket.series = ref.series;
+    // One tile per announcement; a set counts as all the figures it contains.
+    bucket.entries.push({ item, ctx: { set: ref.set, series: ref.series, group: ref.group }, weight: ref.figureIds.length });
     map.set(key, bucket);
   }
   const studioKey = (e: WeeklyEntry) => e.ctx.group ? `g${e.ctx.group.id}` : `s${e.ctx.set.id}`;
@@ -4122,7 +4172,7 @@ async function generateWeeklySummaryImage(weekItems: Announcement[], data: Serie
 
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
     const page = pages[pageIndex];
-    const pageEntryCount = page.bands.reduce((n, b) => n + b.segments.reduce((m, sg) => m + sg.entries.length, 0), 0);
+    const pageEntryCount = page.bands.reduce((n, b) => n + b.segments.reduce((m, sg) => m + sg.entries.reduce((k, e) => k + e.weight, 0), 0), 0);
     // Standard square, growing only as far as this page's content needs (max 4:5).
     const H = Math.min(maxH, Math.max(standardH, contentTop + page.height + footerH + 10));
     const contentHeight = H - footerH - contentTop - 10;
@@ -4280,8 +4330,9 @@ function buildWeeklyCaptions(weekItems: Announcement[], data: Series[]): { insta
   const buckets = buildWeeklyBuckets(weekItems, data);
   if (buckets.length === 0) return null;
   const pageCount = planWeeklyPages(buckets).length;
-  const sorted = [...buckets].sort((a, b) => b.entries.length - a.entries.length);
-  const total = sorted.reduce((n, b) => n + b.entries.length, 0);
+  const weightOf = (b: WeeklyBucket) => b.entries.reduce((n, e) => n + e.weight, 0);
+  const sorted = [...buckets].sort((a, b) => weightOf(b) - weightOf(a));
+  const total = sorted.reduce((n, b) => n + weightOf(b), 0);
 
   // Resin pieces are credited to their studio (the group, or the set for resin
   // franchises without groups); everything else counts as official.
@@ -4290,7 +4341,7 @@ function buildWeeklyCaptions(weekItems: Announcement[], data: Series[]): { insta
   for (const b of sorted) {
     for (const e of b.entries) {
       const raw = e.ctx.group ? e.ctx.group.name : (e.ctx.series.category === "resina" ? e.ctx.set.name : "");
-      if (!raw) { official++; continue; }
+      if (!raw) { official += e.weight; continue; }
       const name = cleanStudioName(raw);
       if (!studios.has(name.toLowerCase())) studios.set(name.toLowerCase(), name);
     }
@@ -4311,7 +4362,7 @@ function buildWeeklyCaptions(weekItems: Announcement[], data: Series[]): { insta
     "",
     `${total} new ${plural(total)} just landed in the catalogue 👇`,
     "",
-    sorted.map(b => `${weeklyEmojiFor(b.series)} ${b.series.name}: ${b.entries.length}`).join("\n"),
+    sorted.map(b => `${weeklyEmojiFor(b.series)} ${b.series.name}: ${weightOf(b)}`).join("\n"),
     "",
     ...(igDetail ? [igDetail, ""] : []),
     `${swipeIG}Which one are you adding to your collection? ✅`,
@@ -4332,7 +4383,7 @@ function buildWeeklyCaptions(weekItems: Announcement[], data: Series[]): { insta
     "",
     `${total} new ${plural(total)} were added to the catalogue between ${fmtWeeklyDate(weekAgoDate)} and ${fmtWeeklyDate(now)}.`,
     "",
-    sorted.map(b => `${weeklyEmojiFor(b.series)} ${b.series.name}: ${b.entries.length} new ${plural(b.entries.length)}`).join("\n"),
+    sorted.map(b => `${weeklyEmojiFor(b.series)} ${b.series.name}: ${weightOf(b)} new ${plural(weightOf(b))}`).join("\n"),
     "",
     ...(fbDetail ? [fbDetail, ""] : []),
     "Which one are you most excited about? Let us know in the comments 👇",
@@ -4395,14 +4446,15 @@ function WeeklyTextModal({ instagram, facebook, onClose }: { instagram: string; 
   );
 }
 
-type Announcement = { id:number; figure_id:string; image_url:string; title:string; franchise_id:string; created_at:string };
+// An announcement is either of one figure (figure_id) or of a whole set (set_id, with the set's photo in image_url).
+type Announcement = { id:number; figure_id:string|null; set_id?:string|null; image_url:string; title:string; franchise_id:string; created_at:string };
 
 function useAnnouncements(favourites: Set<number>, favouritesReady: boolean) {
   const [all, setAll] = useState<Announcement[]>([]);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     supabase.from("wcf_announcements")
-      .select("id,figure_id,image_url,title,franchise_id,created_at")
+      .select("*")
       .eq("active", true)
       .gte("created_at", new Date(Date.now() - 7*24*60*60*1000).toISOString())
       .order("created_at", { ascending: false })
@@ -4425,11 +4477,11 @@ const isStandaloneDisplay = () =>
 type MonthlyDigest = { id: number; year: number; month: number; total: number; byFranchise: { name: string; count: number }[] };
 
 function useMonthlyDigests(data: Series[]): MonthlyDigest[] {
-  const [rows, setRows] = useState<{ franchise_id: string; created_at: string }[]>([]);
+  const [rows, setRows] = useState<{ franchise_id: string; created_at: string; set_id?: string | null }[]>([]);
   useEffect(() => {
-    supabase.from("wcf_announcements").select("franchise_id,created_at").eq("active", true)
+    supabase.from("wcf_announcements").select("*").eq("active", true)
       .gte("created_at", new Date(Date.now() - 130*24*60*60*1000).toISOString()).limit(2000)
-      .then(({ data: r, error }) => { if (!error && r) setRows(r as { franchise_id: string; created_at: string }[]); });
+      .then(({ data: r, error }) => { if (!error && r) setRows(r as { franchise_id: string; created_at: string; set_id?: string | null }[]); });
   }, []);
   return useMemo(() => {
     if (rows.length === 0 || data.length === 0) return [];
@@ -4444,7 +4496,8 @@ function useMonthlyDigests(data: Series[]): MonthlyDigest[] {
       const name = nameById.get(String(r.franchise_id));
       if (!name) continue;
       const m = months.get(key) ?? new Map<string, number>();
-      m.set(name, (m.get(name) ?? 0) + 1);
+      const weight = r.set_id ? (findSetContext(data, Number(r.set_id))?.set.figures.length ?? 1) : 1; // a set counts as its figures
+      m.set(name, (m.get(name) ?? 0) + weight);
       months.set(key, m);
     }
     return [...months.entries()]
@@ -4456,6 +4509,63 @@ function useMonthlyDigests(data: Series[]): MonthlyDigest[] {
       .sort((a, b) => b.id - a.id)
       .slice(0, 3);
   }, [rows, data]);
+}
+
+// Admin: announce a whole set as news (with a photo of the full set) or take the announcement down.
+function AnnounceSetModal({ ctx, apiKey, onSaveImage, onClose }: { ctx: { set: FigureSet; series: Series; group?: FigureGroup }; apiKey: string; onSaveImage: (image: string) => void; onClose: () => void }) {
+  const { set, series } = ctx;
+  const [title, setTitle] = useState(set.name);
+  const [image, setImage] = useState(set.image ?? "");
+  const [existing, setExisting] = useState<boolean | null>(null); // null while checking
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from("wcf_announcements").select("id").eq("set_id", String(set.id)).eq("active", true).limit(1)
+      .then(({ data, error: err }) => setExisting(err ? false : (data?.length ?? 0) > 0));
+  }, [set.id]);
+
+  const announce = async () => {
+    if (!image) { setError("Sube primero la foto del set completo."); return; }
+    setBusy(true); setError(null);
+    const { error: err } = await supabase.from("wcf_announcements").insert({
+      set_id: String(set.id), figure_id: null, image_url: image, title: title.trim() || set.name, franchise_id: String(series.id), active: true,
+    });
+    if (err) { setError(`No se pudo anunciar: ${err.message}`); setBusy(false); return; }
+    if (image !== set.image) onSaveImage(image); // the photo stays on the set for later use
+    onClose();
+  };
+  const unannounce = async () => {
+    setBusy(true); setError(null);
+    const { data, error: err } = await supabase.from("wcf_announcements").update({ active: false }).eq("set_id", String(set.id)).eq("active", true).select("id");
+    if (err || !data || data.length === 0) { setError("No se pudo quitar el anuncio."); setBusy(false); return; }
+    setExisting(false); setBusy(false);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:320,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"var(--bg)",borderRadius:16,padding:20,width:"100%",maxWidth:380,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.25)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontWeight:800,fontSize:16,marginBottom:2}}>📢 Anunciar set</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>{series.emoji} {series.name}{ctx.group ? ` — ${ctx.group.name}` : ""} — {set.name} · {set.figures.length} figuras</div>
+        {existing && (
+          <div style={{background:"#ecfdf5",color:"#065f46",borderRadius:10,padding:"8px 12px",fontSize:12,marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+            <span style={{flex:1}}>Este set ya está anunciado. Para renovarlo, quítalo y vuelve a anunciarlo.</span>
+            <Btn small variant="danger" onClick={unannounce}>Quitar anuncio</Btn>
+          </div>
+        )}
+        <Field label="Título"><Input value={title} onChange={setTitle} placeholder={set.name} /></Field>
+        <Field label="Foto del set completo">
+          <ImageUploader apiKey={apiKey} currentUrl={image} onUploaded={(url)=>{ setImage(url); setError(null); }} label="Foto del set" aspectRatio={null} skipCrop />
+        </Field>
+        <div style={{fontSize:11,color:"var(--text4)",margin:"4px 0 12px"}}>La foto se guarda también en el set, para poder usarla más adelante.</div>
+        {error && <div style={{color:"#dc2626",fontSize:12,marginBottom:10}}>{error}</div>}
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn onClick={onClose}>Cerrar</Btn>
+          {!existing && <Btn variant="primary" onClick={()=>{ if (!busy) void announce(); }}>{busy ? "…" : "Anunciar"}</Btn>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favItems: Announcement[]; allItems: Announcement[]; data: Series[]; onOpenDetail: (figureId:string)=>void; onClose: ()=>void }) {
@@ -4476,7 +4586,7 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
   const [weeklyText, setWeeklyText] = useState<{ instagram: string; facebook: string } | null>(null);
   useEffect(() => { setIndex(0); }, [showAll]);
   const item = items[index] ?? null;
-  const ctx = item ? findFigureContext(data, Number(item.figure_id)) : null;
+  const ctx = item ? resolveAnnouncement(data, item) : null;
   const next = () => { if (!item) return; if (index < items.length-1) setIndex(index+1); else onClose(); };
   const prev = () => { if (index > 0) setIndex(index-1); };
   return (
@@ -4542,19 +4652,36 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
               <div style={{fontSize:16,fontWeight:700}}>{item.title}</div>
               {ctx && (
                 <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
-                  {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""} — {ctx.set.name}
+                  {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""}{ctx.kind === "set" ? ` · ${ctx.figureIds.length} ${t("studiosFigures")}` : ` — ${ctx.set.name}`}
+                </div>
+              )}
+              {ctx && ctx.kind === "set" && (
+                <div style={{overflowX:"auto",marginTop:10,paddingBottom:4}}>
+                  <div style={{display:"flex",gap:8,width:"max-content",margin:"0 auto"}}>
+                    {ctx.set.figures.map(f => (
+                      <button key={f.id} title={f.name} onClick={()=>{ onOpenDetail(String(f.id)); onClose(); }}
+                        style={{flex:"0 0 auto",width:58,border:"1px solid var(--border)",borderRadius:8,background:"var(--bg2)",padding:0,cursor:"pointer",overflow:"hidden",textAlign:"left"}}>
+                        {f.image
+                          ? <img src={f.image} alt={f.name} loading="lazy" style={{width:58,height:58,objectFit:"cover",display:"block"}} />
+                          : <div style={{width:58,height:58,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{f.emoji}</div>}
+                        <div style={{fontSize:8,fontWeight:600,padding:"2px 4px 3px",lineHeight:1.2,height:"2.5em",overflow:"hidden",color:"var(--text)"}}>{f.name}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               {ctx && (
                 <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:10,flexWrap:"wrap"}}>
-                  <button onClick={()=>{ onOpenDetail(item.figure_id); onClose(); }}
-                    style={{padding:"7px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-                    {t("newsSeeDetail")}
-                  </button>
+                  {ctx.kind === "figure" && (
+                    <button onClick={()=>{ onOpenDetail(String(ctx.figureIds[0])); onClose(); }}
+                      style={{padding:"7px 16px",borderRadius:20,border:"none",background:"#0196e3",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                      {t("newsSeeDetail")}
+                    </button>
+                  )}
                   {isAdmin && (
                     <button disabled={generatingStory} onClick={async()=>{
                         setGeneratingStory(true);
-                        try { await generateStoryImage(item, ctx); }
+                        try { await generateStoryImage(item, ctx, ctx.kind === "set" ? ctx.figureIds.length : undefined); }
                         catch (e) { console.error("Story image error:", e); alert(t("newsStoryError")); }
                         setGeneratingStory(false);
                       }}
@@ -6173,7 +6300,7 @@ function MainApp() {
     }
   }, [newsLoaded]);
   const closeNewsModal = () => { markAnnouncementsSeen(newsMaxId); setShowNewsModal(false); };
-  const newFigureIds = useMemo(() => new Set(newsAllItems.map(a => Number(a.figure_id))), [newsAllItems]);
+  const newFigureIds = useMemo(() => newFigureIdsFrom(data, newsAllItems), [data, newsAllItems]);
   const digests = useMonthlyDigests(data);
   useEffect(() => {
     // A new monthly recap opens "What's new" once.
@@ -6309,6 +6436,7 @@ function MainApp() {
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [announcingSet, setAnnouncingSet] = useState<number | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMyCollection, setShowMyCollection] = useState(false);
@@ -6884,6 +7012,7 @@ function MainApp() {
                     onUpdateSet={(stid,n,rd,sl)=>updateSet(dbSeriesObj.id,stid,n,rd,sl,item.group.id)}
                     onDeleteSet={(stid)=>deleteSet(dbSeriesObj.id,stid,item.group.id)}
                     onDuplicateSet={(stid)=>duplicateSet(dbSeriesObj.id,stid,item.group.id)}
+                    onAnnounceSet={(stid)=>setAnnouncingSet(stid)}
                     onMoveSetToGroup={(stid,gid)=>moveSetToGroup(dbSeriesObj.id,stid,gid)}
                     onAddFigure={(stid,f)=>addFigure(dbSeriesObj.id,stid,f,item.group.id)}
                     onAddFigures={(stid,fs)=>addFigures(dbSeriesObj.id,stid,fs,item.group.id)}
@@ -6906,6 +7035,7 @@ function MainApp() {
                     onUpdateSet={(n,rd,sl)=>updateSet(dbSeriesObj.id,item.set.id,n,rd,sl)}
                     onDeleteSet={()=>deleteSet(dbSeriesObj.id,item.set.id)}
                     onDuplicate={()=>duplicateSet(dbSeriesObj.id,item.set.id)}
+                    onAnnounce={()=>setAnnouncingSet(item.set.id)}
                     onMoveToGroup={(gid)=>moveSetToGroup(dbSeriesObj.id,item.set.id,gid)}
                     groups={dbSeriesObj.groups}
                     series={dbSeriesObj}
@@ -7064,6 +7194,10 @@ function MainApp() {
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
       {showAdminPanel && <AdminPanel onClose={()=>{setShowAdminPanel(false);refreshNewFeedback();}} />}
+      {announcingSet !== null && (() => {
+        const setCtx = findSetContext(data, announcingSet);
+        return setCtx ? <AnnounceSetModal ctx={setCtx} apiKey={apiKey} onSaveImage={(img)=>setData(d=>setSetImage(d, announcingSet, img))} onClose={()=>setAnnouncingSet(null)} /> : null;
+      })()}
       {showAnalytics && <AdminAnalyticsPanel onClose={()=>setShowAnalytics(false)} data={data} />}
       {showMyCollection && user && (
         <MyCollectionPanel userId={user.id} uploaderName={user.name ?? user.email ?? "?"} uploaderAvatar={user.avatar} onClose={()=>setShowMyCollection(false)} />
