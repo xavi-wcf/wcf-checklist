@@ -2323,6 +2323,45 @@ function buildSearchMatcher(search: string): SearchMatcher | null {
   return matcher;
 }
 
+// Which figures does the Chinese dictionary NOT recognise? Same rule as the search (whole-word names, series
+// qualifiers) but applied to the figure's own name only, so a franchise alias ("dragon ball") can't hide a missing character.
+function buildAliasProbe(): (figureName: string, seriesName: string) => boolean {
+  const byFirst = new Map<string, SearchAlt[]>(); // alias candidates, by the first word of the English name
+  const seen = new Set<string>();
+  for (const bucket of aliasIndex.values()) for (const e of bucket) for (const a of e.alts) {
+    const key = `${a.text}@${(a.need ?? []).join()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const first = /^[a-z0-9]+/.exec(a.text)?.[0];
+    if (!first) continue;
+    const list = byFirst.get(first) ?? [];
+    list.push(a);
+    byFirst.set(first, list);
+  }
+  const isAlnum = (c: string | undefined) => !!c && /[a-z0-9]/.test(c);
+  return (figureName, seriesName) => {
+    const name = figureName.toLowerCase();
+    const series = seriesName.toLowerCase();
+    const withSeries = `${name} ${series}`;
+    for (const m of name.matchAll(/[a-z0-9]+/g)) {
+      const cands = byFirst.get(m[0]);
+      if (!cands) continue;
+      const i = m.index ?? 0;
+      for (const a of cands) {
+        if (series.includes(a.text)) continue; // the franchise name itself ("kamen rider") says nothing about the character
+        if (name.startsWith(a.text, i) && !isAlnum(name[i + a.text.length]) && (!a.need || a.need.some(n => withSeries.includes(n)))) return true;
+      }
+    }
+    return false;
+  };
+}
+
+// "(A) Kuchiki Byakuya ver.B (Bankai)" -> "Kuchiki Byakuya": the character, without the variant.
+function chineseBaseName(n: string): string {
+  return n.replace(/^\([A-Za-z]\)\s*/, "").replace(/\s*\bver\.?\s*[A-Za-z0-9]+\b/gi, "").replace(/\s*\bver\.?\s*$/i, "").replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s*\[[^\]]*\]/g, "").replace(/\s*「[^」]*」/g, "").replace(/\s+/g, " ").trim();
+}
+
 // Moves a figure to any set of any series (also inside the same one). The figure keeps its id, so
 // owned/wishlist marks and photos stay with it. Returns null (and changes nothing) if the figure or
 // the destination set can't be found, so a figure is never removed without a place to land.
@@ -6037,8 +6076,103 @@ function AdminUsersTab() {
   );
 }
 
-function AdminPanel({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<"feedback" | "users" | "errors">("feedback");
+// Figures whose name no Chinese alias recognises: what to translate after adding new figures.
+function AdminChineseTab({ data }: { data: Series[] }) {
+  const [status, setStatus] = useState<"loading" | "ready" | "nofile">("loading");
+  const [seriesFilter, setSeriesFilter] = useState("all");
+  const [q, setQ] = useState("");
+  const [limit, setLimit] = useState(120);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await loadExtraSearchAliases();
+      for (let i = 0; i < 100 && extraAliases === "loading"; i++) await new Promise(r => setTimeout(r, 100));
+      if (!cancelled) setStatus(extraAliases === "done" ? "ready" : "nofile");
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const { rows, total, covered } = useMemo(() => {
+    if (status === "loading") return { rows: [] as { series: string; category: string; base: string; count: number }[], total: 0, covered: 0 };
+    const probe = buildAliasProbe();
+    const missing = new Map<string, { series: string; category: string; base: string; count: number }>();
+    let total = 0, covered = 0;
+    for (const s of data) {
+      for (const st of [...s.sets, ...s.groups.flatMap(g => g.sets)]) {
+        for (const f of st.figures) {
+          total++;
+          if (probe(f.name, s.name)) { covered++; continue; }
+          const base = chineseBaseName(f.name) || f.name;
+          const key = `${s.id}|${base.toLowerCase()}`;
+          const row = missing.get(key);
+          if (row) row.count++; else missing.set(key, { series: s.name, category: s.category, base, count: 1 });
+        }
+      }
+    }
+    return { rows: [...missing.values()].sort((a, b) => b.count - a.count || a.series.localeCompare(b.series) || a.base.localeCompare(b.base)), total, covered };
+  }, [status, data]);
+
+  const seriesNames = [...new Set(rows.map(r => r.series))].sort();
+  const needle = q.trim().toLowerCase();
+  const shown = rows.filter(r => (seriesFilter === "all" || r.series === seriesFilter) && (!needle || r.base.toLowerCase().includes(needle)));
+  const pct = total ? Math.round((covered / total) * 100) : 0;
+
+  const copyTemplate = async () => {
+    // one line per character, ready to complete:  "?? = Kuchiki Byakuya"  ->  "朽木白哉 = Kuchiki Byakuya"
+    const bySeries = new Map<string, string[]>();
+    for (const r of shown) bySeries.set(r.series, [...(bySeries.get(r.series) ?? []), r.base]);
+    const text = [...bySeries.entries()].map(([s, names]) => `# ${s}\n${[...new Set(names)].map(n => `?? = ${n}`).join("\n")}`).join("\n\n");
+    await copyToClipboard(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+
+  if (status === "loading") return <div style={{textAlign:"center",padding:"30px 0",color:"var(--text4)",fontSize:13}}>Loading dictionary…</div>;
+  return (
+    <div>
+      {status === "nofile" && (
+        <div style={{background:"#fffbeb",color:"#92400e",borderRadius:10,padding:"8px 12px",fontSize:12,lineHeight:1.4,marginBottom:12}}>
+          ⚠️ /search-zh.txt could not be loaded, so only the small built-in table is being checked. Make sure the file is in the public folder.
+        </div>
+      )}
+      <div style={{fontSize:13,marginBottom:2}}><b>{covered}</b> of <b>{total}</b> figures have a Chinese name recognised <b style={{color:pct >= 80 ? "#059669" : "#d97706"}}>({pct}%)</b></div>
+      <div style={{fontSize:12,color:"var(--text3)",marginBottom:12}}>{rows.length} characters without one. Variants such as "ver.A" or "(Bankai)" count as the same character.</div>
+      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        <select value={seriesFilter} onChange={e=>{setSeriesFilter(e.target.value);setLimit(120);}}
+          style={{flex:"1 1 150px",padding:"8px 10px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
+          <option value="all">All series ({rows.length})</option>
+          {seriesNames.map(s => <option key={s} value={s}>{s} ({rows.filter(r => r.series === s).length})</option>)}
+        </select>
+        <input value={q} onChange={e=>{setQ(e.target.value);setLimit(120);}} placeholder="Search…"
+          style={{flex:"1 1 120px",padding:"8px 10px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13}} />
+      </div>
+      <button onClick={copyTemplate} disabled={shown.length === 0}
+        style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"none",background:copied ? "#059669" : "#0196e3",color:"#fff",fontSize:13,fontWeight:700,cursor:shown.length ? "pointer" : "default",opacity:shown.length ? 1 : 0.5,marginBottom:12}}>
+        {copied ? "✓ Copied" : `📋 Copy ${shown.length} for translation`}
+      </button>
+      {shown.length === 0 && <div style={{textAlign:"center",padding:"18px 0",color:"#059669",fontSize:13,fontWeight:600}}>✅ Nothing missing here</div>}
+      {shown.slice(0, limit).map(r => (
+        <div key={`${r.series}|${r.base}`} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 2px",borderBottom:"1px solid var(--border)"}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:600,wordBreak:"break-word"}}>{r.base}</div>
+            <div style={{fontSize:11,color:"var(--text3)"}}>{r.series}{r.category === "resina" ? " · Resin" : ""}</div>
+          </div>
+          {r.count > 1 && <span style={{fontSize:11,fontWeight:700,color:"var(--text3)",background:"var(--bg2)",borderRadius:10,padding:"2px 8px"}}>×{r.count}</span>}
+        </div>
+      ))}
+      {shown.length > limit && (
+        <button onClick={()=>setLimit(l => l + 150)} style={{width:"100%",marginTop:10,padding:"8px",borderRadius:10,border:"1px solid var(--border)",background:"transparent",color:"var(--text3)",fontSize:12,cursor:"pointer"}}>
+          Show more ({shown.length - limit} left)
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AdminPanel({ onClose, data }: { onClose: () => void; data: Series[] }) {
+  const [tab, setTab] = useState<"feedback" | "users" | "errors" | "chinese">("feedback");
   const tabBtn = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: "10px 6px", border: "none", borderBottom: active ? "2px solid #0196e3" : "2px solid transparent",
     background: "transparent", color: active ? "#0196e3" : "var(--text3)", fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -6047,16 +6181,17 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:320,display:"flex",alignItems:"center",justifyContent:"center",padding:12}}>
       <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg)",borderRadius:16,width:"100%",maxWidth:600,height:"min(85vh,720px)",display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 8px 32px rgba(0,0,0,0.35)"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px 4px"}}>
-          <div style={{fontSize:16,fontWeight:800}}>🛠️ Feedback & users</div>
+          <div style={{fontSize:16,fontWeight:800}}>🛠️ Admin</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:"var(--text3)",lineHeight:1}}>×</button>
         </div>
         <div style={{display:"flex",borderBottom:"1px solid var(--border)"}}>
           <button onClick={()=>setTab("feedback")} style={tabBtn(tab === "feedback")}>💬 Feedback</button>
           <button onClick={()=>setTab("users")} style={tabBtn(tab === "users")}>👥 Users</button>
           <button onClick={()=>setTab("errors")} style={tabBtn(tab === "errors")}>⚠️ Errors</button>
+          <button onClick={()=>setTab("chinese")} style={tabBtn(tab === "chinese")}>🈶 Chinese</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:14}}>
-          {tab === "feedback" ? <AdminFeedbackTab /> : tab === "users" ? <AdminUsersTab /> : <AdminErrorsTab />}
+          {tab === "feedback" ? <AdminFeedbackTab /> : tab === "users" ? <AdminUsersTab /> : tab === "errors" ? <AdminErrorsTab /> : <AdminChineseTab data={data} />}
         </div>
       </div>
     </div>
@@ -7599,7 +7734,7 @@ function MainApp() {
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
-      {showAdminPanel && <AdminPanel onClose={()=>{setShowAdminPanel(false);refreshNewFeedback();}} />}
+      {showAdminPanel && <AdminPanel data={data} onClose={()=>{setShowAdminPanel(false);refreshNewFeedback();}} />}
       {announcingSet !== null && (() => {
         const setCtx = findSetContext(data, announcingSet);
         return setCtx ? <AnnounceSetModal ctx={setCtx} apiKey={apiKey} onSaveImage={(img)=>setData(d=>setSetImage(d, announcingSet, img))} onClose={()=>setAnnouncingSet(null)} /> : null;
