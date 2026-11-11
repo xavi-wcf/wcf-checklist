@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wcf-checklist-v194';
+const CACHE_NAME = 'wcf-checklist-v195';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -33,6 +33,20 @@ self.addEventListener('fetch', (event) => {
       event.request.url.includes('img.wcfchecklist.com') ||
       event.request.url.includes('/api/') ||
       event.request.method !== 'GET') {
+    return;
+  }
+  // An explicit reload (fetch(url, { cache: 'reload' }), used by the admin "refresh" button, or a hard reload of the page)
+  // skips the saved copy: it goes to the network and refreshes the saved copy with the answer.
+  if (event.request.cache === 'reload' || event.request.cache === 'no-cache') {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      })
+    );
     return;
   }
   event.respondWith(

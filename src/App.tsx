@@ -1299,6 +1299,7 @@ async function loadCatalogue(
   readCache: () => Promise<CatalogueCache | null>,
   writeCache: (c: CatalogueCache) => void,
   onInterim: (rows: Series[]) => void,
+  force = false, // true: ignore the saved copy and the "has it changed?" shortcut and download it again
 ): Promise<{ status: CatalogueStatus; data: Series[]; canSave: boolean }> {
   const migrate = (rows: Series[]) => rows.map(s => ({ ...s, groups: s.groups ?? [] }));
   const fromResult = (r: { ok: boolean; row: CatalogueRow | null }): { data: Series[]; canSave: boolean } | null => {
@@ -1310,7 +1311,7 @@ async function loadCatalogue(
     // The table answered but is empty: show the defaults, but never allow saving over it.
     return r.ok ? { data: INITIAL_DATA, canSave: false } : null;
   };
-  const cached = await readCache();
+  const cached = force ? null : await readCache();
   const haveCache = !!cached && Array.isArray(cached.rows) && cached.rows.length > 0;
   if (haveCache) onInterim(migrate(cached!.rows)); // show the saved copy right away, refresh behind it
   if (haveCache && cached!.updatedAt && Date.now() - cached!.cachedAt < CATALOGUE_CACHE_MAX_AGE_MS) {
@@ -1331,7 +1332,7 @@ function useData() {
   const [status, setStatus] = useState<CatalogueStatus>("ok");
   // Saving is only allowed once the real catalogue has been confirmed up to date.
   const canSave = useRef(false);
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     const startedAt = Date.now();
     const result = await loadCatalogue(
       ms => sbGet("wcf_data", ms),
@@ -1343,7 +1344,9 @@ function useData() {
       },
       c => { void idbSet("catalogue", c); },
       rows => { setDataState(rows); setReady(true); },
+      force,
     );
+    if (force && result.status !== "ok") return; // couldn't refresh: keep what is on screen
     setDataState(result.data);
     setStatus(result.status);
     canSave.current = result.canSave;
@@ -2227,10 +2230,23 @@ type SearchAlt = { text: string; word: boolean; need?: string[]; nameOnly?: bool
 type AliasEntry = { zh: string; alts: SearchAlt[] };
 const CJK_RE = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 
+// "Kuchiki Byakuya" is also found when a figure is written "Byakuya Kuchiki" (the catalogue uses both orders).
+function withReversedNames(alts: SearchAlt[]): SearchAlt[] {
+  const out = [...alts];
+  for (const a of alts) {
+    const m = /^(\p{L}[\p{L}\p{N}.'’-]*) (\p{L}[\p{L}\p{N}.'’-]*)$/u.exec(a.text);
+    if (!m || m[1] === m[2]) continue;
+    const text = `${m[2]} ${m[1]}`;
+    if (!out.some(x => x.text === text && !!x.nameOnly === !!a.nameOnly && (x.need ?? []).join() === (a.need ?? []).join())) out.push({ ...a, text });
+  }
+  return out;
+}
+
 function parseAliasTable(text: string): AliasEntry[] {
   const out: AliasEntry[] = [];
   for (const raw of text.split("\n")) {
-    const line = raw.trim();
+    // a Chinese keyboard types full-width signs: accept them as the normal ones
+    const line = raw.replace(/＝/g, "=").replace(/｜/g, "|").replace(/＠/g, "@").replace(/＾/g, "^").trim();
     if (!line || line.startsWith("#")) continue;
     const eq = line.indexOf("=");
     if (eq < 0) continue;
@@ -2243,7 +2259,8 @@ function parseAliasTable(text: string): AliasEntry[] {
       return { text: nameOnly ? body.slice(1).trim() : body, word: true, need: need.length ? need : undefined, nameOnly: nameOnly || undefined };
     });
     if (!zhs.length || !ens.length) continue;
-    for (const zh of zhs) out.push({ zh: zh.toLowerCase(), alts: ens.map(a => ({ ...a })) });
+    const all = withReversedNames(ens);
+    for (const zh of zhs) out.push({ zh: zh.toLowerCase(), alts: all.map(a => ({ ...a })) });
   }
   return out;
 }
@@ -2269,17 +2286,23 @@ addAliases(parseAliasTable(SEARCH_ALIAS_TABLE));
 // deployed) the core table keeps working, and it tries again a minute later.
 let extraAliases: "idle" | "loading" | "done" = "idle";
 let extraAliasesFailedAt = 0;
-async function loadExtraSearchAliases(): Promise<boolean> {
-  if (extraAliases !== "idle" || Date.now() - extraAliasesFailedAt < 60000) return false;
+// force = true: download it again skipping the copy saved on the device (the admin "refresh" button), and replace the
+// dictionary in memory (so lines deleted from the file disappear too). If that download fails, the old one stays.
+async function loadExtraSearchAliases(force = false): Promise<boolean> {
+  if (extraAliases === "loading") return false;
+  if (!force && (extraAliases !== "idle" || Date.now() - extraAliasesFailedAt < 60000)) return false;
+  const before = extraAliases;
   extraAliases = "loading";
   try {
-    const res = await fetch("/search-zh.txt");
+    const res = await fetch("/search-zh.txt", force ? { cache: "reload" } : undefined);
     if (!res.ok || (res.headers.get("content-type") ?? "").includes("text/html")) throw new Error("search-zh.txt not available");
-    addAliases(parseAliasTable(await res.text()));
+    const entries = parseAliasTable(await res.text());
+    if (force) { aliasIndex.clear(); addAliases(parseAliasTable(SEARCH_ALIAS_TABLE)); }
+    addAliases(entries);
     extraAliases = "done";
     return true;
   } catch {
-    extraAliases = "idle";
+    extraAliases = force ? before : "idle";
     extraAliasesFailedAt = Date.now();
     return false;
   }
@@ -6082,8 +6105,10 @@ function AdminUsersTab() {
 }
 
 // Figures whose name no Chinese alias recognises: what to translate after adding new figures.
-function AdminChineseTab({ data }: { data: Series[] }) {
+function AdminChineseTab({ data, onRefreshCatalogue }: { data: Series[]; onRefreshCatalogue: () => Promise<void> }) {
   const [status, setStatus] = useState<"loading" | "ready" | "nofile">("loading");
+  const [version, setVersion] = useState(0);        // bumped after a refresh, to recompute the list
+  const [refreshing, setRefreshing] = useState(false);
   const [seriesFilter, setSeriesFilter] = useState("all");
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(120);
@@ -6117,12 +6142,24 @@ function AdminChineseTab({ data }: { data: Series[] }) {
       }
     }
     return { rows: [...missing.values()].sort((a, b) => b.count - a.count || a.series.localeCompare(b.series) || a.base.localeCompare(b.base)), total, covered };
-  }, [status, data]);
+  }, [status, data, version]);
 
   const seriesNames = [...new Set(rows.map(r => r.series))].sort();
   const needle = q.trim().toLowerCase();
   const shown = rows.filter(r => (seriesFilter === "all" || r.series === seriesFilter) && (!needle || r.base.toLowerCase().includes(needle)));
   const pct = total ? Math.round((covered / total) * 100) : 0;
+
+  // Downloads search-zh.txt and the catalogue again, skipping the copies saved on this device. Without it, a line you
+  // just added only shows up on the second visit, and names edited straight in the database (without touching
+  // updated_at) can stay out of date for up to 12 hours.
+  const refresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadExtraSearchAliases(true), onRefreshCatalogue()]);
+    setStatus(extraAliases === "done" ? "ready" : "nofile");
+    setVersion(v => v + 1);
+    setRefreshing(false);
+  };
+  const dictNames = [...aliasIndex.values()].reduce((n, b) => n + b.length, 0);
 
   const copyTemplate = async () => {
     // one line per character, ready to complete:  "?? = Kuchiki Byakuya"  ->  "朽木白哉 = Kuchiki Byakuya"
@@ -6144,6 +6181,13 @@ function AdminChineseTab({ data }: { data: Series[] }) {
       )}
       <div style={{fontSize:13,marginBottom:2}}><b>{covered}</b> of <b>{total}</b> figures have a Chinese name recognised <b style={{color:pct >= 80 ? "#059669" : "#d97706"}}>({pct}%)</b></div>
       <div style={{fontSize:12,color:"var(--text3)",marginBottom:12}}>{rows.length} characters without one. Variants such as "ver.A" or "(Bankai)" count as the same character.</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        <button onClick={refresh} disabled={refreshing}
+          style={{padding:"6px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:12,fontWeight:600,cursor:refreshing ? "default" : "pointer",opacity:refreshing ? 0.6 : 1}}>
+          {refreshing ? "Refreshing…" : "↻ Refresh dictionary and catalogue"}
+        </button>
+        <span style={{fontSize:11,color:"var(--text4)"}}>Dictionary in memory: {dictNames} Chinese names</span>
+      </div>
       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
         <select value={seriesFilter} onChange={e=>{setSeriesFilter(e.target.value);setLimit(120);}}
           style={{flex:"1 1 150px",padding:"8px 10px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
@@ -6176,7 +6220,7 @@ function AdminChineseTab({ data }: { data: Series[] }) {
   );
 }
 
-function AdminPanel({ onClose, data }: { onClose: () => void; data: Series[] }) {
+function AdminPanel({ onClose, data, onRefreshCatalogue }: { onClose: () => void; data: Series[]; onRefreshCatalogue: () => Promise<void> }) {
   const [tab, setTab] = useState<"feedback" | "users" | "errors" | "chinese">("feedback");
   const tabBtn = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: "10px 6px", border: "none", borderBottom: active ? "2px solid #0196e3" : "2px solid transparent",
@@ -6196,7 +6240,7 @@ function AdminPanel({ onClose, data }: { onClose: () => void; data: Series[] }) 
           <button onClick={()=>setTab("chinese")} style={tabBtn(tab === "chinese")}>🈶 Chinese</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:14}}>
-          {tab === "feedback" ? <AdminFeedbackTab /> : tab === "users" ? <AdminUsersTab /> : tab === "errors" ? <AdminErrorsTab /> : <AdminChineseTab data={data} />}
+          {tab === "feedback" ? <AdminFeedbackTab /> : tab === "users" ? <AdminUsersTab /> : tab === "errors" ? <AdminErrorsTab /> : <AdminChineseTab data={data} onRefreshCatalogue={onRefreshCatalogue} />}
         </div>
       </div>
     </div>
@@ -7739,7 +7783,7 @@ function MainApp() {
       {showAddSeries && <SeriesModal category={dbActiveCategory} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{addSeries(p1,p2,p3,p4,p5,dbActiveCategory);setShowAddSeries(false);}} onClose={()=>setShowAddSeries(false)} />}
       {editSeriesData && <SeriesModal category={editSeriesData.category} initial={editSeriesData} apiKey={apiKey} onSave={(p1,p2,p3,p4,p5)=>{updateSeries(editSeriesData.id,p1,p2,p3,p4,p5);setEditSeriesData(null);}} onClose={()=>setEditSeriesData(null)} />}
       {showModeration && <PhotoModerationPanel onClose={()=>{setShowModeration(false);refreshPendingCount();}} data={data} />}
-      {showAdminPanel && <AdminPanel data={data} onClose={()=>{setShowAdminPanel(false);refreshNewFeedback();}} />}
+      {showAdminPanel && <AdminPanel data={data} onRefreshCatalogue={() => reloadCatalogue(true)} onClose={()=>{setShowAdminPanel(false);refreshNewFeedback();}} />}
       {announcingSet !== null && (() => {
         const setCtx = findSetContext(data, announcingSet);
         return setCtx ? <AnnounceSetModal ctx={setCtx} apiKey={apiKey} onSaveImage={(img)=>setData(d=>setSetImage(d, announcingSet, img))} onClose={()=>setAnnouncingSet(null)} /> : null;
