@@ -265,6 +265,17 @@ function RedNoteIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+function GoogleIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="Google">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
 function FacebookIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -279,21 +290,39 @@ const TRANSPARENT_DRAG_IMG = new Image();
 TRANSPARENT_DRAG_IMG.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
 
 // ---- Reaching Supabase from networks where *.supabase.co is blocked or unstable ----
-// Requests go straight to Supabase as always. If that fails at the network level, the same
-// request is retried through our own domain (/sb/*, forwarded by Vercel to Supabase). After
-// repeated failures that the proxy then answers, the proxy is used directly for a day.
+// Requests go straight to Supabase, except where it is known to be blocked (mainland China, detected from
+// the device time zone): there they go through our own domain from the start (/sb/*, forwarded by Vercel
+// to Supabase), because waiting for the direct attempt to fail costs several seconds on every request.
+// Anywhere else, if the direct attempt fails at the network level the same request is retried through
+// the proxy, and after repeated failures that the proxy rescues, the proxy is used directly for a day.
 const SB_PROXY_BASE = "/sb";
 const SB_PROXY_KEY = "wcf_sb_proxy_until";
+const SB_BLOCKED_TIMEZONES = ["Asia/Shanghai", "Asia/Urumqi", "Asia/Chongqing", "Asia/Harbin", "Asia/Kashgar"];
 let sbDirectFailures = 0;
 
+function sbLikelyBlocked(): boolean {
+  try { return SB_BLOCKED_TIMEZONES.includes(Intl.DateTimeFormat().resolvedOptions().timeZone); } catch { return false; }
+}
 function sbProxyActive(): boolean {
   try { return Number(localStorage.getItem(SB_PROXY_KEY) ?? 0) > Date.now(); } catch { return false; }
 }
+// The app's own page came back instead of Supabase's answer: the /sb rule isn't deployed.
+const sbIsHtml = (res: Response) => (res.headers.get("content-type") ?? "").includes("text/html");
 
 async function sbFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   if (typeof input !== "string" || !input.startsWith(SUPABASE_URL)) return fetch(input, init);
   const viaProxy = SB_PROXY_BASE + input.slice(SUPABASE_URL.length);
-  if (sbProxyActive()) return fetch(viaProxy, init);
+
+  if (sbLikelyBlocked() || sbProxyActive()) {
+    try {
+      const res = await fetch(viaProxy, init);
+      if (!sbIsHtml(res)) return res;
+    } catch (err) {
+      if (init?.signal?.aborted) throw err;
+    }
+    // The proxy didn't answer properly (so nothing reached Supabase): try Supabase directly.
+    return fetch(input, init);
+  }
 
   const method = (init?.method ?? "GET").toUpperCase();
   const isRead = method === "GET" || method === "HEAD";
@@ -312,8 +341,7 @@ async function sbFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Re
     if (abortedByCaller || (timedOut && !isRead)) throw err;
     sbDirectFailures += 1;
     const res = await fetch(viaProxy, init);
-    const isHtml = (res.headers.get("content-type") ?? "").includes("text/html"); // proxy not configured: the app's own page came back
-    if (sbDirectFailures >= 2 && !isHtml) {
+    if (sbDirectFailures >= 2 && !sbIsHtml(res)) {
       try { localStorage.setItem(SB_PROXY_KEY, String(Date.now() + 24*60*60*1000)); } catch { /* ignore */ }
     }
     return res;
@@ -333,12 +361,13 @@ async function sbAuthToken(): Promise<string> {
   }
 }
 
-async function sbGet(table: string, timeoutMs = 15000): Promise<{ ok: boolean; row: { data?: unknown } | null }> {
+type CatalogueRow = { data?: unknown; updated_at?: string | null };
+async function sbGet(table: string, timeoutMs = 15000, select?: string): Promise<{ ok: boolean; row: CatalogueRow | null }> {
   // A blocked or very slow connection must not leave the app waiting forever.
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main${select ? `&select=${select}` : ""}`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
       signal: ctrl.signal,
     });
@@ -896,14 +925,25 @@ async function uploadToR2(blob: Blob | File): Promise<string> {
   // del usuario nunca tiene que hablar directamente con el dominio
   // genérico de R2 (r2.cloudflarestorage.com), que puede ser inestable
   // o estar bloqueado en algunos países (igual que pasaba con *.vercel.app).
-  const res = await fetch("/api/upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contentType, imageBase64 }),
-  });
-  if (!res.ok) throw new Error("Error subiendo la imagen");
-  const { publicUrl } = await res.json();
-  return publicUrl as string;
+  // A slow or stalled connection must end in an error the person can retry, not in a spinner that never stops.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 60000);
+  try {
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentType, imageBase64 }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error(`Error subiendo la imagen (HTTP ${res.status})`);
+    const { publicUrl } = await res.json();
+    return publicUrl as string;
+  } catch (err) {
+    if (ctrl.signal.aborted) throw new Error("Upload timed out after 60 s");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Redimensiona/comprime una imagen antes de subirla, para que las fotos
@@ -944,6 +984,28 @@ const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 // ============================================================
 import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: sbFetch } });
+
+// Best-effort log of things that fail on real devices (uploads, catalogue loading), readable by the admin.
+// It never throws, and sends at most a few entries per kind per page load.
+const loggedClientErrors = new Map<string, number>();
+function logClientError(stage: string, message: unknown, userId?: string | null) {
+  try {
+    const n = loggedClientErrors.get(stage) ?? 0;
+    if (n >= 3) return;
+    loggedClientErrors.set(stage, n + 1);
+    const m = message as { message?: string; code?: string } | null;
+    const raw = message instanceof Error ? message.message
+      : typeof message === "string" ? message
+      : m && typeof m === "object" && m.message ? `${m.code ? m.code + " " : ""}${m.message}`
+      : JSON.stringify(message);
+    let tz = "";
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? ""; } catch { /* ignore */ }
+    void supabase.from("wcf_client_errors").insert({
+      stage, message: String(raw ?? "").slice(0, 500), user_id: userId ?? null, tz: tz.slice(0, 60),
+      via: sbLikelyBlocked() || sbProxyActive() ? "proxy" : "direct", ua: navigator.userAgent.slice(0, 300),
+    }).then(() => undefined, () => undefined);
+  } catch { /* logging must never break the app */ }
+}
 
 type AuthUser = { id: string; email?: string; name?: string; avatar?: string };
 
@@ -1223,31 +1285,43 @@ function useCommunityLeaderboards(currentUserId?: string|null) {
 }
 
 type CatalogueStatus = "ok" | "cached" | "failed";
+type CatalogueCache = { rows: Series[]; updatedAt: string | null; cachedAt: number };
+// The saved copy is trusted for this long without re-downloading, even if its timestamp matches
+// (a catalogue edited directly in the database may not have touched the timestamp).
+const CATALOGUE_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
-// Loads the catalogue and never falls back to the built-in sample data just because the
-// network failed: it uses the last copy saved on this device, or reports the failure.
+// Loads the catalogue. The copy saved on this device is shown right away; then one tiny request
+// (just the timestamp) tells whether it is still the current one, and only if not is the whole
+// catalogue downloaded. It never falls back to the built-in sample data just because the network failed.
 async function loadCatalogue(
-  get: (timeoutMs: number) => Promise<{ ok: boolean; row: { data?: unknown } | null }>,
-  readCache: () => Promise<Series[] | null>,
-  writeCache: (rows: Series[]) => void,
+  get: (timeoutMs: number) => Promise<{ ok: boolean; row: CatalogueRow | null }>,
+  getVersion: (timeoutMs: number) => Promise<{ ok: boolean; row: CatalogueRow | null }>,
+  readCache: () => Promise<CatalogueCache | null>,
+  writeCache: (c: CatalogueCache) => void,
   onInterim: (rows: Series[]) => void,
 ): Promise<{ status: CatalogueStatus; data: Series[]; canSave: boolean }> {
   const migrate = (rows: Series[]) => rows.map(s => ({ ...s, groups: s.groups ?? [] }));
-  const fromResult = (r: { ok: boolean; row: { data?: unknown } | null }): { data: Series[]; canSave: boolean } | null => {
+  const fromResult = (r: { ok: boolean; row: CatalogueRow | null }): { data: Series[]; canSave: boolean } | null => {
     const d = r.row?.data;
-    if (Array.isArray(d) && d.length > 0) { writeCache(d as Series[]); return { data: migrate(d as Series[]), canSave: true }; }
+    if (Array.isArray(d) && d.length > 0) {
+      writeCache({ rows: d as Series[], updatedAt: r.row?.updated_at ?? null, cachedAt: Date.now() });
+      return { data: migrate(d as Series[]), canSave: true };
+    }
     // The table answered but is empty: show the defaults, but never allow saving over it.
     return r.ok ? { data: INITIAL_DATA, canSave: false } : null;
   };
-  let got = fromResult(await get(15000));
-  if (got) return { status: "ok", ...got };
   const cached = await readCache();
-  const haveCache = Array.isArray(cached) && cached.length > 0;
-  if (haveCache) onInterim(migrate(cached!)); // show the saved copy right away while we retry
-  got = fromResult(await get(25000));
+  const haveCache = !!cached && Array.isArray(cached.rows) && cached.rows.length > 0;
+  if (haveCache) onInterim(migrate(cached!.rows)); // show the saved copy right away, refresh behind it
+  if (haveCache && cached!.updatedAt && Date.now() - cached!.cachedAt < CATALOGUE_CACHE_MAX_AGE_MS) {
+    const v = await getVersion(8000);
+    if (v.ok && v.row?.updated_at === cached!.updatedAt) return { status: "ok", data: migrate(cached!.rows), canSave: true };
+  }
+  let got = fromResult(await get(15000));
+  if (!got) got = fromResult(await get(25000));
   if (got) return { status: "ok", ...got };
   return haveCache
-    ? { status: "cached", data: migrate(cached!), canSave: false }
+    ? { status: "cached", data: migrate(cached!.rows), canSave: false }
     : { status: "failed", data: [], canSave: false };
 }
 
@@ -1255,19 +1329,28 @@ function useData() {
   const [data, setDataState] = useState<Series[]>([]);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<CatalogueStatus>("ok");
-  // Saving is only allowed once the real catalogue has been loaded.
+  // Saving is only allowed once the real catalogue has been confirmed up to date.
   const canSave = useRef(false);
   const load = useCallback(async () => {
+    const startedAt = Date.now();
     const result = await loadCatalogue(
       ms => sbGet("wcf_data", ms),
-      () => idbGet<Series[]>("catalogue"),
-      rows => { void idbSet("catalogue", rows); },
-      rows => { setDataState(rows); setStatus("cached"); setReady(true); },
+      ms => sbGet("wcf_data", ms, "updated_at"),
+      async () => {
+        const v = await idbGet<CatalogueCache | Series[]>("catalogue");
+        if (!v) return null;
+        return Array.isArray(v) ? { rows: v, updatedAt: null, cachedAt: 0 } : v; // older format: just the rows
+      },
+      c => { void idbSet("catalogue", c); },
+      rows => { setDataState(rows); setReady(true); },
     );
     setDataState(result.data);
     setStatus(result.status);
     canSave.current = result.canSave;
     setReady(true);
+    const ms = Date.now() - startedAt;
+    if (result.status !== "ok") logClientError("catalogue_" + result.status, `after ${ms} ms`);
+    else if (ms > 8000) logClientError("catalogue_slow", `${ms} ms`);
   }, []);
   useEffect(() => { void load(); }, [load]);
   const setData = (updater: Series[] | ((prev: Series[]) => Series[])) => {
@@ -2012,6 +2095,354 @@ function crossoverFor<T extends { figure: Figure; series: Series }>(items: T[], 
   );
 }
 
+// ---- Series names shown in Chinese ----
+// With the language set to Chinese, a series is shown under its Chinese title. The catalogue keeps the
+// English name (it is what search, filters and your posts use); this only changes what is drawn on screen.
+// Each line: part of the English name (lowercase), the Chinese title, and whether the whole name must match.
+const SERIES_NAMES_ZH: [string, string, boolean][] = [
+  ["dragon ball", "龙珠", false], ["one piece", "海贼王", false], ["my hero academia", "我的英雄学院", false],
+  ["kimetsu", "鬼灭之刃", false], ["hunter x hunter", "全职猎人", false], ["chainsaw man", "链锯人", false],
+  ["naruto", "火影忍者", false], ["shonen jump", "少年JUMP", false], ["kaiju", "怪兽8号", false],
+  ["tokyo revengers", "东京复仇者", false], ["tensei", "转生史莱姆", false], ["slime", "转生史莱姆", false],
+  ["bleach", "死神", false], ["yu yu hakusho", "幽游白书", false], ["yuyu hakusho", "幽游白书", false],
+  ["jujutsu kaisen", "咒术回战", false], ["king of fighters", "拳皇", false], ["tiger & bunny", "老虎和兔子", false],
+  ["tiger bunny", "老虎和兔子", false], ["tiger and bunny", "老虎和兔子", false], ["jojo", "JOJO的奇妙冒险", false],
+  ["gintama", "银魂", false], ["gundam", "高达", false], ["full metal alchemist", "钢之炼金术师", false],
+  ["fullmetal alchemist", "钢之炼金术师", false], ["kingdom", "王者天下", true], ["others", "其他", true], ["other", "其他", true],
+];
+function seriesLabel(name: string, lang: LangCode): string {
+  if (lang !== "zh") return name;
+  const n = name.trim().toLowerCase();
+  for (const [key, zh, exact] of SERIES_NAMES_ZH) if (exact ? n === key : n.includes(key)) return zh;
+  return name;
+}
+
+// ---- Chinese search ----
+// The catalogue is written in English, so a Chinese query (悟空) would match nothing. Each line below maps
+// Chinese names (simplified and traditional) to the English words they appear under in the catalogue:
+//     中文名  另一个叫法  =  english word | another english word
+// To teach the search a new name, add a line. Chinese letters in a query are looked up here; anything not
+// recognised (like 手办, "figure") is ignored as long as at least one name was understood. English
+// words coming from this table only match as whole words, so "ace" finds Ace but not "Palace".
+const SEARCH_ALIAS_TABLE = `
+# ── Franquicias / Franchises ──
+龙珠 龍珠 七龙珠 七龍珠 = dragon ball
+龙珠z 龍珠z = dragon ball z
+龙珠超 龍珠超 = dragon ball super
+海贼王 海賊王 航海王 = one piece
+火影忍者 火影 = naruto
+死神 = bleach
+猎人 獵人 全职猎人 全職獵人 = hunter x hunter | hunter
+鬼灭之刃 鬼滅之刃 = kimetsu no yaiba | demon slayer
+我的英雄学院 我的英雄學院 = my hero academia | boku no hero
+咒术回战 咒術迴戰 = jujutsu kaisen
+链锯人 鏈鋸人 = chainsaw man
+银魂 銀魂 = gintama
+幽游白书 幽遊白書 = yuyu hakusho | yu yu hakusho
+jojo的奇妙冒险 jojo奇妙冒险 jojo的奇妙冒險 乔乔的奇妙冒险 = jojo
+王者天下 = kingdom
+东京复仇者 東京復仇者 = tokyo revengers
+转生史莱姆 转生成史莱姆 = tensei | slime
+怪兽8号 怪獸8號 = kaiju
+高达 高達 机动战士高达 機動戰士高達 = gundam
+钢之炼金术师 鋼之鍊金術師 = full metal alchemist | fullmetal alchemist
+拳皇 = the king of fighters | king of fighters | kof
+老虎和兔子 = tiger & bunny | tiger bunny
+少年jump 少年ジャンプ = shonen jump
+
+# ── Dragon Ball ──
+悟空 孙悟空 孫悟空 = goku | son goku | wukong
+卡卡罗特 卡卡羅特 = kakarot | goku
+贝吉塔 貝吉塔 = vegeta
+悟饭 孙悟饭 悟飯 孫悟飯 = gohan | son gohan
+悟天 = goten
+特兰克斯 特蘭克斯 = trunks
+比克 短笛 = piccolo
+克林 = krillin
+布尔玛 布玛 布爾瑪 = bulma
+弗利萨 弗利沙 = frieza | freeza
+沙鲁 赛尔 = cell
+魔人布欧 布欧 = majin buu | buu
+比鲁斯 = beerus
+维斯 = whis
+布罗利 = broly
+悟吉塔 = gogeta
+贝吉特 = vegito
+人造人18号 = android 18
+龟仙人 = master roshi | roshi
+天津饭 = tien | tenshinhan
+雅木茶 = yamcha
+琪琪 = chi-chi | chichi
+吉连 基连 = jiren
+黑悟空 = goku black
+扎马斯 = zamasu
+超级赛亚人 超賽 = super saiyan
+赛亚人 賽亞人 = saiyan
+
+# ── One Piece ──
+路飞 路飛 蒙奇·d·路飞 = luffy | monkey d. luffy
+索隆 罗罗诺亚·索隆 = zoro | roronoa zoro
+娜美 = nami
+乌索普 = usopp
+山治 = sanji
+乔巴 喬巴 = chopper | tony tony chopper
+罗宾 妮可·罗宾 = robin | nico robin
+弗兰奇 = franky
+布鲁克 = brook
+甚平 = jinbe | jimbei
+艾斯 波特卡斯·d·艾斯 = ace | portgas d. ace | portgas
+萨博 = sabo
+香克斯 = shanks
+白胡子 = whitebeard
+特拉法尔加·罗 特拉法尔加 = trafalgar law | trafalgar | law
+基德 尤斯塔斯·基德 = eustass kid | eustass | kid
+鹰眼 米霍克 = mihawk | dracule mihawk
+汉库克 蛇姬 = hancock | boa hancock
+多弗朗明哥 = doflamingo
+凯多 = kaido
+大妈 夏洛特·玲玲 = big mom | charlotte linlin
+黑胡子 = blackbeard | marshall d. teach
+巴基 = buggy
+克洛克达尔 = crocodile
+艾尼路 = enel
+雷利 = rayleigh | silvers rayleigh
+卡普 = garp
+战国 = sengoku
+赤犬 = akainu
+青雉 = aokiji | kuzan
+黄猿 = kizaru
+薇薇 = vivi
+大和 = yamato
+卡罗特 = carrot
+佩罗娜 = perona
+尼卡 五档 五檔 = nika | gear 5 | gear5 | gear five
+和之国 和之國 = wano
+艾尔巴夫 = elbaph
+蛋头岛 = egghead
+顶上战争 = marineford
+阿拉巴斯坦 = alabasta
+德雷斯罗萨 = dressrosa
+蛋糕岛 = whole cake
+鱼人岛 魚人島 = fish-man island | fishman island
+空岛 空島 = skypiea
+
+# ── Naruto ──
+鸣人 鳴人 漩涡鸣人 = naruto | naruto uzumaki
+佐助 宇智波佐助 = sasuke
+卡卡西 旗木卡卡西 = kakashi
+小樱 春野樱 = sakura
+鼬 宇智波鼬 = itachi
+斑 宇智波斑 = madara
+带土 帶土 = obito
+波风水门 水门 = minato
+自来也 = jiraiya
+纲手 綱手 = tsunade
+大蛇丸 = orochimaru
+我爱罗 我愛羅 = gaara
+雏田 雛田 = hinata
+李洛克 = rock lee
+宁次 寧次 = neji
+鹿丸 = shikamaru
+鬼鲛 鬼鮫 = kisame
+迪达拉 = deidara
+佩恩 = pain | pein
+柱间 柱間 = hashirama
+扉间 扉間 = tobirama
+博人 = boruto
+九尾 九喇嘛 = kurama | nine-tails | kyuubi
+晓 曉 = akatsuki
+
+# ── Bleach ──
+一护 黑崎一护 一護 黑崎一護 = ichigo | kurosaki
+露琪亚 朽木露琪亚 = rukia
+恋次 阿散井恋次 = renji
+白哉 朽木白哉 = byakuya
+蓝染 藍染 = aizen
+剑八 更木剑八 = kenpachi
+冬狮郎 日番谷冬狮郎 = toshiro | hitsugaya
+格里姆乔 = grimmjow
+乌尔奇奥拉 = ulquiorra
+夜一 四枫院夜一 = yoruichi
+浦原喜助 浦原 = urahara
+井上织姬 = orihime
+茶渡 = chad | sado
+石田雨龙 = uryu | ishida
+
+# ── Hunter x Hunter ──
+小杰 = gon
+奇犽 = killua
+酷拉皮卡 = kurapika
+雷欧力 = leorio
+西索 = hisoka
+库洛洛 = chrollo
+梅路艾姆 = meruem
+伊路米 = illumi
+飞坦 = feitan
+凯特 = kite
+比司吉 比斯吉 = biscuit | bisky
+
+# ── Kimetsu no Yaiba ──
+炭治郎 灶门炭治郎 = tanjiro
+祢豆子 禰豆子 = nezuko
+善逸 我妻善逸 = zenitsu
+伊之助 嘴平伊之助 = inosuke
+义勇 富冈义勇 = giyu | tomioka
+蝴蝶忍 = shinobu
+炼狱杏寿郎 炼狱 = rengoku | kyojuro
+宇髓天元 = tengen | uzui
+甘露寺蜜璃 = mitsuri
+时透无一郎 = muichiro
+不死川实弥 = sanemi
+悲鸣屿行冥 = gyomei
+伊黑小芭内 = obanai
+鬼舞辻无惨 无惨 = muzan
+猗窝座 = akaza
+童磨 = doma
+黑死牟 = kokushibo
+
+# ── My Hero Academia ──
+绿谷出久 出久 = deku | izuku | midoriya
+爆豪胜己 爆豪 = bakugo | bakugou
+轰焦冻 焦冻 = todoroki
+丽日御茶子 御茶子 = uraraka | ochaco
+欧尔迈特 奥尔麦特 = all might
+安德瓦 艾恩德瓦 = endeavor
+死柄木弔 死柄木 = shigaraki
+相泽消太 = aizawa
+霍克斯 = hawks
+荼毘 = dabi
+渡我被身子 = toga
+饭田天哉 = iida
+蛙吹梅雨 = tsuyu | asui
+切岛锐儿郎 = kirishima
+治崎廻 = overhaul
+
+# ── Jujutsu Kaisen ──
+虎杖悠仁 悠仁 = yuji | itadori
+伏黑惠 = megumi | fushiguro
+钉崎野蔷薇 = nobara | kugisaki
+五条悟 = gojo | satoru
+宿傩 两面宿傩 = sukuna
+七海建人 = nanami
+伏黑甚尔 = toji
+夏油杰 = geto
+禅院真希 = maki
+狗卷棘 = toge | inumaki
+胖达 = panda
+乙骨忧太 = yuta | okkotsu
+漏瑚 = jogo
+胀相 脹相 = choso
+
+# ── Chainsaw Man ──
+电次 電次 = denji
+帕瓦 = power
+玛奇玛 瑪奇瑪 = makima
+早川秋 = aki | hayakawa
+波奇塔 = pochita
+蕾泽 = reze
+天使恶魔 = angel devil
+
+# ── Gintama ──
+坂田银时 银时 = gintoki
+志村新八 新八 = shinpachi
+神乐 神樂 = kagura
+土方十四郎 土方 = hijikata
+冲田总悟 = okita | sougo
+桂小太郎 = katsura
+高杉晋助 = takasugi
+
+# ── Yu Yu Hakusho ──
+浦饭幽助 幽助 = yusuke | urameshi
+桑原和真 = kuwabara
+藏马 藏馬 = kurama
+飞影 飛影 = hiei
+户愚吕 = toguro
+
+# ── JoJo ──
+空条承太郎 承太郎 = jotaro
+迪奥 = dio
+东方仗助 仗助 = josuke
+乔鲁诺·乔巴纳 乔鲁诺 = giorno
+空条徐伦 徐伦 = jolyne
+乔瑟夫 = joseph
+吉良吉影 = kira | yoshikage
+
+# ── Kingdom / Tokyo Revengers / Slime / Kaiju No. 8 ──
+嬴政 = ying zheng | eisei
+花垣武道 武道 = takemichi
+佐野万次郎 万次郎 = mikey | manjiro
+龙宫寺坚 = draken
+场地圭介 = baji
+利姆露 = rimuru
+米莉姆 = milim
+日比野卡夫卡 卡夫卡 = kafka
+
+# ── Gundam / Fullmetal Alchemist / King of Fighters / Tiger & Bunny ──
+元祖高达 = rx-78 | gundam
+扎古 = zaku
+夏亚 = char
+爱德华 爱德华·艾尔利克 = edward | edward elric
+阿尔冯斯 = alphonse | alphonse elric
+罗伊·马斯坦古 = roy | mustang
+草薙京 = kyo | kusanagi
+八神庵 = iori | yagami
+特瑞·博加德 = terry | terry bogard
+不知火舞 = shiranui | mai shiranui
+库拉 = kula
+鏑木虎彻 虎彻 = kotetsu
+巴纳比 = barnaby
+`;
+
+type SearchAlt = { text: string; word: RegExp | null };
+const CJK_RE = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+const SEARCH_ALIASES: { zh: string; alts: SearchAlt[] }[] = (() => {
+  const out: { zh: string; alts: SearchAlt[] }[] = [];
+  for (const raw of SEARCH_ALIAS_TABLE.split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq < 0) continue;
+    const zhs = line.slice(0, eq).trim().split(/\s+/).filter(Boolean);
+    const alts: SearchAlt[] = line.slice(eq + 1).split("|").map(s => s.trim().toLowerCase()).filter(Boolean).map(text => ({
+      text, word: new RegExp(`(?:^|[^a-z0-9])${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[^a-z0-9]|$)`),
+    }));
+    for (const zh of zhs) out.push({ zh: zh.toLowerCase(), alts });
+  }
+  return out.sort((a, b) => b.zh.length - a.zh.length); // longest name first: 孙悟空 before 悟空
+})();
+
+// One word of the query -> the requirements it stands for; each requirement is a list of alternatives.
+function expandSearchToken(token: string): SearchAlt[][] {
+  const plain = (text: string): SearchAlt => ({ text, word: null });
+  if (!CJK_RE.test(token)) return [[plain(token)]];
+  const reqs: SearchAlt[][] = [];
+  let buf = "";
+  const flush = () => { if (buf) { reqs.push([plain(buf)]); buf = ""; } };
+  let i = 0;
+  while (i < token.length) {
+    const hit = SEARCH_ALIASES.find(a => token.startsWith(a.zh, i));
+    if (hit) { flush(); reqs.push([plain(hit.zh), ...hit.alts]); i += hit.zh.length; }
+    else { if (CJK_RE.test(token[i])) flush(); else buf += token[i]; i++; }
+  }
+  flush();
+  return reqs.length > 0 ? reqs : [[plain(token)]];
+}
+
+type SearchMatcher = (haystack: string) => boolean;
+const searchMatcherCache = new Map<string, SearchMatcher | null>();
+// Every word of the query must be found (as before); a Chinese word is found through its English names.
+function buildSearchMatcher(search: string): SearchMatcher | null {
+  const q = search.toLowerCase().trim();
+  if (!q) return null;
+  const cached = searchMatcherCache.get(q);
+  if (cached !== undefined) return cached;
+  const reqs = q.split(/\s+/).flatMap(expandSearchToken);
+  const matcher: SearchMatcher = hay => reqs.every(alts => alts.some(a => a.word ? a.word.test(hay) : hay.includes(a.text)));
+  if (searchMatcherCache.size > 50) searchMatcherCache.clear();
+  searchMatcherCache.set(q, matcher);
+  return matcher;
+}
+
 // Moves a figure to any set of any series (also inside the same one). The figure keeps its id, so
 // owned/wishlist marks and photos stay with it. Returns null (and changes nothing) if the figure or
 // the destination set can't be found, so a figure is never removed without a place to land.
@@ -2133,7 +2564,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
       <div onClick={()=>setOpen(!open)} style={{padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",background:open?"var(--bg2)":"var(--bg)"}}>
         <div style={{flex:1,marginRight:12}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
-            {set.seriesLogo && <img src={set.seriesLogo} alt="" style={{height:20,maxWidth:80,objectFit:"contain"}} />}
+            {set.seriesLogo && <img loading="lazy" decoding="async" src={set.seriesLogo} alt="" style={{height:20,maxWidth:80,objectFit:"contain"}} />}
             <span style={{fontSize:15,fontWeight:600}}>{set.name}</span>
             {set.releaseDate && <span style={{fontSize:11,color:"var(--text4)"}}>📅 {formatDate(set.releaseDate)}</span>}
             <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#e6f4fd":"#f0f0ec",color:complete?"#0174b0":"#888",fontWeight:complete?600:400}}>
@@ -2173,7 +2604,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
                       style={{padding:"8px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",display:"flex",alignItems:"center",gap:8}}
                       onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      {g.logo && <img src={g.logo} alt="" style={{height:16,maxWidth:40,objectFit:"contain"}} />}
+                      {g.logo && <img loading="lazy" decoding="async" src={g.logo} alt="" style={{height:16,maxWidth:40,objectFit:"contain"}} />}
                       {g.name}
                     </div>
                   ))}
@@ -2360,7 +2791,7 @@ function SearchResultCard({ figure, series, set, groupName, isOwned, isWished, o
       <div style={{padding:compact?"4px 6px 6px":"8px 10px 10px"}}>
         {/* Line 1 — series + category tag (always) */}
         <div style={{fontSize:10,color:"var(--text4)",marginBottom:2,display:"flex",alignItems:"center",gap:3,flexWrap:"nowrap",overflow:"hidden"}}>
-          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{series.name}</span>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{seriesLabel(series.name, lang)}</span>
           <span style={{flexShrink:0,padding:"1px 4px",borderRadius:5,fontSize:9,fontWeight:600,background:series.category==="oficial"?"#e6f4fd":"#ede9fe",color:series.category==="oficial"?"#0174b0":"#7c3aed",whiteSpace:"nowrap"}}>
             {series.category==="oficial" ? t("officialBadge") : t("resinBadge")}
           </span>
@@ -2477,7 +2908,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
     <div style={{marginBottom:16,border:"2px solid var(--border2)",borderRadius:14,overflow:"hidden",background:"var(--bg2)"}}>
       {/* Group header */}
       <div onClick={()=>setOpen(!open)} style={{padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:"var(--bg3)"}}>
-        {group.logo && !imgError && <img src={group.logo} alt={group.name} onError={()=>setImgError(true)} style={{height:24,maxWidth:80,objectFit:"contain"}} />}
+        {group.logo && !imgError && <img loading="lazy" decoding="async" src={group.logo} alt={group.name} onError={()=>setImgError(true)} style={{height:24,maxWidth:80,objectFit:"contain"}} />}
         <span style={{fontSize:15,fontWeight:700,flex:1,color:"var(--text)"}}>{group.name} <span style={{fontSize:12,color:"var(--text4)",fontWeight:400}}>({group.sets.length} set{group.sets.length!==1?"s":""})</span></span>
         <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#e6f4fd":"var(--bg)",color:complete?"#0174b0":"var(--text3)",fontWeight:complete?600:400}}>
           {complete ? t("complete") : `${ownedCount}/${total}`}
@@ -2562,7 +2993,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
   allFlat:{figure:Figure;series:Series}[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
   onOpenPicker:()=>void;
 }) {
-  const { t } = useTr();
+  const { t, lang } = useTr();
   const figureFranchiseMap = useFigureFranchiseMap(data);
   const ownedIdsArr = useMemo(() => [...owned], [owned]);
 
@@ -2677,8 +3108,8 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                       <div key={s.id} style={{marginBottom:12,padding:"12px 14px",borderRadius:12,background:"var(--bg2)",border:"1px solid var(--border)"}}>
                         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                           <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            {s.logo ? <img src={s.logo} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
-                            <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.name}</span>
+                            {s.logo ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
+                            <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{seriesLabel(s.name, lang)}</span>
                           </div>
                           <span style={{fontSize:13,fontWeight:700,color:p===100?"#4ade80":s.color}}>{p}%</span>
                         </div>
@@ -2699,12 +3130,12 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                       const ow=seriesOwned(s), wi=allFlat.filter(x=>x.series.id===s.id&&wishlist.has(x.figure.id)&&!owned.has(x.figure.id)).length;
                       return (
                         <div key={s.id} style={{position:"relative",borderRadius:12,overflow:"hidden",aspectRatio:"1",background:s.color+"33",border:`1px solid ${s.color}44`}}>
-                          {s.bgImage && <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />}
+                          {s.bgImage && <img loading="lazy" decoding="async" src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />}
                           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 55%,rgba(0,0,0,0) 100%)"}} />
                           <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px"}}>
                             {s.logo
-                              ? <img src={s.logo} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:6,display:"block"}} />
-                              : <div style={{fontSize:11,fontWeight:700,color:"#fff",marginBottom:6,lineHeight:1.2}}>{s.name}</div>
+                              ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:6,display:"block"}} />
+                              : <div style={{fontSize:11,fontWeight:700,color:"#fff",marginBottom:6,lineHeight:1.2}}>{seriesLabel(s.name, lang)}</div>
                             }
                             <div style={{display:"flex",gap:10,fontSize:12}}>
                               <span style={{color:"#fff",fontWeight:600}}>✅ {ow}</span>
@@ -2895,6 +3326,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
       if (insertError) {
         // supabase-js doesn't throw on a rejected insert: without this check the user saw "done" and nothing was saved.
         console.error("Collection photo insert failed:", insertError);
+        logClientError("photo_insert", insertError, userId);
         setError(t("uploadSaveError"));
         setUploading(false);
         return;
@@ -2903,6 +3335,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
     } catch (e) {
       setError(t("uploadNetworkError"));
       console.error(e);
+      logClientError("photo_upload", e, userId);
     }
     setUploading(false);
   };
@@ -2984,7 +3417,7 @@ function MyCollectionPanel({ userId, uploaderName, uploaderAvatar, onClose }: { 
                 onDrop={e=>{e.preventDefault();handleDropReorder(p.id);}}
                 onDragEnd={()=>setDragPhotoId(null)}
                 style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:"var(--bg2)",cursor:"grab",opacity:dragPhotoId===p.id?0.4:1,outline:dragPhotoId&&dragPhotoId!==p.id?"2px dashed #0196e3":"none"}}>
-                <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:p.approved?1:0.5,pointerEvents:"none"}} />
+                <img loading="lazy" decoding="async" src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:p.approved?1:0.5,pointerEvents:"none"}} />
                 {photos.length > 1 && (
                   <div style={{position:"absolute",top:4,left:4,background:"rgba(0,0,0,0.55)",color:"#fff",borderRadius:6,width:18,height:18,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
                     ⠿
@@ -3142,7 +3575,7 @@ function CollectionPhotoZoom({ photos, index, onClose, onNav, currentUserId, cur
           ) : comments.map(c => (
             <div key={c.id} style={{display:"flex",gap:8,marginBottom:10,textAlign:"left"}}>
               {c.commenter_avatar ? (
-                <img src={c.commenter_avatar} alt="" style={{width:30,height:30,borderRadius:"50%",flexShrink:0,objectFit:"cover"}} />
+                <img loading="lazy" decoding="async" src={c.commenter_avatar} alt="" style={{width:30,height:30,borderRadius:"50%",flexShrink:0,objectFit:"cover"}} />
               ) : (
                 <div style={{width:30,height:30,borderRadius:"50%",flexShrink:0,background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700}}>
                   {(c.commenter_name ?? "?").charAt(0).toUpperCase()}
@@ -3208,7 +3641,7 @@ function UserCollectionView({ userId, name, currentUserId, currentUserName, curr
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
           {photos.map((p,i) => (
             <div key={p.id} onClick={()=>setZoomIndex(i)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",cursor:"pointer",background:"var(--bg2)"}}>
-              <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+              <img loading="lazy" decoding="async" src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
               <div style={{position:"absolute",bottom:3,left:3,right:3,display:"flex",gap:4}}>
                 <button onClick={e=>{e.stopPropagation(); currentUserId ? toggleLike(p.id) : onRequireLogin();}}
                   style={{background:"rgba(0,0,0,0.6)",border:"none",borderRadius:10,padding:"2px 6px",cursor:"pointer",display:"flex",alignItems:"center",gap:3,fontSize:10,fontWeight:700,color:"#fff"}}>
@@ -3265,7 +3698,7 @@ function CollectionsEntryButton({ onOpenMyCollection, currentUserId, currentUser
         {covers.length > 0 ? (
           <div style={{display:"flex"}}>
             {covers.map((url,i) => (
-              <img key={i} src={url} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2.5px solid #fff",marginLeft:i===0?0:-14,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}} />
+              <img loading="lazy" decoding="async" key={i} src={url} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2.5px solid #fff",marginLeft:i===0?0:-14,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}} />
             ))}
           </div>
         ) : (
@@ -3318,7 +3751,7 @@ function CollectionsDirectoryModal({ onClose, onOpenMyCollection, currentUserId,
                       style={{borderRadius:12,overflow:"hidden",border:"1px solid var(--border)",cursor:"pointer",background:"var(--bg2)"}}>
                       <div style={{aspectRatio:"1.4",background:colorForUser(e.userId),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
                         {e.coverUrl
-                          ? <img src={e.coverUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                          ? <img loading="lazy" decoding="async" src={e.coverUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
                           : <div style={{fontSize:28,fontWeight:700,color:"#fff"}}>{e.name[0]?.toUpperCase() ?? "?"}</div>}
                       </div>
                       <div style={{padding:"8px 10px"}}>
@@ -3346,7 +3779,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
   onOpenMyCollection:()=>void;
   onRequireLogin:()=>void;
 }) {
-  const { t } = useTr();
+  const { t, lang } = useTr();
   const [zoomImg, setZoomImg] = useState<{src:string;name:string}|null>(null);
   const { topUploaders, topCollectors, myUploaderRank, myCollectorRank, myUploaderEntry, myCollectorEntry } = useCommunityLeaderboards(currentUserId);
   const [showBadgeLegend, setShowBadgeLegend] = useState(false);
@@ -3365,11 +3798,11 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
         <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
         <div onClick={()=>found.figure.image&&setZoomImg({src:found.figure.image,name:found.figure.name})}
           style={{width:36,height:36,borderRadius:6,overflow:"hidden",flexShrink:0,background:"var(--missing-bg)",cursor:found.figure.image?"zoom-in":"default"}}>
-          {found.figure.image ? <img src={found.figure.image} alt={found.figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",fontSize:18}}>{found.figure.emoji}</div>}
+          {found.figure.image ? <img loading="lazy" decoding="async" src={found.figure.image} alt={found.figure.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",fontSize:18}}>{found.figure.emoji}</div>}
         </div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.figure.name}</div>
-          <div style={{fontSize:10,color:"var(--text4)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{found.series.name} — {found.set.name}</div>
+          <div style={{fontSize:10,color:"var(--text4)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{seriesLabel(found.series.name, lang)} — {found.set.name}</div>
         </div>
         <div style={{fontSize:11,fontWeight:700,color}}>{item.count}×</div>
       </div>
@@ -3392,7 +3825,7 @@ function CommunityTab({ data, communityUsers, communityTotal, topOwned, topWishe
           <div style={{fontSize:13,fontWeight:700,color:"var(--text3)",width:16,textAlign:"center"}}>{i+1}</div>
           <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:avatarColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",overflow:"hidden"}}>
             {entry.avatar
-              ? <img src={entry.avatar} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+              ? <img loading="lazy" decoding="async" src={entry.avatar} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
               : (entry.name?.[0]?.toUpperCase() ?? "?")}
           </div>
           <div style={{flex:1,minWidth:0,fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{entry.name}</div>
@@ -3576,7 +4009,7 @@ function StudiosBrowser({ data, owned, wishlist, onToggle, onToggleWish, photoCo
   photoCounts: Record<number, number>; cardSize: "s" | "m" | "l";
   onOpenFigure: (ctx: StudioEntry) => void;
 }) {
-  const { t } = useTr();
+  const { t, lang } = useTr();
   const studios = useMemo(() => buildStudios(data), [data]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -3597,7 +4030,7 @@ function StudiosBrowser({ data, owned, wishlist, onToggle, onToggleWish, photoCo
           <div key={s.key} onClick={()=>setSelectedKey(s.key)}
             style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",border:"1px solid var(--border)",borderRadius:12,marginBottom:8,cursor:"pointer",background:"var(--bg)"}}>
             <div style={{width:96,flexShrink:0,display:"flex",justifyContent:"center"}}>
-              {s.logo ? <img src={s.logo} alt={s.name} loading="lazy" style={{maxWidth:96,maxHeight:34,objectFit:"contain"}} /> : <span style={{fontSize:24}}>🏭</span>}
+              {s.logo ? <img src={s.logo} alt={s.name} loading="lazy" decoding="async" style={{maxWidth:96,maxHeight:34,objectFit:"contain"}} /> : <span style={{fontSize:24}}>🏭</span>}
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.name}</div>
@@ -3632,7 +4065,7 @@ function StudiosBrowser({ data, owned, wishlist, onToggle, onToggleWish, photoCo
             <div onClick={()=>setOpenFr(o => ({ ...o, [limitKey]: !isOpen }))}
               style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer"}}>
               <span style={{fontSize:12,color:"var(--text3)",width:12,flexShrink:0}}>{isOpen ? "▾" : "▸"}</span>
-              {logoSrc ? <img src={logoSrc} alt={fr.name} title={fr.name} style={{height:28,maxWidth:130,objectFit:"contain"}} /> : <span style={{fontSize:14,fontWeight:700}}>{fr.series.emoji} {fr.name}</span>}
+              {logoSrc ? <img src={logoSrc} alt={fr.name} title={fr.name} style={{height:28,maxWidth:130,objectFit:"contain"}} /> : <span style={{fontSize:14,fontWeight:700}}>{fr.series.emoji} {seriesLabel(fr.name, lang)}</span>}
               <span style={{marginLeft:"auto",fontSize:11,color:"var(--text3)",flexShrink:0}}>{ownedIn(fr.items)}/{fr.items.length}</span>
             </div>
             {isOpen && (
@@ -3664,6 +4097,7 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
   series: Series[]; seriesOwned:(s:Series)=>number; seriesTotal:(s:Series)=>number;
   onSelect:(id:number)=>void; onReorder:(from:number,to:number)=>void;
 }) {
+  const { lang } = useTr();
   const isAdmin = useAdmin();
   const gridRef = useRef<HTMLDivElement>(null);
   const dragIdx = useRef<number|null>(null);
@@ -3739,14 +4173,14 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
             onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
             onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
             {s.bgImage
-              ? <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
+              ? <img loading="lazy" decoding="async" src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
               : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.6,pointerEvents:"none"}}>{s.emoji}</div>
             }
             <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 50%,rgba(0,0,0,0) 100%)",pointerEvents:"none"}} />
             <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px",pointerEvents:"none"}}>
               {s.logo
-                ? <img src={s.logo} alt={s.name} style={{height:20,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:4,display:"block"}} />
-                : <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:4,lineHeight:1.2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>{s.name}</div>
+                ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:20,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:4,display:"block"}} />
+                : <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:4,lineHeight:1.2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>{seriesLabel(s.name, lang)}</div>
               }
               <div style={{height:3,background:"rgba(255,255,255,0.25)",borderRadius:2,overflow:"hidden",marginBottom:2}}>
                 <div style={{height:"100%",width:pct+"%",background:pct===100?"#4ade80":s.color,borderRadius:2}} />
@@ -4689,7 +5123,7 @@ function NewsModal({ favItems, allItems, data, onOpenDetail, onClose }: { favIte
                   <span style={{display:"inline-block",fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:8,marginRight:6,verticalAlign:"1px",background:ctx.series.category === "resina" ? "#ede9fe" : "#e0f2fe",color:ctx.series.category === "resina" ? "#5b21b6" : "#075985"}}>
                     {ctx.series.category === "resina" ? t("resinBadge") : t("officialBadge")}
                   </span>
-                  {ctx.series.emoji} {ctx.series.name}{ctx.group ? ` — ${ctx.group.name}` : ""}{ctx.kind === "set" ? ` · ${ctx.figureIds.length} ${t("studiosFigures")}${ctx.set.releaseDate ? ` · 📅 ${formatReleaseMonth(ctx.set.releaseDate, lang) ?? ""}` : ""}` : ` — ${ctx.set.name}`}
+                  {ctx.series.emoji} {seriesLabel(ctx.series.name, lang)}{ctx.group ? ` — ${ctx.group.name}` : ""}{ctx.kind === "set" ? ` · ${ctx.figureIds.length} ${t("studiosFigures")}${ctx.set.releaseDate ? ` · 📅 ${formatReleaseMonth(ctx.set.releaseDate, lang) ?? ""}` : ""}` : ` — ${ctx.set.name}`}
                 </div>
               )}
               {ctx && (
@@ -4848,7 +5282,7 @@ function OnboardingModal({ onLogin, onSendCode, onVerifyCode, onEmailSuccess, on
           <>
             <button onClick={handleGoogleClick} disabled={googleLoading}
               style={{...equalOptionStyle,cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.7:1,marginBottom:10}}>
-              <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
+              <GoogleIcon size={18} />
               {googleLoading ? t("redirecting") : t("onboardLogin")}
             </button>
             <button onClick={()=>setShowEmail(true)} style={{...equalOptionStyle,marginBottom:16}}>
@@ -5130,6 +5564,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
       if (insertError) {
         // supabase-js doesn't throw on a rejected insert: without this check the user saw "done" and nothing was saved.
         console.error("Figure photo insert failed:", insertError);
+        logClientError("photo_insert", insertError, userId);
         setUploadError(t("uploadSaveError"));
         setUploading(false);
         return;
@@ -5138,6 +5573,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
     } catch(e) {
       setUploadError(t("uploadNetworkError"));
       console.error(e);
+      logClientError("photo_upload", e, userId);
     }
     setUploading(false);
   };
@@ -5192,7 +5628,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
         {/* Info */}
         <div style={{padding:"14px 16px 16px"}}>
           <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{figure.name}</div>
-          <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>{series.name} — {set.name}</div>
+          <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>{seriesLabel(series.name, lang)} — {set.name}</div>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
             {set.releaseDate && <span style={{fontSize:11,color:"var(--text4)"}}>📅 {formatDate(set.releaseDate)}</span>}
             <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:5,background:series.category==="oficial"?"#e6f4fd":"#ede9fe",color:series.category==="oficial"?"#0174b0":"#7c3aed"}}>{series.category==="oficial"?t("officialBadge"):t("resinBadge")}</span>
@@ -5225,7 +5661,7 @@ function FigureDetailModal({ figure, set, series, isOwned, isWished, onToggle, o
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
                 {photos.map((p,i)=>(
                   <div key={p.id} onClick={()=>setZoomPhotoIndex(i)} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",cursor:"zoom-in",background:"var(--missing-bg)"}}>
-                    <img src={p.url} alt="community" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                    <img loading="lazy" decoding="async" src={p.url} alt="community" style={{width:"100%",height:"100%",objectFit:"cover"}} />
                   </div>
                 ))}
               </div>
@@ -5594,6 +6030,59 @@ function AdminFeedbackTab() {
   );
 }
 
+type ClientErrorRow = { id: number; created_at: string; stage: string; message: string | null; user_id: string | null; tz: string | null; via: string | null; ua: string | null };
+
+// Errors that real devices reported (failed uploads, catalogue not loading, slow loads).
+function AdminErrorsTab() {
+  const [rows, setRows] = useState<ClientErrorRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.from("wcf_client_errors").select("*").order("created_at", { ascending: false }).limit(300)
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message); else setRows((data ?? []) as ClientErrorRow[]);
+        setLoading(false);
+      });
+  }, []);
+  const clearAll = async () => {
+    if (!window.confirm("Delete every logged error?")) return;
+    const { error: err } = await supabase.from("wcf_client_errors").delete().gte("id", 0);
+    if (err) { alert("Couldn't delete: " + err.message); return; }
+    setRows([]);
+  };
+  const device = (ua: string | null) => !ua ? "" : /iPhone|iPad/.test(ua) ? "iOS" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : "other";
+  const weekAgo = Date.now() - 7 * 86400000;
+  const byStage = new Map<string, number>();
+  for (const r of rows) if (new Date(r.created_at).getTime() > weekAgo) byStage.set(r.stage, (byStage.get(r.stage) ?? 0) + 1);
+  const color = (stage: string) => stage.startsWith("photo") ? "#dc2626" : stage === "catalogue_slow" ? "#d97706" : "#7c3aed";
+
+  if (loading) return <div style={{textAlign:"center",padding:"30px 0",color:"var(--text4)",fontSize:13}}>Loading…</div>;
+  if (error) return <div style={{padding:16,fontSize:13,color:"#dc2626"}}>Couldn't load the log: {error}<div style={{color:"var(--text3)",marginTop:6}}>If the table doesn't exist yet, run the wcf_client_errors SQL.</div></div>;
+  return (
+    <div>
+      <div style={{fontSize:12,color:"var(--text3)",marginBottom:8}}>Last 7 days</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+        {byStage.size === 0 && <span style={{fontSize:13,color:"#059669",fontWeight:600}}>✅ Nothing reported in the last 7 days</span>}
+        {[...byStage.entries()].sort((a, b) => b[1] - a[1]).map(([stage, n]) => (
+          <span key={stage} style={{fontSize:12,fontWeight:700,padding:"4px 10px",borderRadius:14,background:"var(--bg2)",color:color(stage)}}>{stage} · {n}</span>
+        ))}
+      </div>
+      {rows.map(r => (
+        <div key={r.id} style={{border:"1px solid var(--border)",borderRadius:12,padding:"9px 12px",marginBottom:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
+            <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:10,background:"var(--bg2)",color:color(r.stage)}}>{r.stage}</span>
+            <span style={{fontSize:11,color:"var(--text3)"}}>{[device(r.ua), r.tz, r.via].filter(Boolean).join(" · ")}</span>
+            <span style={{fontSize:11,color:"var(--text4)",marginLeft:"auto"}}>{new Date(r.created_at).toLocaleString()}</span>
+          </div>
+          <div style={{fontSize:12.5,lineHeight:1.4,wordBreak:"break-word"}}>{r.message}</div>
+          {r.user_id && <div style={{fontSize:10,color:"var(--text4)",marginTop:3}}>user {r.user_id.slice(0, 8)}</div>}
+        </div>
+      ))}
+      {rows.length > 0 && <button onClick={clearAll} style={{marginTop:6,padding:"7px 14px",borderRadius:10,border:"none",background:"var(--bg2)",color:"var(--text3)",fontSize:12,cursor:"pointer"}}>🗑️ Clear log</button>}
+    </div>
+  );
+}
+
 function AdminUsersTab() {
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -5669,7 +6158,7 @@ function AdminUsersTab() {
 }
 
 function AdminPanel({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<"feedback" | "users">("feedback");
+  const [tab, setTab] = useState<"feedback" | "users" | "errors">("feedback");
   const tabBtn = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: "10px 6px", border: "none", borderBottom: active ? "2px solid #0196e3" : "2px solid transparent",
     background: "transparent", color: active ? "#0196e3" : "var(--text3)", fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -5684,9 +6173,10 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
         <div style={{display:"flex",borderBottom:"1px solid var(--border)"}}>
           <button onClick={()=>setTab("feedback")} style={tabBtn(tab === "feedback")}>💬 Feedback</button>
           <button onClick={()=>setTab("users")} style={tabBtn(tab === "users")}>👥 Users</button>
+          <button onClick={()=>setTab("errors")} style={tabBtn(tab === "errors")}>⚠️ Errors</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:14}}>
-          {tab === "feedback" ? <AdminFeedbackTab /> : <AdminUsersTab />}
+          {tab === "feedback" ? <AdminFeedbackTab /> : tab === "users" ? <AdminUsersTab /> : <AdminErrorsTab />}
         </div>
       </div>
     </div>
@@ -5784,7 +6274,7 @@ function PhotoModerationPanel({ onClose, data }: { onClose: ()=>void; data: Seri
           )}
           {list.map(p=>(
             <div key={p.id} style={{marginBottom:16,border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}}>
-              <img src={p.url} alt="figure" style={{width:"100%",maxHeight:280,objectFit:"contain",background:"var(--missing-bg)"}} />
+              <img loading="lazy" decoding="async" src={p.url} alt="figure" style={{width:"100%",maxHeight:280,objectFit:"contain",background:"var(--missing-bg)"}} />
               <div style={{padding:"10px 12px"}}>
                 {source === "figures" && (
                   <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>
@@ -5942,7 +6432,7 @@ function LoginModal({ onClose, onGoogle, onSendCode, onVerifyCode }: { onClose:(
           <>
             <button onClick={handleGoogleClick} disabled={googleLoading}
               style={{...equalOptionStyle,cursor:googleLoading?"default":"pointer",opacity:googleLoading?0.6:1,marginBottom:10}}>
-              <img src="https://www.google.com/favicon.ico" alt="Google" style={{width:18,height:18}} />
+              <GoogleIcon size={18} />
               {googleLoading ? t("redirecting") : t("signInGoogle")}
             </button>
             <button onClick={()=>setShowEmail(true)}
@@ -6178,7 +6668,7 @@ function PublicCollectionPage({ code }: { code: string }) {
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:24}}>
                 {photos.map((p,i) => (
                   <div key={p.id} onClick={()=>setZoomIndex(i)} style={{aspectRatio:"1",borderRadius:10,overflow:"hidden",cursor:"pointer",background:"var(--bg2)"}}>
-                    <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                    <img loading="lazy" decoding="async" src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
                   </div>
                 ))}
               </div>
@@ -6558,19 +7048,19 @@ function MainApp() {
       if (statusF === "missing") return !owned.has(figure.id) && !wishlist.has(figure.id);
       return true; // "all"
     }).filter(({figure,set:fset,series}) => {
-      if (!search.trim()) return true;
-      const words = search.toLowerCase().trim().split(/\s+/);
+      const matcher = buildSearchMatcher(search);
+      if (!matcher) return true;
       const combined = `${figure.name} ${series.name} ${fset.name} ${figure.tags??""}`.toLowerCase();
-      return words.every(w=>combined.includes(w));
+      return matcher(combined);
     });
 
   const applySort = (items: FlatFigure[], sort: "alpha"|"date", search: string = "") => {
     const sorted = [...items].sort((a,b) => sort==="date"
       ? (a.set.releaseDate??"").localeCompare(b.set.releaseDate??"")
       : a.figure.name.localeCompare(b.figure.name));
-    if (!search.trim()) return sorted;
-    const words = search.toLowerCase().trim().split(/\s+/);
-    const nameMatch = (f: FlatFigure) => words.every(w=>f.figure.name.toLowerCase().includes(w));
+    const matcher = buildSearchMatcher(search);
+    if (!matcher) return sorted;
+    const nameMatch = (f: FlatFigure) => matcher(f.figure.name.toLowerCase());
     return [...sorted.filter(nameMatch), ...sorted.filter(f=>!nameMatch(f))];
   };
 
@@ -6799,7 +7289,7 @@ function MainApp() {
             </select>
             <select value={colSeries} onChange={e=>setColSeries(e.target.value==="all"?"all":Number(e.target.value))} style={{...selectStyle,fontSize:11}}>
               <option value="all">{t("filterSeries")}</option>
-              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+              {uniqSeries.map(s=><option key={s.id} value={s.id}>{seriesLabel(s.name, lang)}</option>)}
             </select>
             <select value={colSort} onChange={e=>setColSort(e.target.value as "alpha"|"date")} style={{...selectStyle,fontSize:11}}>
               <option value="date">📅</option>
@@ -6819,7 +7309,7 @@ function MainApp() {
             </select>
             <select value={dbSeries} onChange={e=>setDbSeries(e.target.value==="all"?"all":Number(e.target.value))} style={{...selectStyle,fontSize:11}}>
               <option value="all">{t("filterSeries")}</option>
-              {uniqSeries.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+              {uniqSeries.map(s=><option key={s.id} value={s.id}>{seriesLabel(s.name, lang)}</option>)}
             </select>
             <select value={dbSort} onChange={e=>setDbSort(e.target.value as "alpha"|"date")} style={{...selectStyle,fontSize:11}}>
               <option value="date">📅</option>
@@ -6864,7 +7354,7 @@ function MainApp() {
         <div style={{background:"var(--bg)",padding:"10px 16px",borderBottom:"2px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
             <button onClick={goBack} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
-            {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {dbSeriesObj.name}</span>}
+            {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {seriesLabel(dbSeriesObj.name, lang)}</span>}
             {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
               <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
               <Btn small onClick={()=>addSet(dbSeriesObj.id)} variant="primary">{t("newSet")}</Btn>
@@ -6945,7 +7435,7 @@ function MainApp() {
                           <span style={{fontSize:11,color:"var(--text4)",transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.15s",flexShrink:0}}>▶</span>
                           {series.logoHeader
                             ? <img src={series.logoHeader} alt={series.name} style={{height:22,maxWidth:120,objectFit:"contain",objectPosition:"left"}} />
-                            : <><span style={{fontSize:18}}>{series.emoji}</span><span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{series.name}</span></>
+                            : <><span style={{fontSize:18}}>{series.emoji}</span><span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{seriesLabel(series.name, lang)}</span></>
                           }
                           <span style={{flex:1}} />
                           <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg)",padding:"2px 9px",borderRadius:10,fontWeight:600,flexShrink:0}}>{items.length}</span>
@@ -7102,7 +7592,7 @@ function MainApp() {
                             onToggle={()=>toggleWithAuth(figure.id)} onToggleWish={()=>toggleWishWithAuth(figure.id)}
                             communityOwned={communityOwned[figure.id]??0} communityWished={communityWished[figure.id]??0} userId={user?.id} userPhotoCount={figuresWithPhotos[figure.id]??0} />
                           <div style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:9,padding:"2px 5px",borderRadius:4,pointerEvents:"none"}}>
-                            {series.name}
+                            {seriesLabel(series.name, lang)}
                           </div>
                         </div>
                       ))}
@@ -7202,13 +7692,13 @@ function MainApp() {
                   return (
                     <div key={s.id} onClick={()=>toggleFavourite(s.id)}
                       style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:"pointer",aspectRatio:"1",background:s.color+"33",border:isFav?`2px solid #f59e0b`:`1px solid ${s.color}44`,transition:"border 0.15s"}}>
-                      {s.bgImage ? <img src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} /> :
+                      {s.bgImage ? <img loading="lazy" decoding="async" src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} /> :
                         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,opacity:0.3}}>{s.emoji}</div>}
                       <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.8) 0%,rgba(0,0,0,0.1) 60%,rgba(0,0,0,0) 100%)"}} />
                       {isFav && <div style={{position:"absolute",top:6,right:6,fontSize:16,zIndex:2}}>⭐</div>}
                       <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"6px 8px"}}>
-                        {s.logo ? <img src={s.logo} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",display:"block"}} />
-                          : <div style={{fontSize:11,fontWeight:700,color:"#fff",lineHeight:1.2}}>{s.name}</div>}
+                        {s.logo ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",display:"block"}} />
+                          : <div style={{fontSize:11,fontWeight:700,color:"#fff",lineHeight:1.2}}>{seriesLabel(s.name, lang)}</div>}
                       </div>
                     </div>
                   );
