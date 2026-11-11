@@ -2108,7 +2108,10 @@ const SERIES_NAMES_ZH: [string, string, boolean][] = [
   ["jujutsu kaisen", "咒术回战", false], ["king of fighters", "拳皇", false], ["tiger & bunny", "老虎和兔子", false],
   ["tiger bunny", "老虎和兔子", false], ["tiger and bunny", "老虎和兔子", false], ["jojo", "JOJO的奇妙冒险", false],
   ["gintama", "银魂", false], ["gundam", "高达", false], ["full metal alchemist", "钢之炼金术师", false],
-  ["fullmetal alchemist", "钢之炼金术师", false], ["kingdom", "王者天下", true], ["others", "其他", true], ["other", "其他", true],
+  ["fullmetal alchemist", "钢之炼金术师", false], ["kamen rider", "假面骑士", false], ["digimon", "数码宝贝", false],
+  ["yu-gi-oh", "游戏王", false], ["one punch", "一拳超人", false], ["katekyo", "家庭教师REBORN", false],
+  ["lupin", "鲁邦三世", false], ["seven deadly sins", "七大罪", false],
+  ["kingdom", "王者天下", true], ["others", "其他", true], ["other", "其他", true],
 ];
 function seriesLabel(name: string, lang: LangCode): string {
   if (lang !== "zh") return name;
@@ -2118,12 +2121,15 @@ function seriesLabel(name: string, lang: LangCode): string {
 }
 
 // ---- Chinese search ----
-// The catalogue is written in English, so a Chinese query (悟空) would match nothing. Each line below maps
-// Chinese names (simplified and traditional) to the English words they appear under in the catalogue:
-//     中文名  另一个叫法  =  english word | another english word
-// To teach the search a new name, add a line. Chinese letters in a query are looked up here; anything not
-// recognised (like 手办, "figure") is ignored as long as at least one name was understood. English
-// words coming from this table only match as whole words, so "ace" finds Ace but not "Palace".
+// The catalogue is written in English, so a Chinese query (悟空) would match nothing. A dictionary maps
+// Chinese names (simplified and traditional) to the English names they appear under in the catalogue.
+// Each line:   中文名  另一个叫法  =  english name | another english name
+//   - a small core table is built in below (franchises and the most popular characters);
+//   - the full catalogue dictionary lives in /search-zh.txt (public folder, same format) and is only
+//     downloaded when the language is Chinese or someone types Chinese in a search box.
+// To teach the search a new name, add a line to either. Chinese words in a query are looked up here;
+// anything not recognised (like 手办, "figure") is ignored as long as at least one name was understood.
+// English names from the dictionary only match as whole words, so "ace" finds Ace but not "Palace".
 const SEARCH_ALIAS_TABLE = `
 # ── Franquicias / Franchises ──
 龙珠 龍珠 七龙珠 七龍珠 = dragon ball
@@ -2149,278 +2155,153 @@ jojo的奇妙冒险 jojo奇妙冒险 jojo的奇妙冒險 乔乔的奇妙冒险 =
 拳皇 = the king of fighters | king of fighters | kof
 老虎和兔子 = tiger & bunny | tiger bunny
 少年jump 少年ジャンプ = shonen jump
+假面骑士 假面騎士 幪面超人 = kamen rider
+数码宝贝 數碼寶貝 数码兽 數碼獸 = digimon
+游戏王 遊戲王 = yu-gi-oh | yugioh
+一拳超人 = one punch man
+家庭教师 家庭教師 家教 = katekyo hitman reborn | reborn
+鲁邦三世 魯邦三世 鲁邦 = lupin the 3rd | lupin
+七大罪 = the seven deadly sins | seven deadly sins
 
-# ── Dragon Ball ──
-悟空 孙悟空 孫悟空 = goku | son goku | wukong
-卡卡罗特 卡卡羅特 = kakarot | goku
-贝吉塔 貝吉塔 = vegeta
-悟饭 孙悟饭 悟飯 孫悟飯 = gohan | son gohan
+# ── Most popular characters (the rest is in /search-zh.txt) ──
+悟空 = goku
+孙悟空 = goku
+贝吉塔 = vegeta
+悟饭 = gohan
 悟天 = goten
-特兰克斯 特蘭克斯 = trunks
-比克 短笛 = piccolo
+特兰克斯 = trunks
 克林 = krillin
-布尔玛 布玛 布爾瑪 = bulma
-弗利萨 弗利沙 = frieza | freeza
-沙鲁 赛尔 = cell
-魔人布欧 布欧 = majin buu | buu
+比克 = piccolo
+弗利萨 = frieza
+沙鲁 = cell
+布欧 = buu
 比鲁斯 = beerus
-维斯 = whis
 布罗利 = broly
 悟吉塔 = gogeta
-贝吉特 = vegito
-人造人18号 = android 18
-龟仙人 = master roshi | roshi
-天津饭 = tien | tenshinhan
-雅木茶 = yamcha
-琪琪 = chi-chi | chichi
-吉连 基连 = jiren
-黑悟空 = goku black
-扎马斯 = zamasu
-超级赛亚人 超賽 = super saiyan
-赛亚人 賽亞人 = saiyan
-
-# ── One Piece ──
-路飞 路飛 蒙奇·d·路飞 = luffy | monkey d. luffy
-索隆 罗罗诺亚·索隆 = zoro | roronoa zoro
+布尔玛 = bulma
+龟仙人 = master roshi
+路飞 = luffy | monkey d. luffy | monkey luffy
+索隆 = roronoa zoro | zoro | rorona zoro
+山治 = sanji | vinsmoke sanji
 娜美 = nami
-乌索普 = usopp
-山治 = sanji
-乔巴 喬巴 = chopper | tony tony chopper
-罗宾 妮可·罗宾 = robin | nico robin
+乔巴 = chopper
+罗宾 = nico robin | robin
 弗兰奇 = franky
 布鲁克 = brook
-甚平 = jinbe | jimbei
-艾斯 波特卡斯·d·艾斯 = ace | portgas d. ace | portgas
+甚平 = jinbe
+艾斯 = ace | portgas d. ace
 萨博 = sabo
 香克斯 = shanks
-白胡子 = whitebeard
-特拉法尔加·罗 特拉法尔加 = trafalgar law | trafalgar | law
-基德 尤斯塔斯·基德 = eustass kid | eustass | kid
-鹰眼 米霍克 = mihawk | dracule mihawk
-汉库克 蛇姬 = hancock | boa hancock
-多弗朗明哥 = doflamingo
-凯多 = kaido
-大妈 夏洛特·玲玲 = big mom | charlotte linlin
+白胡子 = edgard newgate | edward newgate | whitebeard
 黑胡子 = blackbeard | marshall d. teach
-巴基 = buggy
-克洛克达尔 = crocodile
-艾尼路 = enel
-雷利 = rayleigh | silvers rayleigh
-卡普 = garp
-战国 = sengoku
-赤犬 = akainu
-青雉 = aokiji | kuzan
-黄猿 = kizaru
-薇薇 = vivi
-大和 = yamato
-卡罗特 = carrot
-佩罗娜 = perona
-尼卡 五档 五檔 = nika | gear 5 | gear5 | gear five
-和之国 和之國 = wano
-艾尔巴夫 = elbaph
-蛋头岛 = egghead
-顶上战争 = marineford
-阿拉巴斯坦 = alabasta
-德雷斯罗萨 = dressrosa
-蛋糕岛 = whole cake
-鱼人岛 魚人島 = fish-man island | fishman island
-空岛 空島 = skypiea
-
-# ── Naruto ──
-鸣人 鳴人 漩涡鸣人 = naruto | naruto uzumaki
-佐助 宇智波佐助 = sasuke
-卡卡西 旗木卡卡西 = kakashi
-小樱 春野樱 = sakura
-鼬 宇智波鼬 = itachi
-斑 宇智波斑 = madara
-带土 帶土 = obito
-波风水门 水门 = minato
-自来也 = jiraiya
-纲手 綱手 = tsunade
-大蛇丸 = orochimaru
-我爱罗 我愛羅 = gaara
-雏田 雛田 = hinata
-李洛克 = rock lee
-宁次 寧次 = neji
-鹿丸 = shikamaru
-鬼鲛 鬼鮫 = kisame
-迪达拉 = deidara
-佩恩 = pain | pein
-柱间 柱間 = hashirama
-扉间 扉間 = tobirama
-博人 = boruto
-九尾 九喇嘛 = kurama | nine-tails | kyuubi
-晓 曉 = akatsuki
-
-# ── Bleach ──
-一护 黑崎一护 一護 黑崎一護 = ichigo | kurosaki
-露琪亚 朽木露琪亚 = rukia
-恋次 阿散井恋次 = renji
-白哉 朽木白哉 = byakuya
-蓝染 藍染 = aizen
-剑八 更木剑八 = kenpachi
-冬狮郎 日番谷冬狮郎 = toshiro | hitsugaya
-格里姆乔 = grimmjow
-乌尔奇奥拉 = ulquiorra
-夜一 四枫院夜一 = yoruichi
-浦原喜助 浦原 = urahara
-井上织姬 = orihime
-茶渡 = chad | sado
-石田雨龙 = uryu | ishida
-
-# ── Hunter x Hunter ──
-小杰 = gon
+罗杰 = gol d. roger | roger
+鸣人 = uzumaki naruto | naruto metallic ver. | naruto uzumaki
+佐助 = sasuke
+卡卡西 = kakashi
+小樱 = sakura
+鼬 = itachi
+一护 = kurosaki ichigo | kurosaki ichigo doppelganger
+露琪亚 = kuchiki rukia
+蓝染 = aizen sousuke
+小杰 = gon freecss
 奇犽 = killua
 酷拉皮卡 = kurapika
-雷欧力 = leorio
-西索 = hisoka
-库洛洛 = chrollo
-梅路艾姆 = meruem
-伊路米 = illumi
-飞坦 = feitan
-凯特 = kite
-比司吉 比斯吉 = biscuit | bisky
-
-# ── Kimetsu no Yaiba ──
-炭治郎 灶门炭治郎 = tanjiro
-祢豆子 禰豆子 = nezuko
-善逸 我妻善逸 = zenitsu
-伊之助 嘴平伊之助 = inosuke
-义勇 富冈义勇 = giyu | tomioka
-蝴蝶忍 = shinobu
-炼狱杏寿郎 炼狱 = rengoku | kyojuro
-宇髓天元 = tengen | uzui
-甘露寺蜜璃 = mitsuri
-时透无一郎 = muichiro
-不死川实弥 = sanemi
-悲鸣屿行冥 = gyomei
-伊黑小芭内 = obanai
-鬼舞辻无惨 无惨 = muzan
-猗窝座 = akaza
-童磨 = doma
-黑死牟 = kokushibo
-
-# ── My Hero Academia ──
-绿谷出久 出久 = deku | izuku | midoriya
-爆豪胜己 爆豪 = bakugo | bakugou
-轰焦冻 焦冻 = todoroki
-丽日御茶子 御茶子 = uraraka | ochaco
-欧尔迈特 奥尔麦特 = all might
-安德瓦 艾恩德瓦 = endeavor
-死柄木弔 死柄木 = shigaraki
-相泽消太 = aizawa
-霍克斯 = hawks
-荼毘 = dabi
-渡我被身子 = toga
-饭田天哉 = iida
-蛙吹梅雨 = tsuyu | asui
-切岛锐儿郎 = kirishima
-治崎廻 = overhaul
-
-# ── Jujutsu Kaisen ──
-虎杖悠仁 悠仁 = yuji | itadori
-伏黑惠 = megumi | fushiguro
-钉崎野蔷薇 = nobara | kugisaki
-五条悟 = gojo | satoru
-宿傩 两面宿傩 = sukuna
-七海建人 = nanami
-伏黑甚尔 = toji
-夏油杰 = geto
-禅院真希 = maki
-狗卷棘 = toge | inumaki
-胖达 = panda
-乙骨忧太 = yuta | okkotsu
-漏瑚 = jogo
-胀相 脹相 = choso
-
-# ── Chainsaw Man ──
-电次 電次 = denji
-帕瓦 = power
-玛奇玛 瑪奇瑪 = makima
-早川秋 = aki | hayakawa
-波奇塔 = pochita
-蕾泽 = reze
-天使恶魔 = angel devil
-
-# ── Gintama ──
-坂田银时 银时 = gintoki
-志村新八 新八 = shinpachi
-神乐 神樂 = kagura
-土方十四郎 土方 = hijikata
-冲田总悟 = okita | sougo
-桂小太郎 = katsura
-高杉晋助 = takasugi
-
-# ── Yu Yu Hakusho ──
-浦饭幽助 幽助 = yusuke | urameshi
-桑原和真 = kuwabara
-藏马 藏馬 = kurama
-飞影 飛影 = hiei
-户愚吕 = toguro
-
-# ── JoJo ──
-空条承太郎 承太郎 = jotaro
-迪奥 = dio
-东方仗助 仗助 = josuke
-乔鲁诺·乔巴纳 乔鲁诺 = giorno
-空条徐伦 徐伦 = jolyne
-乔瑟夫 = joseph
-吉良吉影 = kira | yoshikage
-
-# ── Kingdom / Tokyo Revengers / Slime / Kaiju No. 8 ──
-嬴政 = ying zheng | eisei
-花垣武道 武道 = takemichi
-佐野万次郎 万次郎 = mikey | manjiro
-龙宫寺坚 = draken
-场地圭介 = baji
-利姆露 = rimuru
-米莉姆 = milim
-日比野卡夫卡 卡夫卡 = kafka
-
-# ── Gundam / Fullmetal Alchemist / King of Fighters / Tiger & Bunny ──
-元祖高达 = rx-78 | gundam
-扎古 = zaku
-夏亚 = char
-爱德华 爱德华·艾尔利克 = edward | edward elric
-阿尔冯斯 = alphonse | alphonse elric
-罗伊·马斯坦古 = roy | mustang
-草薙京 = kyo | kusanagi
-八神庵 = iori | yagami
-特瑞·博加德 = terry | terry bogard
-不知火舞 = shiranui | mai shiranui
-库拉 = kula
-鏑木虎彻 虎彻 = kotetsu
-巴纳比 = barnaby
+炭治郎 = tanjiro
+祢豆子 = nezuko
+善逸 = zenitsu
+伊之助 = inosuke
+五条悟 = gojo satoru | satoru gojo
+虎杖悠仁 = itadori yuji | yuji itadori
+宿傩 = ryomen sukuna | ryumen sukuna | sukuna | sukuna ryomen
+伏黑惠 = fushiguro megumi | megumi fushiguro
+绿谷出久 = midoriya
+爆豪 = bakugo
+电次 = denji
+玛奇玛 = makima
+空条承太郎 = jotaro kujo | kujo jotaro
 `;
 
-type SearchAlt = { text: string; word: RegExp | null };
+type SearchAlt = { text: string; word: boolean; need?: string[] }; // need: the series name must contain one of these
+type AliasEntry = { zh: string; alts: SearchAlt[] };
 const CJK_RE = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
-const SEARCH_ALIASES: { zh: string; alts: SearchAlt[] }[] = (() => {
-  const out: { zh: string; alts: SearchAlt[] }[] = [];
-  for (const raw of SEARCH_ALIAS_TABLE.split("\n")) {
+
+function parseAliasTable(text: string): AliasEntry[] {
+  const out: AliasEntry[] = [];
+  for (const raw of text.split("\n")) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
     const eq = line.indexOf("=");
     if (eq < 0) continue;
     const zhs = line.slice(0, eq).trim().split(/\s+/).filter(Boolean);
-    const alts: SearchAlt[] = line.slice(eq + 1).split("|").map(s => s.trim().toLowerCase()).filter(Boolean).map(text => ({
-      text, word: new RegExp(`(?:^|[^a-z0-9])${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[^a-z0-9]|$)`),
-    }));
-    for (const zh of zhs) out.push({ zh: zh.toLowerCase(), alts });
+    const ens: SearchAlt[] = line.slice(eq + 1).split("|").map(s => s.trim().toLowerCase()).filter(Boolean).map(s => {
+      const at = s.lastIndexOf(" @");
+      if (at < 0) return { text: s, word: true };
+      const need = s.slice(at + 2).split(",").map(x => x.trim()).filter(Boolean);
+      return { text: s.slice(0, at).trim(), word: true, need: need.length ? need : undefined };
+    });
+    if (!zhs.length || !ens.length) continue;
+    for (const zh of zhs) out.push({ zh: zh.toLowerCase(), alts: ens.map(a => ({ ...a })) });
   }
-  return out.sort((a, b) => b.zh.length - a.zh.length); // longest name first: 孙悟空 before 悟空
-})();
+  return out;
+}
+
+// Dictionary index: by the first character of the Chinese name, longest names first (孙悟空 before 悟空).
+// The same Chinese name defined twice (core table and file) is merged, keeping every English alternative.
+const aliasIndex = new Map<string, AliasEntry[]>();
+const searchMatcherCache = new Map<string, SearchMatcher | null>();
+function addAliases(entries: AliasEntry[]) {
+  for (const e of entries) {
+    const bucket = aliasIndex.get(e.zh[0]) ?? [];
+    const same = bucket.find(x => x.zh === e.zh);
+    if (same) { for (const a of e.alts) if (!same.alts.some(x => x.text === a.text && (x.need ?? []).join() === (a.need ?? []).join())) same.alts.push({ ...a }); }
+    else bucket.push({ zh: e.zh, alts: e.alts.map(a => ({ ...a })) });
+    aliasIndex.set(e.zh[0], bucket);
+  }
+  for (const bucket of aliasIndex.values()) bucket.sort((a, b) => b.zh.length - a.zh.length);
+  searchMatcherCache.clear();
+}
+addAliases(parseAliasTable(SEARCH_ALIAS_TABLE));
+
+// The full dictionary: fetched once, only when needed. If it can't be fetched (offline, or the file isn't
+// deployed) the core table keeps working, and it tries again a minute later.
+let extraAliases: "idle" | "loading" | "done" = "idle";
+let extraAliasesFailedAt = 0;
+async function loadExtraSearchAliases(): Promise<boolean> {
+  if (extraAliases !== "idle" || Date.now() - extraAliasesFailedAt < 60000) return false;
+  extraAliases = "loading";
+  try {
+    const res = await fetch("/search-zh.txt");
+    if (!res.ok || (res.headers.get("content-type") ?? "").includes("text/html")) throw new Error("search-zh.txt not available");
+    addAliases(parseAliasTable(await res.text()));
+    extraAliases = "done";
+    return true;
+  } catch {
+    extraAliases = "idle";
+    extraAliasesFailedAt = Date.now();
+    return false;
+  }
+}
+
+const altRegexCache = new Map<string, RegExp>();
+function altRegex(text: string): RegExp {
+  let re = altRegexCache.get(text);
+  if (!re) {
+    re = new RegExp(`(?:^|[^a-z0-9])${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[^a-z0-9]|$)`);
+    altRegexCache.set(text, re);
+  }
+  return re;
+}
 
 // One word of the query -> the requirements it stands for; each requirement is a list of alternatives.
 function expandSearchToken(token: string): SearchAlt[][] {
-  const plain = (text: string): SearchAlt => ({ text, word: null });
+  const plain = (text: string): SearchAlt => ({ text, word: false });
   if (!CJK_RE.test(token)) return [[plain(token)]];
   const reqs: SearchAlt[][] = [];
   let buf = "";
   const flush = () => { if (buf) { reqs.push([plain(buf)]); buf = ""; } };
   let i = 0;
   while (i < token.length) {
-    const hit = SEARCH_ALIASES.find(a => token.startsWith(a.zh, i));
+    const hit = aliasIndex.get(token[i])?.find(a => token.startsWith(a.zh, i));
     if (hit) { flush(); reqs.push([plain(hit.zh), ...hit.alts]); i += hit.zh.length; }
     else { if (CJK_RE.test(token[i])) flush(); else buf += token[i]; i++; }
   }
@@ -2429,7 +2310,6 @@ function expandSearchToken(token: string): SearchAlt[][] {
 }
 
 type SearchMatcher = (haystack: string) => boolean;
-const searchMatcherCache = new Map<string, SearchMatcher | null>();
 // Every word of the query must be found (as before); a Chinese word is found through its English names.
 function buildSearchMatcher(search: string): SearchMatcher | null {
   const q = search.toLowerCase().trim();
@@ -2437,7 +2317,7 @@ function buildSearchMatcher(search: string): SearchMatcher | null {
   const cached = searchMatcherCache.get(q);
   if (cached !== undefined) return cached;
   const reqs = q.split(/\s+/).flatMap(expandSearchToken);
-  const matcher: SearchMatcher = hay => reqs.every(alts => alts.some(a => a.word ? a.word.test(hay) : hay.includes(a.text)));
+  const matcher: SearchMatcher = hay => reqs.every(alts => alts.some(a => a.word ? altRegex(a.text).test(hay) && (!a.need || a.need.some(n => hay.includes(n))) : hay.includes(a.text)));
   if (searchMatcherCache.size > 50) searchMatcherCache.clear();
   searchMatcherCache.set(q, matcher);
   return matcher;
@@ -7038,6 +6918,14 @@ function MainApp() {
     });
   });
   const allFlatWithTags = [...allFlat, ...taggedExtras];
+
+  // The full Chinese dictionary is only fetched when the language is Chinese or a search box holds Chinese.
+  const [, setAliasVersion] = useState(0);
+  useEffect(() => {
+    if (lang === "zh" || CJK_RE.test(dbSearch) || CJK_RE.test(colSearch)) {
+      void loadExtraSearchAliases().then(ok => { if (ok) setAliasVersion(v => v + 1); });
+    }
+  }, [lang, dbSearch, colSearch]);
 
   const applyFilters = (items: FlatFigure[], search: string, seriesF: number|"all", catF: "all"|CategoryType, statusF: string) =>
     items.filter(({figure,series}) => {
