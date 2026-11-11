@@ -2130,6 +2130,8 @@ function seriesLabel(name: string, lang: LangCode): string {
 // To teach the search a new name, add a line to either. Chinese words in a query are looked up here;
 // anything not recognised (like 手办, "figure") is ignored as long as at least one name was understood.
 // English names from the dictionary only match as whole words, so "ace" finds Ace but not "Palace".
+// A name is also looked for in the series name, which is how 海贼王 finds every One Piece figure. For a character
+// that shares its name with the series (Naruto), write it as "^naruto": it then only looks in the figure's own name.
 const SEARCH_ALIAS_TABLE = `
 # ── Franquicias / Franchises ──
 龙珠 龍珠 七龙珠 七龍珠 = dragon ball
@@ -2221,7 +2223,7 @@ jojo的奇妙冒险 jojo奇妙冒险 jojo的奇妙冒險 乔乔的奇妙冒险 =
 空条承太郎 = jotaro kujo | kujo jotaro
 `;
 
-type SearchAlt = { text: string; word: boolean; need?: string[] }; // need: the series name must contain one of these
+type SearchAlt = { text: string; word: boolean; need?: string[]; nameOnly?: boolean }; // need: the series name must contain one of these; nameOnly: look only in the figure's own name
 type AliasEntry = { zh: string; alts: SearchAlt[] };
 const CJK_RE = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 
@@ -2235,9 +2237,10 @@ function parseAliasTable(text: string): AliasEntry[] {
     const zhs = line.slice(0, eq).trim().split(/\s+/).filter(Boolean);
     const ens: SearchAlt[] = line.slice(eq + 1).split("|").map(s => s.trim().toLowerCase()).filter(Boolean).map(s => {
       const at = s.lastIndexOf(" @");
-      if (at < 0) return { text: s, word: true };
-      const need = s.slice(at + 2).split(",").map(x => x.trim()).filter(Boolean);
-      return { text: s.slice(0, at).trim(), word: true, need: need.length ? need : undefined };
+      const body = at < 0 ? s : s.slice(0, at).trim();
+      const need = at < 0 ? [] : s.slice(at + 2).split(",").map(x => x.trim()).filter(Boolean);
+      const nameOnly = body.startsWith("^");
+      return { text: nameOnly ? body.slice(1).trim() : body, word: true, need: need.length ? need : undefined, nameOnly: nameOnly || undefined };
     });
     if (!zhs.length || !ens.length) continue;
     for (const zh of zhs) out.push({ zh: zh.toLowerCase(), alts: ens.map(a => ({ ...a })) });
@@ -2253,7 +2256,7 @@ function addAliases(entries: AliasEntry[]) {
   for (const e of entries) {
     const bucket = aliasIndex.get(e.zh[0]) ?? [];
     const same = bucket.find(x => x.zh === e.zh);
-    if (same) { for (const a of e.alts) if (!same.alts.some(x => x.text === a.text && (x.need ?? []).join() === (a.need ?? []).join())) same.alts.push({ ...a }); }
+    if (same) { for (const a of e.alts) if (!same.alts.some(x => x.text === a.text && !!x.nameOnly === !!a.nameOnly && (x.need ?? []).join() === (a.need ?? []).join())) same.alts.push({ ...a }); }
     else bucket.push({ zh: e.zh, alts: e.alts.map(a => ({ ...a })) });
     aliasIndex.set(e.zh[0], bucket);
   }
@@ -2309,7 +2312,7 @@ function expandSearchToken(token: string): SearchAlt[][] {
   return reqs.length > 0 ? reqs : [[plain(token)]];
 }
 
-type SearchMatcher = (haystack: string) => boolean;
+type SearchMatcher = (haystack: string, figureName?: string) => boolean;
 // Every word of the query must be found (as before); a Chinese word is found through its English names.
 function buildSearchMatcher(search: string): SearchMatcher | null {
   const q = search.toLowerCase().trim();
@@ -2317,7 +2320,7 @@ function buildSearchMatcher(search: string): SearchMatcher | null {
   const cached = searchMatcherCache.get(q);
   if (cached !== undefined) return cached;
   const reqs = q.split(/\s+/).flatMap(expandSearchToken);
-  const matcher: SearchMatcher = hay => reqs.every(alts => alts.some(a => a.word ? altRegex(a.text).test(hay) && (!a.need || a.need.some(n => hay.includes(n))) : hay.includes(a.text)));
+  const matcher: SearchMatcher = (hay, name) => reqs.every(alts => alts.some(a => a.word ? altRegex(a.text).test(a.nameOnly ? (name ?? hay) : hay) && (!a.need || a.need.some(n => hay.includes(n))) : hay.includes(a.text)));
   if (searchMatcherCache.size > 50) searchMatcherCache.clear();
   searchMatcherCache.set(q, matcher);
   return matcher;
@@ -2329,7 +2332,7 @@ function buildAliasProbe(): (figureName: string, seriesName: string) => boolean 
   const byFirst = new Map<string, SearchAlt[]>(); // alias candidates, by the first word of the English name
   const seen = new Set<string>();
   for (const bucket of aliasIndex.values()) for (const e of bucket) for (const a of e.alts) {
-    const key = `${a.text}@${(a.need ?? []).join()}`;
+    const key = `${a.nameOnly ? "^" : ""}${a.text}@${(a.need ?? []).join()}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const first = /^[a-z0-9]+/.exec(a.text)?.[0];
@@ -2348,7 +2351,9 @@ function buildAliasProbe(): (figureName: string, seriesName: string) => boolean 
       if (!cands) continue;
       const i = m.index ?? 0;
       for (const a of cands) {
-        if (series.includes(a.text)) continue; // the franchise name itself ("kamen rider") says nothing about the character
+        // a name that is part of the series name ("kamen rider", "naruto") says nothing about THIS figure: it matches the whole
+        // series. Only a "^name" alias, which looks in the figure's own name, counts for a character that shares its name with the series.
+        if (!a.nameOnly && altRegex(a.text).test(series)) continue;
         if (name.startsWith(a.text, i) && !isAlnum(name[i + a.text.length]) && (!a.need || a.need.some(n => withSeries.includes(n)))) return true;
       }
     }
@@ -7074,7 +7079,7 @@ function MainApp() {
       const matcher = buildSearchMatcher(search);
       if (!matcher) return true;
       const combined = `${figure.name} ${series.name} ${fset.name} ${figure.tags??""}`.toLowerCase();
-      return matcher(combined);
+      return matcher(combined, figure.name.toLowerCase());
     });
 
   const applySort = (items: FlatFigure[], sort: "alpha"|"date", search: string = "") => {
