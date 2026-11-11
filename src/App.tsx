@@ -2358,7 +2358,7 @@ function buildAliasProbe(): (figureName: string, seriesName: string) => boolean 
 
 // "(A) Kuchiki Byakuya ver.B (Bankai)" -> "Kuchiki Byakuya": the character, without the variant.
 function chineseBaseName(n: string): string {
-  return n.replace(/^\([A-Za-z]\)\s*/, "").replace(/\s*\bver\.?\s*[A-Za-z0-9]+\b/gi, "").replace(/\s*\bver\.?\s*$/i, "").replace(/\s*\([^)]*\)/g, "")
+  return n.replace(/^\([A-Za-z]\)\s*/, "").replace(/\s*\bver(?:sion)?\b\.?(?:\s*[A-Za-z0-9]+\b)?/gi, "").replace(/\s*\([^)]*\)/g, "")
     .replace(/\s*\[[^\]]*\]/g, "").replace(/\s*「[^」]*」/g, "").replace(/\s+/g, " ").trim();
 }
 
