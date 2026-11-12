@@ -362,23 +362,56 @@ async function sbAuthToken(): Promise<string> {
 }
 
 type CatalogueRow = { data?: unknown; updated_at?: string | null };
-async function sbGet(table: string, timeoutMs = 15000, select?: string): Promise<{ ok: boolean; row: CatalogueRow | null }> {
-  // A blocked or very slow connection must not leave the app waiting forever.
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+// Waiting for the server to START answering is limited (timeoutMs). Once it answers, a slow download is allowed to
+// finish for as long as data keeps arriving: it is only given up if nothing arrives for SB_STALL_MS, or after
+// SB_MAX_MS in total. (A fixed timer over the whole download failed on slow links even though data was flowing.)
+const SB_STALL_MS = 25000;
+const SB_MAX_MS = 5 * 60 * 1000;
+
+async function readJsonWithStall(res: Response, ctrl: AbortController, onProgress?: (bytes: number) => void): Promise<unknown> {
+  if (!res.body || !res.body.getReader) return await res.json(); // very old browser: no streaming
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let got = 0;
+  let timer = setTimeout(() => ctrl.abort(), SB_STALL_MS);
   try {
-    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main${select ? `&select=${select}` : ""}`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-      signal: ctrl.signal,
-    });
-    if (!res.ok) return { ok: false, row: null };
-    const rows = await res.json();
-    return { ok: true, row: Array.isArray(rows) ? (rows[0] ?? null) : null };
-  } catch {
-    return { ok: false, row: null };
-  } finally {
-    clearTimeout(timer);
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      clearTimeout(timer);
+      timer = setTimeout(() => ctrl.abort(), SB_STALL_MS);
+      chunks.push(value);
+      got += value.length;
+      onProgress?.(got);
+    }
+  } finally { clearTimeout(timer); }
+  const all = new Uint8Array(got);
+  let at = 0;
+  for (const c of chunks) { all.set(c, at); at += c.length; }
+  return JSON.parse(new TextDecoder().decode(all));
+}
+
+// The full catalogue is asked first from our own /api/catalogue (Vercel keeps a compressed copy close to the visitor);
+// if that isn't there or fails, from Supabase. `fresh` skips Vercel's copy (admin refresh).
+async function sbGet(table: string, timeoutMs = 15000, select?: string, opts: { onProgress?: (bytes: number) => void; fresh?: boolean } = {}): Promise<{ ok: boolean; row: CatalogueRow | null }> {
+  const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+  const sources: ((signal: AbortSignal) => Promise<Response>)[] = [];
+  if (table === "wcf_data" && !select) sources.push(signal => fetch(`/api/catalogue${opts.fresh ? `?t=${Date.now()}` : ""}`, { signal }));
+  sources.push(signal => sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main${select ? `&select=${select}` : ""}`, { headers, signal }));
+  for (const source of sources) {
+    const ctrl = new AbortController();
+    const first = setTimeout(() => ctrl.abort(), timeoutMs);   // until the server starts answering
+    const cap = setTimeout(() => ctrl.abort(), SB_MAX_MS);     // absolute limit
+    try {
+      const res = await source(ctrl.signal);
+      clearTimeout(first);
+      if (!res.ok || (res.headers.get("content-type") ?? "").includes("text/html")) continue; // not deployed, or an error: next source
+      const rows = await readJsonWithStall(res, ctrl, opts.onProgress);
+      return { ok: true, row: Array.isArray(rows) ? ((rows[0] as CatalogueRow | undefined) ?? null) : null };
+    } catch { /* try the next source */ } finally { clearTimeout(first); clearTimeout(cap); }
   }
+  return { ok: false, row: null };
 }
 
 // Tiny IndexedDB key-value store (best effort) used to keep the last catalogue on the device.
@@ -1344,12 +1377,20 @@ function useData() {
   const [data, setDataState] = useState<Series[]>([]);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<CatalogueStatus>("ok");
+  const [progress, setProgress] = useState<number | null>(null);   // bytes of the catalogue received so far, while downloading
+  const [round, setRound] = useState(0);                            // bumped after every attempt, so a retry is rescheduled
   // Saving is only allowed once the real catalogue has been confirmed up to date.
   const canSave = useRef(false);
+  const busy = useRef(false);
+  const retries = useRef(0);
+  const lastTick = useRef(0);
   const load = useCallback(async (force = false) => {
+    if (busy.current) return;
+    busy.current = true;
     const startedAt = Date.now();
+    const onProgress = (bytes: number) => { const now = Date.now(); if (now - lastTick.current > 300) { lastTick.current = now; setProgress(bytes); } }; // not on every chunk
     const result = await loadCatalogue(
-      ms => sbGet("wcf_data", ms),
+      ms => sbGet("wcf_data", ms, undefined, { onProgress, fresh: force }),
       ms => sbGet("wcf_data", ms, "updated_at"),
       async () => {
         const v = await idbGet<CatalogueCache | Series[]>("catalogue");
@@ -1359,7 +1400,10 @@ function useData() {
       c => { void idbSet("catalogue", c); },
       rows => { setDataState(rows); setReady(true); },
       force,
-    );
+    ).catch(() => ({ status: "failed" as CatalogueStatus, data: [] as Series[], canSave: false })); // never leave the "busy" flag stuck
+    busy.current = false;
+    setProgress(null);
+    setRound(r => r + 1);
     if (force && result.status !== "ok") return; // couldn't refresh: keep what is on screen
     setDataState(result.data);
     setStatus(result.status);
@@ -1370,6 +1414,14 @@ function useData() {
     else if (ms > 8000) logClientError("catalogue_slow", `${ms} ms`);
   }, []);
   useEffect(() => { void load(); }, [load]);
+  // If the catalogue didn't load (slow or blocked connection), try again quietly: after 20 s, 1 min and 3 min.
+  useEffect(() => {
+    if (status === "ok") { retries.current = 0; return; }
+    const delays = [20000, 60000, 180000];
+    if (retries.current >= delays.length) return;
+    const id = setTimeout(() => { retries.current++; void load(); }, delays[retries.current]);
+    return () => clearTimeout(id);
+  }, [status, round, load]);
   const setData = (updater: Series[] | ((prev: Series[]) => Series[])) => {
     if (!canSave.current) {
       alert("⚠️ El catálogo no se cargó bien, así que no se guardará ningún cambio. Recarga la página.");
@@ -1383,7 +1435,7 @@ function useData() {
       return next;
     });
   };
-  return { data, setData, ready, status, reload: load };
+  return { data, setData, ready, status, progress, reload: load };
 }
 
 
@@ -6964,7 +7016,7 @@ function MainApp() {
   const { user, authReady, signInWithGoogle, signInWithEmail, verifyEmailCode, updateName, updateAvatar, signOut } = useAuth();
   const { hasNew: hasNewCollectionActivity, markSeen: markCollectionActivitySeen } = useHasNewCollectionActivity(user?.id ?? null);
   const { owned, toggle, wishlist, toggleWish, favourites, toggleFavourite, lastSeenAnnouncementId, markAnnouncementsSeen, imgbbKey, ready: ownedReady } = useOwned(user?.id ?? null, user?.name ?? null, user?.avatar ?? null);
-  const { data, setData, ready: dataReady, status: catalogueStatus, reload: reloadCatalogue } = useData();
+  const { data, setData, ready: dataReady, status: catalogueStatus, progress: catalogueProgress, reload: reloadCatalogue } = useData();
   const { figureOwned: communityOwned, figureWished: communityWished, users: communityUsers, totalOwned: communityTotal, topOwned, topWished } = useCommunityStats();
   const [figuresWithPhotos, setFiguresWithPhotos] = useState<Record<number,number>>({});
 
@@ -7321,7 +7373,7 @@ function MainApp() {
   const appContent = !ready ? (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:12,color:"var(--text3)",fontFamily:"system-ui,sans-serif"}}>
       <div style={{fontSize:32}}>📦</div>
-      <div style={{fontSize:14}}>{t("loading")}</div>
+      <div style={{fontSize:14}}>{t("loading")}{catalogueProgress ? ` · ${(catalogueProgress / 1048576).toFixed(1)} MB` : ""}</div>
     </div>
   ) : (
     <div style={{fontFamily:"system-ui,sans-serif",display:"flex",flexDirection:"column",height:"100vh",color:"var(--text)",background:"var(--bg)"}}>
