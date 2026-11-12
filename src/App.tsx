@@ -4,7 +4,62 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 // ============================================================
 //  CHANGELOG — añade aquí las novedades antes de hacer push
 // ============================================================
-const CHANGELOG = [
+const CHANGELOG: { id: number; date: string; entries: ChangelogText }[] = [
+  {
+    id: 16,
+    date: "2026-11-12",
+    entries: {
+      en: [
+        "🔎 New: search in Chinese — type a character's Chinese name (like 路飞, 悟空 or 鸣人) in the search box and their figures show up. We keep adding more names",
+        "🇨🇳 When the app is in Chinese, series names now appear in Chinese too",
+        "⚡ Faster, more reliable loading on slow connections: the app opens right away from a saved copy, updates it in the background and keeps retrying if the connection drops",
+        "📦 Announcements can now cover a whole set at once, not only single figures",
+        "🐛 Fixed: on some connections the app could show a short sample list instead of the full catalogue — now you get your saved copy, or a clear message with a Retry button",
+      ],
+      es: [
+        "🔎 Novedad: búsqueda en chino — escribe el nombre chino de un personaje (como 路飞, 悟空 o 鸣人) en el buscador y aparecerán sus figuras. Seguimos añadiendo más nombres",
+        "🇨🇳 Con la app en chino, los nombres de las series también se muestran en chino",
+        "⚡ Carga más rápida y fiable con conexiones lentas: la app se abre al instante con una copia guardada, la actualiza en segundo plano y sigue reintentando si se corta la conexión",
+        "📦 Los anuncios ahora pueden cubrir un set entero de una vez, no solo figuras sueltas",
+        "🐛 Corregido: con algunas conexiones la app podía mostrar una lista de ejemplo corta en vez del catálogo completo — ahora ves tu copia guardada, o un mensaje claro con un botón de Reintentar",
+      ],
+      fr: [
+        "🔎 Nouveau : recherche en chinois — saisissez le nom chinois d'un personnage (comme 路飞, 悟空 ou 鸣人) dans la barre de recherche et ses figurines apparaissent. Nous ajoutons régulièrement de nouveaux noms",
+        "🇨🇳 Quand l'application est en chinois, les noms des séries s'affichent aussi en chinois",
+        "⚡ Chargement plus rapide et plus fiable sur les connexions lentes : l'application s'ouvre tout de suite grâce à une copie enregistrée, la met à jour en arrière-plan et réessaie si la connexion se coupe",
+        "📦 Les annonces peuvent désormais couvrir un set entier d'un coup, pas seulement des figurines isolées",
+        "🐛 Corrigé : sur certaines connexions, l'application pouvait afficher une courte liste d'exemple au lieu du catalogue complet — vous voyez maintenant votre copie enregistrée, ou un message clair avec un bouton Réessayer",
+      ],
+      ja: [
+        "🔎 新機能：中国語検索 — 検索ボックスにキャラクターの中国語名（路飞、悟空、鸣人など）を入力すると、そのフィギュアが表示されます。対応する名前は随時追加していきます",
+        "🇨🇳 アプリを中国語にすると、シリーズ名も中国語で表示されるようになりました",
+        "⚡ 低速な回線でも、より速く確実に読み込めるようになりました：保存したコピーですぐに起動し、バックグラウンドで更新し、接続が切れた場合は再試行を続けます",
+        "📦 お知らせで、フィギュア単体だけでなくセット全体をまとめて紹介できるようになりました",
+        "🐛 修正：一部の回線で、カタログ全体ではなく短いサンプルリストが表示されることがありました — 現在は保存済みのコピー、または「再試行」ボタン付きのわかりやすいメッセージが表示されます",
+      ],
+      zh: [
+        "🔎 新功能：支持中文搜索 — 在搜索框输入角色的中文名（如 路飞、悟空、鸣人），即可找到对应的 WCF。我们会持续添加更多名字",
+        "🇨🇳 当应用语言设为中文时，系列名称也会显示为中文",
+        "⚡ 网络较慢时加载更快、更稳定：应用会先用已保存的副本秒开，在后台更新，并在网络中断时自动重试",
+        "📦 公告现在可以一次涵盖整个套装，而不只是单个 WCF",
+        "🐛 已修复：在某些网络下，应用可能只显示一小段示例列表，而不是完整目录 — 现在会显示你已保存的副本，或带有「重试」按钮的清晰提示",
+      ],
+      th: [
+        "🔎 ใหม่: ค้นหาด้วยภาษาจีน — พิมพ์ชื่อภาษาจีนของตัวละคร (เช่น 路飞, 悟空 หรือ 鸣人) ในช่องค้นหา แล้วฟิกเกอร์ของตัวละครนั้นจะปรากฏขึ้น เราจะเพิ่มชื่ออื่นๆ เรื่อยๆ",
+        "🇨🇳 เมื่อตั้งค่าแอปเป็นภาษาจีน ชื่อซีรีส์จะแสดงเป็นภาษาจีนด้วย",
+        "⚡ โหลดเร็วและเสถียรขึ้นเมื่ออินเทอร์เน็ตช้า: แอปเปิดได้ทันทีจากสำเนาที่บันทึกไว้ อัปเดตเบื้องหลัง และลองใหม่เองหากการเชื่อมต่อหลุด",
+        "📦 ประกาศตอนนี้ครอบคลุมได้ทั้งเซ็ตในครั้งเดียว ไม่ใช่แค่ฟิกเกอร์ทีละตัว",
+        "🐛 แก้ไขแล้ว: ในบางการเชื่อมต่อ แอปอาจแสดงรายการตัวอย่างสั้นๆ แทนแคตตาล็อกทั้งหมด — ตอนนี้จะแสดงสำเนาที่บันทึกไว้ หรือข้อความที่ชัดเจนพร้อมปุ่มลองอีกครั้ง",
+      ],
+      vi: [
+        "🔎 Mới: tìm kiếm bằng tiếng Trung — nhập tên tiếng Trung của nhân vật (như 路飞, 悟空 hoặc 鸣人) vào ô tìm kiếm và các mô hình của nhân vật đó sẽ hiện ra. Chúng tôi sẽ tiếp tục bổ sung thêm tên",
+        "🇨🇳 Khi ứng dụng ở chế độ tiếng Trung, tên các series cũng hiển thị bằng tiếng Trung",
+        "⚡ Tải nhanh và ổn định hơn khi mạng chậm: ứng dụng mở ngay từ bản sao đã lưu, cập nhật ngầm và tự thử lại nếu mất kết nối",
+        "📦 Thông báo giờ có thể bao gồm cả một set cùng lúc, không chỉ từng mô hình riêng lẻ",
+        "🐛 Đã sửa: với một số kết nối, ứng dụng có thể hiển thị danh sách mẫu ngắn thay vì toàn bộ danh mục — giờ bạn sẽ thấy bản sao đã lưu, hoặc thông báo rõ ràng kèm nút Thử lại",
+      ],
+    },
+  },
   {
     id: 15,
     date: "2026-11-03",
@@ -173,6 +228,44 @@ const CHANGELOG = [
   },
 ];
 // ── Fin del changelog ────────────────────────────────────────
+
+// An entry's text is either a plain list (English only) or one list per language, { en: [...], es: [...], ... }; a language
+// that is missing falls back to English. The most common line, "🎉 N WCF added to <series>", is translated automatically
+// (series name in Chinese when the app is in Chinese), so it never has to be written out per language.
+type ChangelogText = string[] | ({ en: string[] } & Partial<Record<LangCode, string[]>>);
+
+const CHANGELOG_ADDED: Record<LangCode, (n: number, series: string) => string> = {
+  en: (n, s) => `🎉 ${n} WCF added to ${s}`,
+  es: (n, s) => `🎉 ${n} WCF nuevos en ${s}`,
+  fr: (n, s) => `🎉 ${n} WCF ajouté${n === 1 ? "" : "s"} à ${s}`,
+  ja: (n, s) => `🎉 ${s}に${n}体のWCFを追加`,
+  zh: (n, s) => `🎉 ${s}新增 ${n} 个 WCF`,
+  th: (n, s) => `🎉 เพิ่ม WCF ${n} ตัวใน ${s}`,
+  vi: (n, s) => `🎉 Đã thêm ${n} WCF vào ${s}`,
+};
+const CHANGELOG_RESIN: Record<LangCode, string> = { en: "(Resin)", es: "(Resina)", fr: "(Résine)", ja: "(レジン)", zh: "（树脂）", th: "(เรซิน)", vi: "(Resin)" };
+const CHANGELOG_RECAP: Record<LangCode, { total: (n: number) => string; more: (n: number) => string }> = {
+  en: { total: n => `📅 ${n} new WCF featured this month`, more: n => `…and ${n} more` },
+  es: { total: n => `📅 ${n} WCF nuevos destacados este mes`, more: n => `…y ${n} más` },
+  fr: { total: n => `📅 ${n} nouveaux WCF mis en avant ce mois-ci`, more: n => `…et ${n} de plus` },
+  ja: { total: n => `📅 今月は ${n} 体の新作WCFを紹介`, more: n => `…ほか ${n} 件` },
+  zh: { total: n => `📅 本月推荐 ${n} 款新 WCF`, more: n => `…另有 ${n} 款` },
+  th: { total: n => `📅 WCF ใหม่ ${n} ตัวที่แนะนำเดือนนี้`, more: n => `…และอีก ${n}` },
+  vi: { total: n => `📅 ${n} WCF mới được giới thiệu trong tháng này`, more: n => `…và ${n} nữa` },
+};
+
+function localiseChangelogLine(line: string, lang: LangCode): string {
+  const m = /^🎉 (\d+) WCF added to (.+?)(:?)$/.exec(line);
+  if (!m || lang === "en") return line;
+  const resin = / \(Resin\)$/.test(m[2]);
+  const wide = lang === "zh" || lang === "ja";
+  const series = seriesLabel(m[2].replace(/ \(Resin\)$/, ""), lang) + (resin ? (wide ? "" : " ") + CHANGELOG_RESIN[lang] : "");
+  return CHANGELOG_ADDED[lang](parseInt(m[1]), series) + (m[3] ? (wide ? "：" : ":") : "");
+}
+function changelogLines(text: ChangelogText, lang: LangCode): string[] {
+  const lines = Array.isArray(text) ? text : (text[lang] ?? text.en);
+  return lines.map(l => localiseChangelogLine(l, lang));
+}
 
 // ============================================================
 //  DARK MODE CSS VARIABLES
@@ -4267,20 +4360,24 @@ function ChangelogModal({ onClose, digests }: { onClose:()=>void; digests: Month
     zh:["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
     th:["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],
   };
-  const formatDate = (d:string) => { const [y,m,day]=d.split("-"); return `${parseInt(day)} ${MONTHS_FULL[lang][parseInt(m)-1]} ${y}`; };
-  const regular = CHANGELOG.map(c => ({ key: `c${c.id}`, sortDate: c.date, label: formatDate(c.date), entries: c.entries }))
+  const formatDate = (d:string) => {
+    const [y,m,day]=d.split("-");
+    return lang === "zh" || lang === "ja" ? `${y}年${parseInt(m)}月${parseInt(day)}日` : `${parseInt(day)} ${MONTHS_FULL[lang][parseInt(m)-1]} ${y}`;
+  };
+  const regular = CHANGELOG.map(c => ({ key: `c${c.id}`, sortDate: c.date, label: formatDate(c.date), entries: changelogLines(c.entries, lang) }))
     .sort((a, b) => b.sortDate.localeCompare(a.sortDate));
   // Monthly recap, sorted as if published on the 1st of the following month.
+  const recapText = CHANGELOG_RECAP[lang as LangCode];
   const recaps = digests.map(d => {
     const nextMonth = d.month === 12 ? 1 : d.month + 1;
     const nextYear = d.month === 12 ? d.year + 1 : d.year;
-    const top = d.byFranchise.slice(0, 8).map(f => `　　${f.name} → ${f.count}`);
+    const top = d.byFranchise.slice(0, 8).map(f => `　　${seriesLabel(f.name, lang)} → ${f.count}`);
     const more = d.byFranchise.length - 8;
     return {
       key: `d${d.id}`,
       sortDate: `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`,
-      label: `${MONTHS_FULL[lang][d.month - 1]} ${d.year}`,
-      entries: [`📅 ${d.total} new WCF featured this month`, ...top, ...(more > 0 ? [`　　…and ${more} more`] : [])],
+      label: lang === "zh" || lang === "ja" ? `${d.year}年${d.month}月` : `${MONTHS_FULL[lang][d.month - 1]} ${d.year}`,
+      entries: [recapText.total(d.total), ...top, ...(more > 0 ? [`　　${recapText.more(more)}`] : [])],
     };
   }).sort((a, b) => b.sortDate.localeCompare(a.sortDate));
   const everything = [...regular, ...recaps].sort((a, b) => b.sortDate.localeCompare(a.sortDate));

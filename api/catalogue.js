@@ -16,10 +16,15 @@ export default async function handler(request) {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     if (!upstream.ok) throw new Error('upstream ' + upstream.status);
-    return new Response(upstream.body, {
+    // The catalogue is ~1 MB of JSON but compresses about 5x. Compress it here, so it is small on the way to the visitor
+    // whether or not anything downstream would have done it (it matters on slow, long-distance connections).
+    const gzip = /\bgzip\b/.test(request.headers.get('accept-encoding') || '') && typeof CompressionStream !== 'undefined';
+    return new Response(gzip ? upstream.body.pipeThrough(new CompressionStream('gzip')) : upstream.body, {
       status: 200,
       headers: {
         'content-type': 'application/json',
+        ...(gzip ? { 'content-encoding': 'gzip' } : {}),
+        vary: 'accept-encoding',
         // cached by the CDN for 60 s, then served while it refreshes in the background for up to 5 more minutes
         'cache-control': fresh ? 'no-store' : 'public, s-maxage=60, stale-while-revalidate=300',
       },
