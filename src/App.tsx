@@ -985,6 +985,20 @@ const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: sbFetch } });
 
+// Tells the server which country this device is in. Vercel works it out from the IP and /api/geo hands back just the
+// 2-letter code; the IP is never stored. Once per browser session, only for people who are signed in.
+async function reportCountry() {
+  try {
+    if (sessionStorage.getItem("wcf_geo_sent")) return;
+    const res = await fetch("/api/geo", { cache: "no-store" });
+    if (!res.ok || (res.headers.get("content-type") ?? "").includes("text/html")) return; // function not deployed (or local dev)
+    const { country } = await res.json() as { country?: string };
+    if (!country || !/^[A-Za-z]{2}$/.test(country)) return;
+    const { error } = await supabase.rpc("report_country", { c: country.toUpperCase() });
+    if (!error) sessionStorage.setItem("wcf_geo_sent", "1");
+  } catch { /* never breaks the app */ }
+}
+
 // Best-effort log of things that fail on real devices (uploads, catalogue loading), readable by the admin.
 // It never throws, and sends at most a few entries per kind per page load.
 const loggedClientErrors = new Map<string, number>();
@@ -2308,11 +2322,25 @@ async function loadExtraSearchAliases(force = false): Promise<boolean> {
   }
 }
 
+// Dictionary names are compared without accents, capitals or punctuation: "Äs Nödt", "As Nodt" and "as-nodt" are the same name,
+// as are "Uryū" and "Uryu", or "Chi-Chi" and "Chi Chi". Letters and digits only, single spaces.
+const looseCache = new Map<string, string>();
+function looseText(s: string): string {
+  let v = looseCache.get(s);
+  if (v === undefined) {
+    v = s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    if (looseCache.size > 20000) looseCache.clear();
+    looseCache.set(s, v);
+  }
+  return v;
+}
+
+// Whole-word test of a dictionary name; it expects an already "loose" haystack (see looseText).
 const altRegexCache = new Map<string, RegExp>();
 function altRegex(text: string): RegExp {
   let re = altRegexCache.get(text);
   if (!re) {
-    re = new RegExp(`(?:^|[^a-z0-9])${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[^a-z0-9]|$)`);
+    re = new RegExp(`(?:^| )${looseText(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?: |$)`);
     altRegexCache.set(text, re);
   }
   return re;
@@ -2343,7 +2371,10 @@ function buildSearchMatcher(search: string): SearchMatcher | null {
   const cached = searchMatcherCache.get(q);
   if (cached !== undefined) return cached;
   const reqs = q.split(/\s+/).flatMap(expandSearchToken);
-  const matcher: SearchMatcher = (hay, name) => reqs.every(alts => alts.some(a => a.word ? altRegex(a.text).test(a.nameOnly ? (name ?? hay) : hay) && (!a.need || a.need.some(n => hay.includes(n))) : hay.includes(a.text)));
+  const matcher: SearchMatcher = (hay, name) => {
+    const loose = looseText(hay), looseName = name === undefined ? loose : looseText(name);
+    return reqs.every(alts => alts.some(a => a.word ? altRegex(a.text).test(a.nameOnly ? looseName : loose) && (!a.need || a.need.some(n => hay.includes(n))) : hay.includes(a.text)));
+  };
   if (searchMatcherCache.size > 50) searchMatcherCache.clear();
   searchMatcherCache.set(q, matcher);
   return matcher;
@@ -2352,35 +2383,63 @@ function buildSearchMatcher(search: string): SearchMatcher | null {
 // Which figures does the Chinese dictionary NOT recognise? Same rule as the search (whole-word names, series
 // qualifiers) but applied to the figure's own name only, so a franchise alias ("dragon ball") can't hide a missing character.
 function buildAliasProbe(): (figureName: string, seriesName: string) => boolean {
-  const byFirst = new Map<string, SearchAlt[]>(); // alias candidates, by the first word of the English name
+  const byFirst = new Map<string, { norm: string; a: SearchAlt }[]>(); // candidates, by the first word of the (loose) English name
   const seen = new Set<string>();
   for (const bucket of aliasIndex.values()) for (const e of bucket) for (const a of e.alts) {
-    const key = `${a.nameOnly ? "^" : ""}${a.text}@${(a.need ?? []).join()}`;
+    const norm = looseText(a.text);
+    if (!norm) continue;
+    const key = `${a.nameOnly ? "^" : ""}${norm}@${(a.need ?? []).join()}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const first = /^[a-z0-9]+/.exec(a.text)?.[0];
-    if (!first) continue;
+    const first = norm.split(" ")[0];
     const list = byFirst.get(first) ?? [];
-    list.push(a);
+    list.push({ norm, a });
     byFirst.set(first, list);
   }
-  const isAlnum = (c: string | undefined) => !!c && /[a-z0-9]/.test(c);
   return (figureName, seriesName) => {
-    const name = figureName.toLowerCase();
-    const series = seriesName.toLowerCase();
-    const withSeries = `${name} ${series}`;
-    for (const m of name.matchAll(/[a-z0-9]+/g)) {
-      const cands = byFirst.get(m[0]);
-      if (!cands) continue;
-      const i = m.index ?? 0;
-      for (const a of cands) {
+    const name = looseText(figureName);
+    const series = looseText(seriesName);
+    const withSeries = `${figureName.toLowerCase()} ${seriesName.toLowerCase()}`;
+    let pos = 0;
+    for (const word of name.split(" ")) {
+      for (const c of byFirst.get(word) ?? []) {
+        if (!name.startsWith(c.norm, pos)) continue;
+        const end = pos + c.norm.length;
+        if (end < name.length && name[end] !== " ") continue;
         // a name that is part of the series name ("kamen rider", "naruto") says nothing about THIS figure: it matches the whole
         // series. Only a "^name" alias, which looks in the figure's own name, counts for a character that shares its name with the series.
-        if (!a.nameOnly && altRegex(a.text).test(series)) continue;
-        if (name.startsWith(a.text, i) && !isAlnum(name[i + a.text.length]) && (!a.need || a.need.some(n => withSeries.includes(n)))) return true;
+        if (!c.a.nameOnly && altRegex(c.a.text).test(series)) continue;
+        if (c.a.need && !c.a.need.some(n => withSeries.includes(n))) continue;
+        return true;
       }
+      pos += word.length + 1;
     }
     return false;
+  };
+}
+
+// For a character the tab still lists: is there a dictionary line that looks like it but doesn't count? Says why.
+function buildAliasExplainer(): (base: string, seriesName: string) => string | null {
+  const byLoose = new Map<string, SearchAlt[]>();
+  const bySortedWords = new Map<string, SearchAlt[]>();
+  for (const bucket of aliasIndex.values()) for (const e of bucket) for (const a of e.alts) {
+    const n = looseText(a.text);
+    if (!n) continue;
+    byLoose.set(n, [...(byLoose.get(n) ?? []), a]);
+    const k = n.split(" ").sort().join(" ");
+    bySortedWords.set(k, [...(bySortedWords.get(k) ?? []), a]);
+  }
+  return (base, seriesName) => {
+    const n = looseText(base);
+    if (!n) return null;
+    const same = byLoose.get(n);
+    if (same) {
+      if (same.some(a => !a.nameOnly && altRegex(a.text).test(looseText(seriesName)))) return `The dictionary has "${base}", but it is also part of the series name, so it matches the whole series. Write it as ^${base}`;
+      const need = same.find(a => a.need)?.need;
+      return need ? `The dictionary has it, but only for series whose name contains: ${need.join(", ")}` : null;
+    }
+    const other = bySortedWords.get(n.split(" ").sort().join(" "));
+    return other ? `The dictionary has "${other[0].text}": same words, different order` : null;
   };
 }
 
@@ -5836,6 +5895,42 @@ function AdminAnalyticsPanel({ onClose, data }: { onClose: ()=>void; data: Serie
 type AdminFeedbackRow = { id: string; type: string | null; message: string | null; email: string | null; created_at: string };
 type AdminUserRow = { id: string; email: string | null; full_name: string | null; created_at: string; last_sign_in_at: string | null; last_active_at?: string | null; has_progress?: boolean };
 
+type UserGeo = { user_id: string; country_first: string; country_last: string; last_seen: string; sessions: number };
+
+const countryFlag = (code: string) => /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map(c => 0x1f1e6 + c.charCodeAt(0) - 65)) : "🏳️";
+function countryName(code: string): string {
+  try {
+    const DN = (Intl as unknown as { DisplayNames?: new (l: string[], o: { type: string }) => { of(c: string): string | undefined } }).DisplayNames;
+    return (DN && new DN(["en"], { type: "region" }).of(code)) || code;
+  } catch { return code; }
+}
+
+// Reads every row (the API returns at most 1000 per request), like fetchAdminUsers.
+async function fetchAllGeo(): Promise<{ rows: UserGeo[]; error: string | null }> {
+  const all: UserGeo[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from("wcf_user_geo").select("*").order("user_id").range(from, from + 999);
+    if (error) return { rows: [], error: error.message };
+    const page = (data ?? []) as UserGeo[];
+    all.push(...page);
+    if (page.length < 1000) break;
+  }
+  return { rows: all, error: null };
+}
+
+// Users per country: where they use the app now ("last") or where they were first seen ("first"). No data = unknown.
+function countByCountry(users: { id: string }[], geo: Map<string, UserGeo>, mode: "last" | "first") {
+  const counts = new Map<string, number>();
+  let unknown = 0;
+  for (const u of users) {
+    const g = geo.get(u.id);
+    if (!g) { unknown++; continue; }
+    const c = mode === "last" ? g.country_last : g.country_first;
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  return { list: [...counts.entries()].map(([code, n]) => ({ code, n })).sort((a, b) => b.n - a.n || a.code.localeCompare(b.code)), unknown };
+}
+
 const ADMIN_FEEDBACK_SEEN_KEY = "wcf_admin_feedback_seen";
 
 function adminTimeAgo(iso: string | null): string {
@@ -6032,15 +6127,20 @@ function AdminErrorsTab() {
 
 function AdminUsersTab() {
   const [rows, setRows] = useState<AdminUserRow[]>([]);
+  const [geo, setGeo] = useState<UserGeo[]>([]);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"last" | "first">("last");       // where they use it now / where they were first seen
+  const [country, setCountry] = useState("all");                     // filter: "all", a code, or "??" (no data)
+  const [showAllCountries, setShowAllCountries] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(50);
 
   useEffect(() => {
-    fetchAdminUsers().then(({ rows: r, error: err }) => {
-      if (err) setError(err);
-      else setRows(r);
+    Promise.all([fetchAdminUsers(), fetchAllGeo()]).then(([users, g]) => {
+      if (users.error) setError(users.error); else setRows(users.rows);
+      if (g.error) setGeoError(g.error); else setGeo(g.rows);
       setLoading(false);
     });
   }, []);
@@ -6062,8 +6162,27 @@ function AdminUsersTab() {
   const activeWeek = rows.filter(u => { const a = lastActive(u); return !!a && new Date(a).getTime() >= weekAgo; }).length;
   const hasProgressInfo = rows.some(u => u.has_progress !== undefined);
   const noCollection = rows.filter(u => u.has_progress === false).length;
+
+  const geoMap = new Map(geo.map(g => [g.user_id, g]));
+  const countryOf = (u: AdminUserRow) => { const g = geoMap.get(u.id); return g ? (mode === "last" ? g.country_last : g.country_first) : "??"; };
+  const byCountry = countByCountry(rows, geoMap, mode);
+  const shownCountries = showAllCountries ? byCountry.list : byCountry.list.slice(0, 8);
+  const maxN = Math.max(1, ...byCountry.list.map(c => c.n), byCountry.unknown);
+
   const q = query.trim().toLowerCase();
-  const filtered = q ? rows.filter(u => `${u.full_name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(q)) : rows;
+  const filtered = rows.filter(u => (!q || `${u.full_name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(q)) && (country === "all" || countryOf(u) === country));
+  const countryRow = (code: string, n: number) => {
+    const active = country === code;
+    return (
+      <button key={code} onClick={() => { setCountry(active ? "all" : code); setLimit(50); }}
+        style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"5px 6px",border:"none",borderRadius:8,background:active ? "#e0f2fe" : "transparent",cursor:"pointer",textAlign:"left",color:"var(--text)"}}>
+        <span style={{width:22,fontSize:16,textAlign:"center"}}>{code === "??" ? "❔" : countryFlag(code)}</span>
+        <span style={{flex:"0 0 118px",fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{code === "??" ? "No data yet" : countryName(code)}</span>
+        <span style={{flex:1,height:8,borderRadius:4,background:"var(--bg2)",overflow:"hidden"}}><span style={{display:"block",height:"100%",width:`${Math.max(3, (n / maxN) * 100)}%`,background:code === "??" ? "#cbd5e1" : "#0196e3",borderRadius:4}} /></span>
+        <span style={{flex:"0 0 64px",textAlign:"right",fontSize:12,fontWeight:700}}>{n} <span style={{fontWeight:500,color:"var(--text4)"}}>{rows.length ? Math.round((n / rows.length) * 100) : 0}%</span></span>
+      </button>
+    );
+  };
 
   return (
     <div>
@@ -6074,18 +6193,60 @@ function AdminUsersTab() {
         {hasProgressInfo && <AdminStat label="No collection yet" value={noCollection} />}
       </div>
       <div style={{fontSize:10,color:"var(--text4)",margin:"-4px 0 10px"}}>Active = signed in, opened the app or changed their collection.</div>
+
+      {geoError ? (
+        <div style={{background:"#fffbeb",color:"#92400e",borderRadius:10,padding:"8px 12px",fontSize:12,lineHeight:1.4,marginBottom:12}}>
+          🌍 Country data isn't available yet. Run the <code>wcf_user_geo</code> SQL and deploy <code>api/geo.js</code>. <span style={{opacity:0.7}}>({geoError})</span>
+        </div>
+      ) : (
+        <div style={{border:"1px solid var(--border)",borderRadius:12,padding:"10px 10px 8px",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+            <span style={{fontSize:13,fontWeight:800}}>🌍 By country</span>
+            <span style={{marginLeft:"auto",display:"flex",gap:4}}>
+              {([["last", "Where they use it"], ["first", "Where first seen"]] as const).map(([m, label]) => (
+                <button key={m} onClick={() => { setMode(m); setCountry("all"); setLimit(50); }}
+                  style={{padding:"3px 9px",borderRadius:12,border:"none",fontSize:11,fontWeight:700,cursor:"pointer",background:mode === m ? "#0196e3" : "var(--bg2)",color:mode === m ? "#fff" : "var(--text3)"}}>{label}</button>
+              ))}
+            </span>
+          </div>
+          {byCountry.list.length === 0 && <div style={{fontSize:12,color:"var(--text4)",padding:"6px 2px"}}>Nobody has reported a country yet. It fills in as people open the app.</div>}
+          {shownCountries.map(c => countryRow(c.code, c.n))}
+          {byCountry.list.length > 8 && (
+            <button onClick={() => setShowAllCountries(v => !v)} style={{marginTop:2,padding:"4px 6px",border:"none",background:"transparent",color:"#0196e3",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              {showAllCountries ? "Show fewer" : `Show all ${byCountry.list.length} countries`}
+            </button>
+          )}
+          {byCountry.unknown > 0 && countryRow("??", byCountry.unknown)}
+          <div style={{fontSize:10,color:"var(--text4)",marginTop:6,lineHeight:1.4}}>
+            Taken from the connection (the IP is not stored). A VPN shows the VPN's country. "First seen" is the first country reported, not necessarily where they signed up from; only people who opened the app since this feature went live have data.
+          </div>
+        </div>
+      )}
+
+      {country !== "all" && (
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,fontSize:12}}>
+          <span style={{background:"#e0f2fe",color:"#075985",borderRadius:12,padding:"3px 10px",fontWeight:700}}>
+            {country === "??" ? "❔ No data yet" : `${countryFlag(country)} ${countryName(country)}`} · {filtered.length}
+          </span>
+          <button onClick={() => setCountry("all")} style={{border:"none",background:"transparent",color:"var(--text3)",cursor:"pointer",fontSize:12}}>✕ clear</button>
+        </div>
+      )}
       <input value={query} onChange={e=>{setQuery(e.target.value); setLimit(50);}} placeholder="Search name or email…"
         style={{width:"100%",boxSizing:"border-box",padding:"8px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg2)",color:"var(--text)",fontSize:13,marginBottom:10}} />
       {rows.length === 0 && <div style={{textAlign:"center",padding:"24px 8px",color:"var(--text4)",fontSize:12}}>No users returned. If that's unexpected, check you're signed in with the admin email.</div>}
       {filtered.slice(0, limit).map(u => {
         const label = u.full_name || u.email || "?";
+        const g = geoMap.get(u.id);
         return (
           <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 4px",borderBottom:"1px solid var(--border)"}}>
             <div style={{width:34,height:34,borderRadius:"50%",background:"#0196e3",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0}}>
               {label[0].toUpperCase()}
             </div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.full_name || "—"}</div>
+              <div style={{fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {u.full_name || "—"}
+                {g && <span title={`Now: ${countryName(g.country_last)} · first seen: ${countryName(g.country_first)} · ${g.sessions} session${g.sessions === 1 ? "" : "s"}`} style={{marginLeft:6,fontSize:11,fontWeight:600,color:"var(--text3)"}}>{countryFlag(g.country_last)} {g.country_last}</span>}
+              </div>
               <div style={{fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.email ?? "no email"}</div>
             </div>
             <div style={{textAlign:"right",fontSize:11,color:"var(--text3)",flexShrink:0,lineHeight:1.4}}>
@@ -6125,9 +6286,10 @@ function AdminChineseTab({ data, onRefreshCatalogue }: { data: Series[]; onRefre
   }, []);
 
   const { rows, total, covered } = useMemo(() => {
-    if (status === "loading") return { rows: [] as { series: string; category: string; base: string; count: number }[], total: 0, covered: 0 };
+    if (status === "loading") return { rows: [] as { series: string; category: string; base: string; count: number; hint: string | null }[], total: 0, covered: 0 };
     const probe = buildAliasProbe();
-    const missing = new Map<string, { series: string; category: string; base: string; count: number }>();
+    const explain = buildAliasExplainer();
+    const missing = new Map<string, { series: string; category: string; base: string; count: number; hint: string | null }>();
     let total = 0, covered = 0;
     for (const s of data) {
       for (const st of [...s.sets, ...s.groups.flatMap(g => g.sets)]) {
@@ -6137,7 +6299,7 @@ function AdminChineseTab({ data, onRefreshCatalogue }: { data: Series[]; onRefre
           const base = chineseBaseName(f.name) || f.name;
           const key = `${s.id}|${base.toLowerCase()}`;
           const row = missing.get(key);
-          if (row) row.count++; else missing.set(key, { series: s.name, category: s.category, base, count: 1 });
+          if (row) row.count++; else missing.set(key, { series: s.name, category: s.category, base, count: 1, hint: explain(base, s.name) });
         }
       }
     }
@@ -6207,6 +6369,7 @@ function AdminChineseTab({ data, onRefreshCatalogue }: { data: Series[]; onRefre
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:13,fontWeight:600,wordBreak:"break-word"}}>{r.base}</div>
             <div style={{fontSize:11,color:"var(--text3)"}}>{r.series}{r.category === "resina" ? " · Resin" : ""}</div>
+            {r.hint && <div style={{fontSize:11,color:"#b45309",marginTop:2,lineHeight:1.35}}>⚠️ {r.hint}</div>}
           </div>
           {r.count > 1 && <span style={{fontSize:11,fontWeight:700,color:"var(--text3)",background:"var(--bg2)",borderRadius:10,padding:"2px 8px"}}>×{r.count}</span>}
         </div>
@@ -6814,6 +6977,9 @@ function MainApp() {
     supabase.from("wcf_progress").update({ last_seen: new Date().toISOString() }).eq("user_id", user.id)
       .then(({ error }) => { if (error) console.error("last_seen ping error:", error); });
   }, [user?.id]);
+
+  // Which country is this person in? (see reportCountry)
+  useEffect(() => { if (user?.id) void reportCountry(); }, [user?.id]);
 
   useEffect(() => {
     supabase.from("wcf_photos").select("figure_id").eq("approved", true)
