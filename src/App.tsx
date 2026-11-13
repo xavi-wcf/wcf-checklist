@@ -485,24 +485,43 @@ async function readJsonWithStall(res: Response, ctrl: AbortController, onProgres
   return JSON.parse(new TextDecoder().decode(all));
 }
 
+// How the last full-catalogue download went: only used to write a useful line in the error log.
+type FetchInfo = { source: "api" | "supabase"; ttfb: number; wire: number | null; bytes: number; enc: string; edge: string; apiFail: string | null };
+let lastFetchInfo: FetchInfo | null = null;
+function takeFetchInfo(): FetchInfo | null { const v = lastFetchInfo; lastFetchInfo = null; return v; }
+function wireSize(url: string): number | null { // bytes that really travelled (compressed), when the browser lets us know
+  try {
+    const e = performance.getEntriesByName(new URL(url, location.href).href, "resource").pop() as PerformanceResourceTiming | undefined;
+    return e && e.encodedBodySize > 0 ? e.encodedBodySize : null;
+  } catch { return null; }
+}
+
 // The full catalogue is asked first from our own /api/catalogue (Vercel keeps a compressed copy close to the visitor);
 // if that isn't there or fails, from Supabase. `fresh` skips Vercel's copy (admin refresh).
 async function sbGet(table: string, timeoutMs = 15000, select?: string, opts: { onProgress?: (bytes: number) => void; fresh?: boolean } = {}): Promise<{ ok: boolean; row: CatalogueRow | null }> {
   const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
-  const sources: ((signal: AbortSignal) => Promise<Response>)[] = [];
-  if (table === "wcf_data" && !select) sources.push(signal => fetch(`/api/catalogue${opts.fresh ? `?t=${Date.now()}` : ""}`, { signal }));
-  sources.push(signal => sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.main${select ? `&select=${select}` : ""}`, { headers, signal }));
+  const full = table === "wcf_data" && !select;
+  const sources: { kind: "api" | "supabase"; url: string; run: (signal: AbortSignal) => Promise<Response> }[] = [];
+  if (full) { const url = `/api/catalogue${opts.fresh ? `?t=${Date.now()}` : ""}`; sources.push({ kind: "api", url, run: signal => fetch(url, { signal }) }); }
+  const sbUrl = `${SUPABASE_URL}/rest/v1/${table}?id=eq.main${select ? `&select=${select}` : ""}`;
+  sources.push({ kind: "supabase", url: sbUrl, run: signal => sbFetch(sbUrl, { headers, signal }) });
+  let apiFail: string | null = null;   // why /api/catalogue was skipped, if it was
   for (const source of sources) {
     const ctrl = new AbortController();
     const first = setTimeout(() => ctrl.abort(), timeoutMs);   // until the server starts answering
     const cap = setTimeout(() => ctrl.abort(), SB_MAX_MS);     // absolute limit
+    const t0 = performance.now();
     try {
-      const res = await source(ctrl.signal);
+      const res = await source.run(ctrl.signal);
       clearTimeout(first);
-      if (!res.ok || (res.headers.get("content-type") ?? "").includes("text/html")) continue; // not deployed, or an error: next source
-      const rows = await readJsonWithStall(res, ctrl, opts.onProgress);
+      const ttfb = performance.now() - t0;
+      if (!res.ok) { if (source.kind === "api") apiFail = `status ${res.status}`; continue; }
+      if ((res.headers.get("content-type") ?? "").includes("text/html")) { if (source.kind === "api") apiFail = "not deployed"; continue; } // the app's page, not data
+      let bytes = 0;
+      const rows = await readJsonWithStall(res, ctrl, b => { bytes = b; opts.onProgress?.(b); });
+      if (full) lastFetchInfo = { source: source.kind, ttfb, wire: wireSize(source.url), bytes, enc: res.headers.get("content-encoding") ?? "no gzip", edge: res.headers.get("x-vercel-cache") ?? "", apiFail };
       return { ok: true, row: Array.isArray(rows) ? ((rows[0] as CatalogueRow | undefined) ?? null) : null };
-    } catch { /* try the next source */ } finally { clearTimeout(first); clearTimeout(cap); }
+    } catch { if (source.kind === "api") apiFail = ctrl.signal.aborted ? "timeout" : "error"; /* try the next source */ } finally { clearTimeout(first); clearTimeout(cap); }
   }
   return { ok: false, row: null };
 }
@@ -1440,6 +1459,7 @@ async function loadCatalogue(
   writeCache: (c: CatalogueCache) => void,
   onInterim: (rows: Series[]) => void,
   force = false, // true: ignore the saved copy and the "has it changed?" shortcut and download it again
+  trace?: { cached?: boolean; version?: "same" | "changed" | "failed"; versionMs?: number; attempts?: number }, // what happened, for the error log
 ): Promise<{ status: CatalogueStatus; data: Series[]; canSave: boolean }> {
   const migrate = (rows: Series[]) => rows.map(s => ({ ...s, groups: s.groups ?? [] }));
   const fromResult = (r: { ok: boolean; row: CatalogueRow | null }): { data: Series[]; canSave: boolean } | null => {
@@ -1454,12 +1474,16 @@ async function loadCatalogue(
   const cached = force ? null : await readCache();
   const haveCache = !!cached && Array.isArray(cached.rows) && cached.rows.length > 0;
   if (haveCache) onInterim(migrate(cached!.rows)); // show the saved copy right away, refresh behind it
+  if (trace && haveCache) trace.cached = true;
   if (haveCache && cached!.updatedAt && Date.now() - cached!.cachedAt < CATALOGUE_CACHE_MAX_AGE_MS) {
+    const v0 = Date.now();
     const v = await getVersion(8000);
+    if (trace) { trace.versionMs = Date.now() - v0; trace.version = !v.ok ? "failed" : v.row?.updated_at === cached!.updatedAt ? "same" : "changed"; }
     if (v.ok && v.row?.updated_at === cached!.updatedAt) return { status: "ok", data: migrate(cached!.rows), canSave: true };
   }
+  if (trace) trace.attempts = 1;
   let got = fromResult(await get(15000));
-  if (!got) got = fromResult(await get(25000));
+  if (!got) { if (trace) trace.attempts = 2; got = fromResult(await get(25000)); }
   if (got) return { status: "ok", ...got };
   return haveCache
     ? { status: "cached", data: migrate(cached!.rows), canSave: false }
@@ -1481,6 +1505,12 @@ function useData() {
     if (busy.current) return;
     busy.current = true;
     const startedAt = Date.now();
+    takeFetchInfo(); // forget the previous download's details
+    const trace: { cached?: boolean; version?: "same" | "changed" | "failed"; versionMs?: number; attempts?: number } = {};
+    let firstShownAt: number | null = null;   // when the person could start using the app (the saved copy, or the download)
+    let wasHidden = document.visibilityState === "hidden";   // time spent with the app in the background is not "slow loading"
+    const onVisibility = () => { if (document.visibilityState === "hidden") wasHidden = true; };
+    document.addEventListener("visibilitychange", onVisibility);
     const onProgress = (bytes: number) => { const now = Date.now(); if (now - lastTick.current > 300) { lastTick.current = now; setProgress(bytes); } }; // not on every chunk
     const result = await loadCatalogue(
       ms => sbGet("wcf_data", ms, undefined, { onProgress, fresh: force }),
@@ -1491,9 +1521,11 @@ function useData() {
         return Array.isArray(v) ? { rows: v, updatedAt: null, cachedAt: 0 } : v; // older format: just the rows
       },
       c => { void idbSet("catalogue", c); },
-      rows => { setDataState(rows); setReady(true); },
+      rows => { firstShownAt = Date.now(); setDataState(rows); setReady(true); },
       force,
+      trace,
     ).catch(() => ({ status: "failed" as CatalogueStatus, data: [] as Series[], canSave: false })); // never leave the "busy" flag stuck
+    document.removeEventListener("visibilitychange", onVisibility);
     busy.current = false;
     setProgress(null);
     setRound(r => r + 1);
@@ -1502,9 +1534,23 @@ function useData() {
     setStatus(result.status);
     canSave.current = result.canSave;
     setReady(true);
-    const ms = Date.now() - startedAt;
-    if (result.status !== "ok") logClientError("catalogue_" + result.status, `after ${ms} ms`);
-    else if (ms > 8000) logClientError("catalogue_slow", `${ms} ms`);
+    if (force) return; // an admin refresh is not a real visit
+    const total = Date.now() - startedAt;
+    const blocked = (firstShownAt ?? Date.now()) - startedAt;   // how long the person really waited
+    const info = takeFetchInfo();
+    const sec = (ms: number) => (ms / 1000).toFixed(1) + "s";
+    const detail = [
+      `waited ${sec(blocked)}`, `total ${sec(total)}`, trace.cached ? "had saved copy" : "no saved copy",
+      trace.version ? `version check ${trace.version}${trace.versionMs !== undefined ? ` (${sec(trace.versionMs)})` : ""}` : null,
+      trace.attempts ? `${trace.attempts} download attempt${trace.attempts > 1 ? "s" : ""}` : null,
+      info ? `${info.source}${info.edge ? `(${info.edge})` : ""} ${info.enc} ${info.wire ? Math.round(info.wire / 1024) + "/" : ""}${Math.round(info.bytes / 1024)} KB, first byte ${sec(info.ttfb)}${info.apiFail ? ", api: " + info.apiFail : ""}` : null,
+      wasHidden ? "app was in the background" : null,
+    ].filter(Boolean).join(" · ");
+    if (result.status !== "ok") logClientError("catalogue_" + result.status, detail);
+    else if (!wasHidden) {
+      if (blocked > 6000) logClientError("catalogue_slow", detail);          // the person was waiting
+      else if (total > 20000) logClientError("catalogue_bg_slow", detail);   // slow, but behind the saved copy: nobody waited
+    }
   }, []);
   useEffect(() => { void load(); }, [load]);
   // If the catalogue didn't load (slow or blocked connection), try again quietly: after 20 s, 1 min and 3 min.
@@ -6245,7 +6291,7 @@ function AdminErrorsTab() {
   const weekAgo = Date.now() - 7 * 86400000;
   const byStage = new Map<string, number>();
   for (const r of rows) if (new Date(r.created_at).getTime() > weekAgo) byStage.set(r.stage, (byStage.get(r.stage) ?? 0) + 1);
-  const color = (stage: string) => stage.startsWith("photo") ? "#dc2626" : stage === "catalogue_slow" ? "#d97706" : "#7c3aed";
+  const color = (stage: string) => stage.startsWith("photo") ? "#dc2626" : stage === "catalogue_slow" ? "#d97706" : stage === "catalogue_bg_slow" ? "#64748b" : "#7c3aed";
 
   if (loading) return <div style={{textAlign:"center",padding:"30px 0",color:"var(--text4)",fontSize:13}}>Loading…</div>;
   if (error) return <div style={{padding:16,fontSize:13,color:"#dc2626"}}>Couldn't load the log: {error}<div style={{color:"var(--text3)",marginTop:6}}>If the table doesn't exist yet, run the wcf_client_errors SQL.</div></div>;
