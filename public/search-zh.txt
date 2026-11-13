@@ -2542,3 +2542,4 @@ L·罗莱特 = Lawliet "L"
 多林寺僧侣B = Orin's Temple Monk B
 鸣人 = ^Naruto
 电锯人 = ^Chainsaw Man
+汉堡 = Hamburg
