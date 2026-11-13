@@ -7876,7 +7876,7 @@ function MainApp() {
               <div style={{textAlign:"center",padding:"4rem 1rem",color:"var(--text4)",fontSize:14}}>{t("noResults")}</div>
             ) : (
               <div>
-                <div style={{fontSize:12,color:"var(--text3)",marginBottom:8}}>{dbFigures.length} figura{dbFigures.length!==1?"s":""}</div>
+                <div style={{fontSize:12,color:"var(--text3)",marginBottom:8}}>{dbFigures.length} {t("figuresCount")}</div>
                 <div style={{display:"grid",gridTemplateColumns:sizeToColumns[dbSize],gap:8}}>
                   {dbFigures.map(({figure,set,series,groupName})=>(
                     <SearchResultCard key={figure.id} figure={figure} series={series} set={set} groupName={groupName}
