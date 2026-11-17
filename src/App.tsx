@@ -496,32 +496,45 @@ function wireSize(url: string): number | null { // bytes that really travelled (
   } catch { return null; }
 }
 
-// The full catalogue is asked first from our own /api/catalogue (Vercel keeps a compressed copy close to the visitor);
-// if that isn't there or fails, from Supabase. `fresh` skips Vercel's copy (admin refresh).
+// The full catalogue is asked first from our own /api/catalogue (Vercel keeps a copy close to the visitor); if that isn't there
+// or fails, from Supabase. Visitors where it has been failing (China time zones, or it failed on this device in the last 2 hours)
+// go to Supabase first instead: a failing /api/catalogue costs up to 6 s before the fallback. `fresh` skips Vercel's copy.
+const API_DOWN_KEY = "wcf_api_down_until";
+const apiRecentlyFailed = () => { try { return Number(localStorage.getItem(API_DOWN_KEY) ?? 0) > Date.now(); } catch { return false; } };
+const markApiFailed = () => { try { localStorage.setItem(API_DOWN_KEY, String(Date.now() + 2 * 3600e3)); } catch { /* ignore */ } };
+const errText = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message}` : String(e)).slice(0, 50);
+
 async function sbGet(table: string, timeoutMs = 15000, select?: string, opts: { onProgress?: (bytes: number) => void; fresh?: boolean } = {}): Promise<{ ok: boolean; row: CatalogueRow | null }> {
+  type Source = { kind: "api" | "supabase"; url: string; run: (signal: AbortSignal) => Promise<Response> };
   const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
   const full = table === "wcf_data" && !select;
-  const sources: { kind: "api" | "supabase"; url: string; run: (signal: AbortSignal) => Promise<Response> }[] = [];
-  if (full) { const url = `/api/catalogue${opts.fresh ? `?t=${Date.now()}` : ""}`; sources.push({ kind: "api", url, run: signal => fetch(url, { signal }) }); }
   const sbUrl = `${SUPABASE_URL}/rest/v1/${table}?id=eq.main${select ? `&select=${select}` : ""}`;
-  sources.push({ kind: "supabase", url: sbUrl, run: signal => sbFetch(sbUrl, { headers, signal }) });
-  let apiFail: string | null = null;   // why /api/catalogue was skipped, if it was
+  const sbSource: Source = { kind: "supabase", url: sbUrl, run: signal => sbFetch(sbUrl, { headers, signal }) };
+  const apiUrl = `/api/catalogue${opts.fresh ? `?t=${Date.now()}` : ""}`;
+  const apiSource: Source = { kind: "api", url: apiUrl, run: signal => fetch(apiUrl, { signal }) };
+  const blocked = full && sbLikelyBlocked();
+  const apiLast = full && (blocked || apiRecentlyFailed());   // try Supabase first, /api/catalogue only as the fallback
+  const sources: Source[] = !full ? [sbSource] : apiLast ? [sbSource, apiSource] : [apiSource, sbSource];
+  let apiFail: string | null = apiLast ? (blocked ? "not tried (China time zone)" : "not tried (failed recently)") : null; // why /api/catalogue was skipped or failed
   for (const source of sources) {
+    if (source.kind === "api") apiFail = null;
     const ctrl = new AbortController();
-    const first = setTimeout(() => ctrl.abort(), timeoutMs);   // until the server starts answering
+    const first = setTimeout(() => ctrl.abort(), source.kind === "api" ? Math.min(timeoutMs, 6000) : timeoutMs);   // until the server starts answering
     const cap = setTimeout(() => ctrl.abort(), SB_MAX_MS);     // absolute limit
     const t0 = performance.now();
     try {
       const res = await source.run(ctrl.signal);
       clearTimeout(first);
       const ttfb = performance.now() - t0;
-      if (!res.ok) { if (source.kind === "api") apiFail = `status ${res.status}`; continue; }
-      if ((res.headers.get("content-type") ?? "").includes("text/html")) { if (source.kind === "api") apiFail = "not deployed"; continue; } // the app's page, not data
+      if (!res.ok) { if (source.kind === "api") { apiFail = `status ${res.status}`; markApiFailed(); } continue; }
+      if ((res.headers.get("content-type") ?? "").includes("text/html")) { if (source.kind === "api") { apiFail = "not deployed"; markApiFailed(); } continue; } // the app's page, not data
       let bytes = 0;
       const rows = await readJsonWithStall(res, ctrl, b => { bytes = b; opts.onProgress?.(b); });
       if (full) lastFetchInfo = { source: source.kind, ttfb, wire: wireSize(source.url), bytes, enc: res.headers.get("content-encoding") ?? "no gzip", edge: res.headers.get("x-vercel-cache") ?? "", apiFail };
       return { ok: true, row: Array.isArray(rows) ? ((rows[0] as CatalogueRow | undefined) ?? null) : null };
-    } catch { if (source.kind === "api") apiFail = ctrl.signal.aborted ? "timeout" : "error"; /* try the next source */ } finally { clearTimeout(first); clearTimeout(cap); }
+    } catch (e) {
+      if (source.kind === "api") { apiFail = ctrl.signal.aborted ? "timeout" : `error ${errText(e)}`; markApiFailed(); } // try the next source
+    } finally { clearTimeout(first); clearTimeout(cap); }
   }
   return { ok: false, row: null };
 }
