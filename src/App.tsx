@@ -1135,11 +1135,11 @@ function compressImageForUpload(file: File, maxDimension = 1280, quality = 0.75)
   });
 }
 
-// Series cover images (bgImage) were uploaded untouched, so each one weighs ~300 KB; they are the heaviest images of the Catalog tab.
-// Cloudflare can serve a much smaller copy of any image in our own image domain (free up to 5,000 different images a month, and
-// there are only ~30 covers). OFF until "Transformations" is enabled for the domain in Cloudflare and one address has been checked
-// by hand. If the smaller copy can't be loaded, the page shows the original, so nothing breaks.
-const USE_RESIZED_COVERS = false;
+// Series cover images (bgImage) were uploaded untouched (PNG, ~300 KB each), so they are the heaviest images of the Catalog tab.
+// Cloudflare serves a much smaller copy of any image in our own image domain (checked by hand: a cover comes out at 480 px; free up
+// to 5,000 different images a month, and there are only ~30 covers). If the smaller copy can't be loaded, the page shows the
+// original, so nothing breaks. To go back to the originals, set this to false.
+const USE_RESIZED_COVERS = true;
 const R2_IMAGE_HOST = "https://img.wcfchecklist.com/";
 function coverSrc(url: string | undefined, width = 480): string | undefined {
   if (!url || !USE_RESIZED_COVERS || !url.startsWith(R2_IMAGE_HOST)) return url;
