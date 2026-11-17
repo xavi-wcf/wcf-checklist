@@ -1135,24 +1135,40 @@ function compressImageForUpload(file: File, maxDimension = 1280, quality = 0.75)
   });
 }
 
-// Series cover images (bgImage) were uploaded untouched (PNG, ~300 KB each), so they are the heaviest images of the Catalog tab.
-// Cloudflare serves a much smaller copy of any image in our own image domain (checked by hand: a cover comes out at 480 px; free up
-// to 5,000 different images a month, and there are only ~30 covers). If the smaller copy can't be loaded, the page shows the
-// original, so nothing breaks. To go back to the originals, set this to false.
-const USE_RESIZED_COVERS = true;
+// Images we upload ourselves (series covers, logos) were stored untouched: covers are ~300 KB PNGs and logos ~90 KB, and logos are
+// shown only a few dozen pixels tall. Cloudflare serves a much smaller copy of any image in our own image domain (checked by hand:
+// a cover comes out at 480 px; free up to 5,000 different images a month, and there are only a few hundred of these). If the smaller
+// copy can't be loaded, the page shows the original, so nothing breaks. To go back to the originals, set this to false.
+const USE_RESIZED_IMAGES = true;
 const R2_IMAGE_HOST = "https://img.wcfchecklist.com/";
-function coverSrc(url: string | undefined, width = 480): string | undefined {
-  if (!url || !USE_RESIZED_COVERS || !url.startsWith(R2_IMAGE_HOST)) return url;
-  return `${R2_IMAGE_HOST}cdn-cgi/image/width=${width},quality=75,format=auto,onerror=redirect/${url.slice(R2_IMAGE_HOST.length)}`;
+function resizedSrc(url: string | undefined, width: number, quality = 75): string | undefined {
+  if (!url || !USE_RESIZED_IMAGES || !url.startsWith(R2_IMAGE_HOST)) return url;
+  return `${R2_IMAGE_HOST}cdn-cgi/image/width=${width},quality=${quality},format=auto,onerror=redirect/${url.slice(R2_IMAGE_HOST.length)}`;
 }
-function coverOnError(original: string | undefined) {
-  return (e: { currentTarget: HTMLImageElement }) => {
-    const el = e.currentTarget;
-    if (!original || el.dataset.original === "1") return;   // already tried the original: give up
-    el.dataset.original = "1";
-    el.src = original;
-  };
+const coverSrc = (url: string | undefined) => resizedSrc(url, 480);        // series cover cards
+const logoThumb = (url: string | undefined) => resizedSrc(url, 300, 85);   // logos (always tiny; quality 85 keeps flat colours clean)
+// If the smaller copy fails to load, switch the <img> to the original, once. Returns true if it switched.
+function swapToOriginal(e: { currentTarget: HTMLImageElement }, original: string | undefined): boolean {
+  const el = e.currentTarget;
+  if (!original || el.dataset.original === "1" || el.src === original) return false;
+  el.dataset.original = "1";
+  el.src = original;
+  return true;
 }
+const originalOnError = (original: string | undefined) => (e: { currentTarget: HTMLImageElement }) => { swapToOriginal(e, original); };
+
+// Deleting a series, studio or set removes everything inside it and is saved at once, so ask first (admin only).
+// Big deletions (20+ figures) also ask to type the name.
+function confirmDelete(kind: string, label: string, detail: string, figures: number, typeToConfirm?: string): boolean {
+  const what = figures === 1 ? "1 figure" : `${figures} figures`;
+  if (!window.confirm(`Delete ${kind} “${label}”?\n\n${detail ? detail + " · " : ""}${what} will be deleted.\nThis cannot be undone.`)) return false;
+  if (figures >= 20 && typeToConfirm) {
+    const typed = window.prompt(`This deletes ${what}. To confirm, type: ${typeToConfirm}`);
+    return typed !== null && typed.trim().toLowerCase() === typeToConfirm.trim().toLowerCase();
+  }
+  return true;
+}
+const countSetFigures = (sets: FigureSet[]) => sets.reduce((n, st) => n + st.figures.length, 0);
 
 // ImgBB key from environment variable (set in Vercel dashboard)
 const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
@@ -2797,7 +2813,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
       <div onClick={()=>setOpen(!open)} style={{padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",background:open?"var(--bg2)":"var(--bg)"}}>
         <div style={{flex:1,marginRight:12}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
-            {set.seriesLogo && <img loading="lazy" decoding="async" src={set.seriesLogo} alt="" style={{height:20,maxWidth:80,objectFit:"contain"}} />}
+            {set.seriesLogo && <img loading="lazy" decoding="async" src={logoThumb(set.seriesLogo)} onError={originalOnError(set.seriesLogo)} alt="" style={{height:20,maxWidth:80,objectFit:"contain"}} />}
             <span style={{fontSize:15,fontWeight:600}}>{set.name}</span>
             {set.releaseDate && <span style={{fontSize:11,color:"var(--text4)"}}>📅 {formatDate(set.releaseDate)}</span>}
             <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#e6f4fd":"#f0f0ec",color:complete?"#0174b0":"#888",fontWeight:complete?600:400}}>
@@ -2837,7 +2853,7 @@ function SetCard({ set, color, series, owned, wishlist, apiKey, onToggle, onTogg
                       style={{padding:"8px 14px",cursor:"pointer",fontSize:13,color:"var(--text)",display:"flex",alignItems:"center",gap:8}}
                       onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      {g.logo && <img loading="lazy" decoding="async" src={g.logo} alt="" style={{height:16,maxWidth:40,objectFit:"contain"}} />}
+                      {g.logo && <img loading="lazy" decoding="async" src={logoThumb(g.logo)} onError={originalOnError(g.logo)} alt="" style={{height:16,maxWidth:40,objectFit:"contain"}} />}
                       {g.name}
                     </div>
                   ))}
@@ -3141,7 +3157,7 @@ function GroupCard({ group, color, series, owned, wishlist, apiKey, onToggle, on
     <div style={{marginBottom:16,border:"2px solid var(--border2)",borderRadius:14,overflow:"hidden",background:"var(--bg2)"}}>
       {/* Group header */}
       <div onClick={()=>setOpen(!open)} style={{padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:"var(--bg3)"}}>
-        {group.logo && !imgError && <img loading="lazy" decoding="async" src={group.logo} alt={group.name} onError={()=>setImgError(true)} style={{height:24,maxWidth:80,objectFit:"contain"}} />}
+        {group.logo && !imgError && <img loading="lazy" decoding="async" src={logoThumb(group.logo)} alt={group.name} onError={(e: { currentTarget: HTMLImageElement })=>{ if (!swapToOriginal(e, group.logo)) setImgError(true); }} style={{height:24,maxWidth:80,objectFit:"contain"}} />}
         <span style={{fontSize:15,fontWeight:700,flex:1,color:"var(--text)"}}>{group.name} <span style={{fontSize:12,color:"var(--text4)",fontWeight:400}}>({group.sets.length} set{group.sets.length!==1?"s":""})</span></span>
         <span style={{fontSize:12,padding:"2px 10px",borderRadius:20,background:complete?"#e6f4fd":"var(--bg)",color:complete?"#0174b0":"var(--text3)",fontWeight:complete?600:400}}>
           {complete ? t("complete") : `${ownedCount}/${total}`}
@@ -3341,7 +3357,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                       <div key={s.id} style={{marginBottom:12,padding:"12px 14px",borderRadius:12,background:"var(--bg2)",border:"1px solid var(--border)"}}>
                         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                           <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            {s.logo ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
+                            {s.logo ? <img loading="lazy" decoding="async" src={logoThumb(s.logo)} onError={originalOnError(s.logo)} alt={s.name} style={{height:18,maxWidth:80,objectFit:"contain"}} /> : <span style={{fontSize:14}}>{s.emoji}</span>}
                             <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{seriesLabel(s.name, lang)}</span>
                           </div>
                           <span style={{fontSize:13,fontWeight:700,color:p===100?"#4ade80":s.color}}>{p}%</span>
@@ -3363,11 +3379,11 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                       const ow=seriesOwned(s), wi=allFlat.filter(x=>x.series.id===s.id&&wishlist.has(x.figure.id)&&!owned.has(x.figure.id)).length;
                       return (
                         <div key={s.id} style={{position:"relative",borderRadius:12,overflow:"hidden",aspectRatio:"1",background:s.color+"33",border:`1px solid ${s.color}44`}}>
-                          {s.bgImage && <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={coverOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />}
+                          {s.bgImage && <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={originalOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />}
                           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 55%,rgba(0,0,0,0) 100%)"}} />
                           <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px"}}>
                             {s.logo
-                              ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:6,display:"block"}} />
+                              ? <img loading="lazy" decoding="async" src={logoThumb(s.logo)} onError={originalOnError(s.logo)} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:6,display:"block"}} />
                               : <div style={{fontSize:11,fontWeight:700,color:"#fff",marginBottom:6,lineHeight:1.2}}>{seriesLabel(s.name, lang)}</div>
                             }
                             <div style={{display:"flex",gap:10,fontSize:12}}>
@@ -4263,7 +4279,7 @@ function StudiosBrowser({ data, owned, wishlist, onToggle, onToggleWish, photoCo
           <div key={s.key} onClick={()=>setSelectedKey(s.key)}
             style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",border:"1px solid var(--border)",borderRadius:12,marginBottom:8,cursor:"pointer",background:"var(--bg)"}}>
             <div style={{width:96,flexShrink:0,display:"flex",justifyContent:"center"}}>
-              {s.logo ? <img src={s.logo} alt={s.name} loading="lazy" decoding="async" style={{maxWidth:96,maxHeight:34,objectFit:"contain"}} /> : <span style={{fontSize:24}}>🏭</span>}
+              {s.logo ? <img src={logoThumb(s.logo)} onError={originalOnError(s.logo)} alt={s.name} loading="lazy" decoding="async" style={{maxWidth:96,maxHeight:34,objectFit:"contain"}} /> : <span style={{fontSize:24}}>🏭</span>}
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.name}</div>
@@ -4280,7 +4296,7 @@ function StudiosBrowser({ data, owned, wishlist, onToggle, onToggleWish, photoCo
     <div>
       <button onClick={()=>setSelectedKey(null)} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)",marginBottom:12}}>{t("studiosBack")}</button>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
-        {selected.logo && <img src={selected.logo} alt={selected.name} style={{maxWidth:110,maxHeight:40,objectFit:"contain"}} />}
+        {selected.logo && <img src={logoThumb(selected.logo)} onError={originalOnError(selected.logo)} alt={selected.name} style={{maxWidth:110,maxHeight:40,objectFit:"contain"}} />}
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:16,fontWeight:800}}>{selected.name}</div>
           <ProgressBar value={ownedIn(selected.franchises.flatMap(f => f.items))} total={selected.total} color="#0196e3" />
@@ -4298,7 +4314,7 @@ function StudiosBrowser({ data, owned, wishlist, onToggle, onToggleWish, photoCo
             <div onClick={()=>setOpenFr(o => ({ ...o, [limitKey]: !isOpen }))}
               style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer"}}>
               <span style={{fontSize:12,color:"var(--text3)",width:12,flexShrink:0}}>{isOpen ? "▾" : "▸"}</span>
-              {logoSrc ? <img src={logoSrc} alt={fr.name} title={fr.name} style={{height:28,maxWidth:130,objectFit:"contain"}} /> : <span style={{fontSize:14,fontWeight:700}}>{fr.series.emoji} {seriesLabel(fr.name, lang)}</span>}
+              {logoSrc ? <img src={logoThumb(logoSrc)} onError={originalOnError(logoSrc)} alt={fr.name} title={fr.name} style={{height:28,maxWidth:130,objectFit:"contain"}} /> : <span style={{fontSize:14,fontWeight:700}}>{fr.series.emoji} {seriesLabel(fr.name, lang)}</span>}
               <span style={{marginLeft:"auto",fontSize:11,color:"var(--text3)",flexShrink:0}}>{ownedIn(fr.items)}/{fr.items.length}</span>
             </div>
             {isOpen && (
@@ -4406,13 +4422,13 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
             onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
             onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
             {s.bgImage
-              ? <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={coverOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
+              ? <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={originalOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
               : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.6,pointerEvents:"none"}}>{s.emoji}</div>
             }
             <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 50%,rgba(0,0,0,0) 100%)",pointerEvents:"none"}} />
             <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px",pointerEvents:"none"}}>
               {s.logo
-                ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:20,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:4,display:"block"}} />
+                ? <img loading="lazy" decoding="async" src={logoThumb(s.logo)} onError={originalOnError(s.logo)} alt={s.name} style={{height:20,maxWidth:"100%",objectFit:"contain",objectPosition:"left",marginBottom:4,display:"block"}} />
                 : <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:4,lineHeight:1.2,textShadow:"0 1px 3px rgba(0,0,0,0.5)"}}>{seriesLabel(s.name, lang)}</div>
               }
               <div style={{height:3,background:"rgba(255,255,255,0.25)",borderRadius:2,overflow:"hidden",marginBottom:2}}>
@@ -7290,7 +7306,15 @@ function MainApp() {
 
   const addSeries = (name:string,emoji:string,color:string,logoHeader:string,bgImage:string,category:CategoryType="oficial") => { const s:Series={id:newId(),name,emoji,logoHeader,bgImage,color,category,sets:[],groups:[]}; setData(d=>[...d,s]); };
   const updateSeries = (sid:number,name:string,emoji:string,color:string,logoHeader:string,bgImage:string) => setData(d=>d.map(s=>s.id===sid?{...s,name,emoji,color,logoHeader,bgImage}:s));
-  const deleteSeries = (sid:number) => setData(d=>d.filter(s=>s.id!==sid));
+  const deleteSeries = (sid:number): boolean => {
+    const sr = data.find(x=>x.id===sid); if (!sr) return false;
+    const figures = countSetFigures(sr.sets) + sr.groups.reduce((n,g)=>n+countSetFigures(g.sets),0);
+    const nSets = sr.sets.length + sr.groups.reduce((n,g)=>n+g.sets.length,0);
+    const detail = `${sr.groups.length ? `${sr.groups.length} ${sr.groups.length===1?"studio":"studios"}, ` : ""}${nSets} ${nSets===1?"set":"sets"}`;
+    if (!confirmDelete("series", `${sr.name} (${sr.category==="oficial"?"Official":"Resin"})`, detail, figures, sr.name)) return false;
+    setData(d=>d.filter(s=>s.id!==sid));
+    return true;
+  };
   const addSet = (sid:number, gid?:number) => {
     const newSet:FigureSet = {id:newId(),name:"Nuevo set",releaseDate:"",seriesLogo:"",figures:[]};
     setData(d=>d.map(s=>{ if(s.id!==sid) return s;
@@ -7309,14 +7333,23 @@ function MainApp() {
     if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:upd(g.sets)}:g)};
     return {...s,sets:upd(s.sets)};
   }));
-  const deleteSet = (sid:number,stid:number,gid?:number) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
-    if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:g.sets.filter(st=>st.id!==stid)}:g)};
-    return {...s,sets:s.sets.filter(st=>st.id!==stid)};
-  }));
+  const deleteSet = (sid:number,stid:number,gid?:number) => {
+    const sr = data.find(x=>x.id===sid);
+    const target = (gid ? sr?.groups.find(g=>g.id===gid)?.sets : sr?.sets)?.find(x=>x.id===stid);
+    if (target && !confirmDelete("set", target.name, "", target.figures.length, target.name)) return;
+    setData(d=>d.map(s=>{ if(s.id!==sid) return s;
+      if(gid) return {...s,groups:s.groups.map(g=>g.id===gid?{...g,sets:g.sets.filter(st=>st.id!==stid)}:g)};
+      return {...s,sets:s.sets.filter(st=>st.id!==stid)};
+    }));
+  };
   // Group mutations
   const addGroup = (sid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:[...s.groups,{id:newId(),name:"Nuevo grupo",logo:"",sets:[]}]}:s));
   const updateGroup = (sid:number,gid:number,name:string,logo:string) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.map(g=>g.id===gid?{...g,name,logo}:g)}:s));
-  const deleteGroup = (sid:number,gid:number) => setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.filter(g=>g.id!==gid)}:s));
+  const deleteGroup = (sid:number,gid:number) => {
+    const grp = data.find(x=>x.id===sid)?.groups.find(g=>g.id===gid);
+    if (grp && !confirmDelete("studio", grp.name, `${grp.sets.length} ${grp.sets.length===1?"set":"sets"}`, countSetFigures(grp.sets), grp.name)) return;
+    setData(d=>d.map(s=>s.id===sid?{...s,groups:s.groups.filter(g=>g.id!==gid)}:s));
+  };
   const moveSetToGroup = (sid:number, stid:number, gid:number|null) => setData(d=>d.map(s=>{ if(s.id!==sid) return s;
     // Find the set wherever it currently lives: loose in the franchise or inside any group.
     let st: FigureSet | undefined = s.sets.find(x=>x.id===stid);
@@ -7823,12 +7856,12 @@ function MainApp() {
         <div style={{background:"var(--bg)",padding:"10px 16px",borderBottom:"2px solid var(--border)",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
             <button onClick={goBack} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:13,color:"var(--text)"}}>{t("back")}</button>
-            {dbSeriesObj.logoHeader ? <img src={dbSeriesObj.logoHeader} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {seriesLabel(dbSeriesObj.name, lang)}</span>}
+            {dbSeriesObj.logoHeader ? <img src={logoThumb(dbSeriesObj.logoHeader)} onError={originalOnError(dbSeriesObj.logoHeader)} alt={dbSeriesObj.name} style={{height:32,maxWidth:140,objectFit:"contain"}} /> : <span style={{fontSize:16,fontWeight:700}}>{dbSeriesObj.emoji} {seriesLabel(dbSeriesObj.name, lang)}</span>}
             {isAdmin && <div style={{marginLeft:"auto",display:"flex",gap:6}}>
               <Btn small onClick={()=>addGroup(dbSeriesObj.id)} variant="primary">+ Grupo</Btn>
               <Btn small onClick={()=>addSet(dbSeriesObj.id)} variant="primary">{t("newSet")}</Btn>
               <Btn small onClick={()=>setEditSeriesData(dbSeriesObj)}>✏️</Btn>
-              <Btn small onClick={()=>{deleteSeries(dbSeriesObj.id);setDbSelectedSeries(null);}} variant="danger">🗑</Btn>
+              <Btn small onClick={()=>{ if (deleteSeries(dbSeriesObj.id)) setDbSelectedSeries(null); }} variant="danger">🗑</Btn>
             </div>}
           </div>
           <ProgressBar value={seriesOwned(dbSeriesObj)} total={seriesTotal(dbSeriesObj)} color={dbSeriesObj.color} />
@@ -7903,7 +7936,7 @@ function MainApp() {
                           style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer",background:"var(--bg2)"}}>
                           <span style={{fontSize:11,color:"var(--text4)",transform:isOpen?"rotate(90deg)":"none",transition:"transform 0.15s",flexShrink:0}}>▶</span>
                           {series.logoHeader
-                            ? <img src={series.logoHeader} alt={series.name} style={{height:22,maxWidth:120,objectFit:"contain",objectPosition:"left"}} />
+                            ? <img src={logoThumb(series.logoHeader)} onError={originalOnError(series.logoHeader)} alt={series.name} style={{height:22,maxWidth:120,objectFit:"contain",objectPosition:"left"}} />
                             : <><span style={{fontSize:18}}>{series.emoji}</span><span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{seriesLabel(series.name, lang)}</span></>
                           }
                           <span style={{flex:1}} />
@@ -8161,12 +8194,12 @@ function MainApp() {
                   return (
                     <div key={s.id} onClick={()=>toggleFavourite(s.id)}
                       style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:"pointer",aspectRatio:"1",background:s.color+"33",border:isFav?`2px solid #f59e0b`:`1px solid ${s.color}44`,transition:"border 0.15s"}}>
-                      {s.bgImage ? <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={coverOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} /> :
+                      {s.bgImage ? <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={originalOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} /> :
                         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,opacity:0.3}}>{s.emoji}</div>}
                       <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.8) 0%,rgba(0,0,0,0.1) 60%,rgba(0,0,0,0) 100%)"}} />
                       {isFav && <div style={{position:"absolute",top:6,right:6,fontSize:16,zIndex:2}}>⭐</div>}
                       <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"6px 8px"}}>
-                        {s.logo ? <img loading="lazy" decoding="async" src={s.logo} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",display:"block"}} />
+                        {s.logo ? <img loading="lazy" decoding="async" src={logoThumb(s.logo)} onError={originalOnError(s.logo)} alt={s.name} style={{height:16,maxWidth:"100%",objectFit:"contain",objectPosition:"left",display:"block"}} />
                           : <div style={{fontSize:11,fontWeight:700,color:"#fff",lineHeight:1.2}}>{seriesLabel(s.name, lang)}</div>}
                       </div>
                     </div>
