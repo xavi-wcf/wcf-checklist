@@ -499,6 +499,9 @@ function wireSize(url: string): number | null { // bytes that really travelled (
 // The full catalogue is asked first from our own /api/catalogue (Vercel keeps a copy close to the visitor); if that isn't there
 // or fails, from Supabase. Visitors where it has been failing (China time zones, or it failed on this device in the last 2 hours)
 // go to Supabase first instead: a failing /api/catalogue costs up to 6 s before the fallback. `fresh` skips Vercel's copy.
+// /api/catalogue broke in production (its body arrived compressed twice and could not be read), so it is OFF. Turn it on again
+// only after fixing api/catalogue.js and checking on Vercel that opening the URL shows readable JSON.
+const USE_API_CATALOGUE = false;
 const API_DOWN_KEY = "wcf_api_down_until";
 const apiRecentlyFailed = () => { try { return Number(localStorage.getItem(API_DOWN_KEY) ?? 0) > Date.now(); } catch { return false; } };
 const markApiFailed = () => { try { localStorage.setItem(API_DOWN_KEY, String(Date.now() + 2 * 3600e3)); } catch { /* ignore */ } };
@@ -512,9 +515,10 @@ async function sbGet(table: string, timeoutMs = 15000, select?: string, opts: { 
   const sbSource: Source = { kind: "supabase", url: sbUrl, run: signal => sbFetch(sbUrl, { headers, signal }) };
   const apiUrl = `/api/catalogue${opts.fresh ? `?t=${Date.now()}` : ""}`;
   const apiSource: Source = { kind: "api", url: apiUrl, run: signal => fetch(apiUrl, { signal }) };
-  const blocked = full && sbLikelyBlocked();
-  const apiLast = full && (blocked || apiRecentlyFailed());   // try Supabase first, /api/catalogue only as the fallback
-  const sources: Source[] = !full ? [sbSource] : apiLast ? [sbSource, apiSource] : [apiSource, sbSource];
+  const useApi = full && USE_API_CATALOGUE;
+  const blocked = useApi && sbLikelyBlocked();
+  const apiLast = useApi && (blocked || apiRecentlyFailed());   // try Supabase first, /api/catalogue only as the fallback
+  const sources: Source[] = !useApi ? [sbSource] : apiLast ? [sbSource, apiSource] : [apiSource, sbSource];
   let apiFail: string | null = apiLast ? (blocked ? "not tried (China time zone)" : "not tried (failed recently)") : null; // why /api/catalogue was skipped or failed
   for (const source of sources) {
     if (source.kind === "api") apiFail = null;
