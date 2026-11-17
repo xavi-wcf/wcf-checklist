@@ -1135,6 +1135,25 @@ function compressImageForUpload(file: File, maxDimension = 1280, quality = 0.75)
   });
 }
 
+// Series cover images (bgImage) were uploaded untouched, so each one weighs ~300 KB; they are the heaviest images of the Catalog tab.
+// Cloudflare can serve a much smaller copy of any image in our own image domain (free up to 5,000 different images a month, and
+// there are only ~30 covers). OFF until "Transformations" is enabled for the domain in Cloudflare and one address has been checked
+// by hand. If the smaller copy can't be loaded, the page shows the original, so nothing breaks.
+const USE_RESIZED_COVERS = false;
+const R2_IMAGE_HOST = "https://img.wcfchecklist.com/";
+function coverSrc(url: string | undefined, width = 480): string | undefined {
+  if (!url || !USE_RESIZED_COVERS || !url.startsWith(R2_IMAGE_HOST)) return url;
+  return `${R2_IMAGE_HOST}cdn-cgi/image/width=${width},quality=75,format=auto,onerror=redirect/${url.slice(R2_IMAGE_HOST.length)}`;
+}
+function coverOnError(original: string | undefined) {
+  return (e: { currentTarget: HTMLImageElement }) => {
+    const el = e.currentTarget;
+    if (!original || el.dataset.original === "1") return;   // already tried the original: give up
+    el.dataset.original = "1";
+    el.src = original;
+  };
+}
+
 // ImgBB key from environment variable (set in Vercel dashboard)
 const IMGBB_KEY = import.meta.env.VITE_IMGBB_KEY as string ?? "";
 
@@ -3344,7 +3363,7 @@ function StatsTab({ data, owned, wishlist, favourites, allFlat, seriesOwned, ser
                       const ow=seriesOwned(s), wi=allFlat.filter(x=>x.series.id===s.id&&wishlist.has(x.figure.id)&&!owned.has(x.figure.id)).length;
                       return (
                         <div key={s.id} style={{position:"relative",borderRadius:12,overflow:"hidden",aspectRatio:"1",background:s.color+"33",border:`1px solid ${s.color}44`}}>
-                          {s.bgImage && <img loading="lazy" decoding="async" src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />}
+                          {s.bgImage && <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={coverOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />}
                           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 55%,rgba(0,0,0,0) 100%)"}} />
                           <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 10px"}}>
                             {s.logo
@@ -4387,7 +4406,7 @@ function SeriesGrid({ series, seriesOwned, seriesTotal, onSelect, onReorder }: {
             onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.15)";}}
             onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
             {s.bgImage
-              ? <img loading="lazy" decoding="async" src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
+              ? <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={coverOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} />
               : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,opacity:0.6,pointerEvents:"none"}}>{s.emoji}</div>
             }
             <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 50%,rgba(0,0,0,0) 100%)",pointerEvents:"none"}} />
@@ -8142,7 +8161,7 @@ function MainApp() {
                   return (
                     <div key={s.id} onClick={()=>toggleFavourite(s.id)}
                       style={{position:"relative",borderRadius:12,overflow:"hidden",cursor:"pointer",aspectRatio:"1",background:s.color+"33",border:isFav?`2px solid #f59e0b`:`1px solid ${s.color}44`,transition:"border 0.15s"}}>
-                      {s.bgImage ? <img loading="lazy" decoding="async" src={s.bgImage} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} /> :
+                      {s.bgImage ? <img loading="lazy" decoding="async" src={coverSrc(s.bgImage)} onError={coverOnError(s.bgImage)} alt={s.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} /> :
                         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,opacity:0.3}}>{s.emoji}</div>}
                       <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.8) 0%,rgba(0,0,0,0.1) 60%,rgba(0,0,0,0) 100%)"}} />
                       {isFav && <div style={{position:"absolute",top:6,right:6,fontSize:16,zIndex:2}}>⭐</div>}
