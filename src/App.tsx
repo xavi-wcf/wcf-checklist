@@ -7172,7 +7172,7 @@ function useHasNewCollectionActivity(userId?: string | null) {
     if (photoIds.length === 0) { setHasNew(false); return; }
 
     const [{ count: likeCount }, { count: commentCount }] = await Promise.all([
-      supabase.from("wcf_collection_likes").select("id", { count: "exact", head: true })
+      supabase.from("wcf_collection_likes").select("photo_id", { count: "exact", head: true })
         .in("photo_id", photoIds).gt("created_at", lastSeen).neq("user_id", userId),
       supabase.from("wcf_collection_comments").select("id", { count: "exact", head: true })
         .in("photo_id", photoIds).gt("created_at", lastSeen).neq("user_id", userId),
