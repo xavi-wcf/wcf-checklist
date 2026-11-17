@@ -33,7 +33,8 @@
     { "source": "/mobile-suit-gundam/oficial/:path*", "destination": "https://wcf-public.vercel.app/mobile-suit-gundam/oficial/:path*" },
     { "source": "/full-metal-alchemist/resina/:path*", "destination": "https://wcf-public.vercel.app/full-metal-alchemist/resina/:path*" },
     { "source": "/sitemap-index.xml", "destination": "https://wcf-public.vercel.app/sitemap-index.xml" },
-    { "source": "/sitemap-:num.xml", "destination": "https://wcf-public.vercel.app/sitemap-:num.xml" }
+    { "source": "/sitemap-:num.xml", "destination": "https://wcf-public.vercel.app/sitemap-:num.xml" },
+    { "source": "/catalog/:path*", "destination": "https://wcf-public.vercel.app/catalog/:path*" }
   ],
   "headers": [
     {
@@ -44,4 +45,5 @@
       ]
     }
   ]
+  
 }
